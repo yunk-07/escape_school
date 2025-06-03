@@ -717,7 +717,7 @@ class _BoardPageState extends State<BoardPage> {
 
               Positioned(
                 right: 30,
-                top: 100,
+                top: 50,
                 child: Opacity(
                   opacity: 0.7,
                   child: Container(
@@ -726,7 +726,7 @@ class _BoardPageState extends State<BoardPage> {
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(5),
                       border: Border.all(color: Colors.black, width: 1),
                       boxShadow: [
                         BoxShadow(
@@ -772,10 +772,8 @@ class _BoardPageState extends State<BoardPage> {
                 child: ElevatedButton(
                   onPressed: _explore,
                   child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 24),
-                      child:
-                      // Text('探索', style: TextStyle(fontSize: 18, color: Colors.white)),
-                      Icon(Icons.location_searching,color: Colors.white,)
+                      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+                      child:Image(image: AssetImage('images/get.png'),fit: BoxFit.cover,width: 30,height: 30,)
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white.withOpacity(0.85),
