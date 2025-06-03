@@ -83,7 +83,7 @@ class _FloatingTextBackgroundState extends State<FloatingTextBackground>
 
   void _generateFloatingTexts() {
     final random = Random();
-    const texts = ["逃", "离", "学", "校", "抓", "回", "来", "！"];
+    const texts = ["逃", "离", "学", "校", "抓", "回", "来", "跑"];
     for (int i = 0; i < 20; i++) {
       _floatingTexts.add(FloatingText(
         text: texts[random.nextInt(texts.length)],

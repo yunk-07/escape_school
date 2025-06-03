@@ -644,14 +644,16 @@ class _BoardPageState extends State<BoardPage> {
                             // 宝箱显示
                             if (isChest)
                               Positioned(
-                                bottom: 4,
-                                right: 4,
-                                child: GestureDetector(
-                                  onTap: () => _openChest(mapX, mapY),
-                                  child: Image.asset(
-                                    'images/map/chest.png',
-                                    width: 24,
-                                    height: 24,
+                                bottom: 0,
+                                left: 20,
+                                child: Center(
+                                  child: GestureDetector(
+                                    onTap: () => _openChest(mapX, mapY),
+                                    child: Image.asset(
+                                      'images/map/chest.png',
+                                      width: 30,
+                                      height: 30,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -735,10 +737,10 @@ class _BoardPageState extends State<BoardPage> {
                       ],
                     ),
                     child:
-                        Text(
-                          explorationResult,
-                          style: TextStyle(fontSize: 12, height: 1.4,fontFamily: 'MicC',color: Colors.red),
-                        ),
+                    Text(
+                      explorationResult,
+                      style: TextStyle(fontSize: 12, height: 1.4,fontFamily: 'MicC',color: Colors.red),
+                    ),
                   ),
                 ),
               ),
@@ -770,10 +772,10 @@ class _BoardPageState extends State<BoardPage> {
                 child: ElevatedButton(
                   onPressed: _explore,
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 24),
-                    child:
-                    // Text('探索', style: TextStyle(fontSize: 18, color: Colors.white)),
-                    Icon(Icons.location_searching,color: Colors.white,)
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+                      child:
+                      // Text('探索', style: TextStyle(fontSize: 18, color: Colors.white)),
+                      Icon(Icons.location_searching,color: Colors.white,)
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white.withOpacity(0.85),
@@ -792,8 +794,8 @@ class _BoardPageState extends State<BoardPage> {
                 child: ElevatedButton(
                   onPressed: () => setState(() => _showInventory = true),
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-                    child: Image(image: AssetImage('images/bag.png'),fit: BoxFit.cover,width: 20,height: 25,)
+                      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+                      child: Image(image: AssetImage('images/bag.png'),fit: BoxFit.cover,width: 20,height: 25,)
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white.withOpacity(0.85),

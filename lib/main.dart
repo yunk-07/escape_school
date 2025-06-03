@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'choose.dart';
+import 'eff02.dart';
 
 void main() {
   runApp(const MyApp());
@@ -85,6 +86,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 fit: BoxFit.fill,
               ),
             ),
+            child: FloatingTextBackground(child: Container(),),
           ),
           Center(
             child: Column(

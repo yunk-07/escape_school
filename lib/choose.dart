@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'data/manData.dart';
 import 'eff.dart';
+import 'eff02.dart';
 import 'game/board.dart';
 
 class ChooseCharacterPage extends StatefulWidget {
@@ -31,6 +32,9 @@ class _ChooseCharacterPageState extends State<ChooseCharacterPage> {
                     image: AssetImage('images/background_1.png'),
                     fit: BoxFit.cover,
                   ),
+                ),
+                child: FloatingTextBackground(
+                  child: Container(),
                 ),
               ),
             ),
