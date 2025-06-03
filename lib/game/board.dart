@@ -683,7 +683,7 @@ class _BoardPageState extends State<BoardPage> {
               ),
 
               Positioned(
-                top: 20,
+                top: 30,
                 left: 20,
                 child: Opacity(
                   opacity: 0.85,
@@ -717,7 +717,7 @@ class _BoardPageState extends State<BoardPage> {
 
               Positioned(
                 right: 30,
-                top: 50,
+                top: 30,
                 child: Opacity(
                   opacity: 0.7,
                   child: Container(
@@ -739,7 +739,7 @@ class _BoardPageState extends State<BoardPage> {
                     child:
                     Text(
                       explorationResult,
-                      style: TextStyle(fontSize: 12, height: 1.4,fontFamily: 'MicC',color: Colors.red),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500,height: 1.4,fontFamily: 'MicC',color: Colors.red),
                     ),
                   ),
                 ),
@@ -787,7 +787,7 @@ class _BoardPageState extends State<BoardPage> {
 
               // 背包按钮
               Positioned(
-                top: 50,
+                top: 40,
                 left: 240,
                 child: ElevatedButton(
                   onPressed: () => setState(() => _showInventory = true),
