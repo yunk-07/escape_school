@@ -38,6 +38,7 @@ dependencies:
   vector_math:
   path_provider:
   shared_preferences:
+  audioplayers:
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +68,7 @@ flutter:
      - images/man/
      - images/map/
      - images/items/
+     - music/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

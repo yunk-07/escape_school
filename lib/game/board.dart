@@ -6,6 +6,8 @@ import '../data/mapData.dart';
 import 'gameOver.dart';
 import 'package:escape_from_school/data/props.dart';
 import '../eff02.dart';
+import '../data/mapEff.dart'; // 地形效果数据
+import 'package:audioplayers/audioplayers.dart';
 
 class BoardPage extends StatefulWidget {
   final Map<String, dynamic> character;
@@ -17,30 +19,80 @@ class BoardPage extends StatefulWidget {
 }
 
 class _BoardPageState extends State<BoardPage> {
+  // 角色数据
   late Map<String, dynamic> character;
+
+  // 玩家位置
   int playerX = 10;
   int playerY = 10;
+
+  // 探索结果文本
   String explorationResult = "";
+
+  // 地图数据
   List<List<String>> map = MapData.testMap;
 
-  List<Point> chestPositions = [];
+  // 宝箱位置列表
+  List<Point<int>> chestPositions = [];
+
+  // 玩家背包
   List<Item> playerInventory = [];
 
-  // 添加背包状态
+  // 背包显示状态
   bool _showInventory = false;
 
-  final int horizontalTiles = 13; // 横向显示7格
-  final int verticalTiles = 6;   // 纵向显示7格
-  int viewRadiusX = 3; // 水平视野半径 (horizontalTiles ~/ 2)
-  int viewRadiusY = 3; // 垂直视野半径 (verticalTiles ~/ 2)
+  // 添加音频播放器变量
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isMusicPlaying = true;
 
-// 获取所有可行走的格子位置
-  List<Point> _getWalkablePositions() {
-    List<Point> walkable = [];
+  // 视野范围配置
+  final int horizontalTiles = 13; // 横向显示格子数
+  final int verticalTiles = 6;    // 纵向显示格子数
+  final int viewRadiusX = 3;      // 水平视野半径
+  final int viewRadiusY = 3;      // 垂直视野半径
+
+  // 地形图片映射
+  static const terrainImages = {
+    'wall': 'images/map/wall.png',
+    'grass': 'images/map/grass.png',
+    'woods': 'images/map/woods.png',
+    'water': 'images/map/water.png',
+    'path': 'images/map/path.png',
+    'building': 'images/map/building.png',
+  };
+
+  // 随机数生成器实例
+  final Random _rand = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _initBackgroundMusic(); // 初始化背景音乐
+    character = Map<String, dynamic>.from(widget.character);
+    _loadCharacterData().then((_) {
+      _setRandomSpawnPoint(); // 设置随机出生点
+      _initChests();         // 初始化宝箱
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose(); // 释放音频资源
+    super.dispose();
+  }
+
+  // 初始化背景音乐
+  Future<void> _initBackgroundMusic() async {
+    await _audioPlayer.setReleaseMode(ReleaseMode.loop); // 循环播放
+    await _audioPlayer.play(AssetSource('music/background.mp3'));
+  }
+
+  // 获取所有可行走的格子位置
+  List<Point<int>> _getWalkablePositions() {
+    final walkable = <Point<int>>[];
     for (int y = 0; y < map.length; y++) {
       for (int x = 0; x < map[y].length; x++) {
-        final terrain = map[y][x];
-        if (terrain != 'wall' && terrain != 'water') {
+        if (_isWalkable(x, y)) {
           walkable.add(Point(x, y));
         }
       }
@@ -48,60 +100,39 @@ class _BoardPageState extends State<BoardPage> {
     return walkable;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    character = Map<String, dynamic>.from(widget.character);
-    _loadCharacterData().then((_) {
-      // 加载数据后设置随机出生点
-      _setRandomSpawnPoint();
-      // 初始化宝箱
-      _initChests();
-    });
-  }
-
-  // 初始化宝箱
+  // 初始化宝箱位置
   void _initChests() {
-    final rand = Random();
     chestPositions.clear();
-
-    // 获取所有可行走位置并排除玩家位置
     final walkable = _getWalkablePositions()
         .where((p) => !(p.x == playerX && p.y == playerY))
         .toList();
 
-    // 随机选择10个位置
+    // 随机选择位置，最多100个宝箱
     for (int i = 0; i < min(100, walkable.length); i++) {
-      final index = rand.nextInt(walkable.length);
-      chestPositions.add(walkable.removeAt(index));
+      chestPositions.add(walkable.removeAt(_rand.nextInt(walkable.length)));
     }
   }
 
+  // 设置随机出生点
   void _setRandomSpawnPoint() {
-    final rand = Random();
-    int attempts = 0;
     const maxAttempts = 100;
+    final walkable = _getWalkablePositions();
 
-    while (attempts < maxAttempts) {
-      final x = rand.nextInt(map[0].length);
-      final y = rand.nextInt(map.length);
-
-      if (_isWalkable(x, y)) {
-        setState(() {
-          playerX = x;
-          playerY = y;
-        });
-        return;
-      }
-      attempts++;
+    if (walkable.isNotEmpty) {
+      final spawn = walkable[_rand.nextInt(walkable.length)];
+      setState(() {
+        playerX = spawn.x;
+        playerY = spawn.y;
+      });
+      return;
     }
 
-    // 如果随机尝试失败，使用备用方案
+    // 备用方案
     _setFallbackSpawnPoint();
   }
 
+  // 备用出生点设置
   void _setFallbackSpawnPoint() {
-    // 备用方案：找到第一个可行走的点
     for (int y = 0; y < map.length; y++) {
       for (int x = 0; x < map[y].length; x++) {
         if (_isWalkable(x, y)) {
@@ -114,32 +145,21 @@ class _BoardPageState extends State<BoardPage> {
       }
     }
 
-    // 实在找不到，使用默认值
+    // 默认出生点
     setState(() {
       playerX = 1;
       playerY = 1;
     });
   }
 
+  // 检查位置是否可行走
   bool _isWalkable(int x, int y) {
-    // 检查边界
     if (x < 0 || x >= map[0].length || y < 0 || y >= map.length) {
       return false;
     }
-
-    // 检查地形
     final terrain = map[y][x];
     return terrain != 'wall' && terrain != 'water';
   }
-
-  final terrainImages = {
-    'wall': 'images/map/wall.png',
-    'grass': 'images/map/grass.png',
-    'woods': 'images/map/woods.png',
-    'water': 'images/map/water.png',
-    'path': 'images/map/path.png',
-    'building': 'images/map/building.png',
-  };
 
   // 加载角色数据
   Future<void> _loadCharacterData() async {
@@ -152,20 +172,9 @@ class _BoardPageState extends State<BoardPage> {
     }
   }
 
-  // // 删除数据
-  // static Future<void> clearCharacterData() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.remove(_characterKey);
-  // }
-
-  // 保存角色数据
-  // Future<void> _saveCharacterData() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString('saved_character', jsonEncode(character));
-  // }
-  // 在_BoardPageState类中添加死亡检查方法
+  // 死亡检查
   void _checkDeath() {
-    bool isDead = character['hp'] <= 0 ||
+    final isDead = character['hp'] <= 0 ||
         character['food'] <= 0 ||
         character['san'] <= 0 ||
         character['gold'] <= -100;
@@ -191,25 +200,22 @@ class _BoardPageState extends State<BoardPage> {
     }
   }
 
-  // 获取当前可见的5x5区域
+  // 获取当前可见区域地图
   List<List<String>> get visibleMap {
-    List<List<String>> visible = [];
-
-    // Calculate the center position in the visible grid
-    int centerX = horizontalTiles ~/ 2;
-    int centerY = verticalTiles ~/ 2;
+    final visible = <List<String>>[];
+    final centerX = horizontalTiles ~/ 2;
+    final centerY = verticalTiles ~/ 2;
 
     for (int y = 0; y < verticalTiles; y++) {
-      List<String> row = [];
+      final row = <String>[];
       for (int x = 0; x < horizontalTiles; x++) {
-        // Calculate map coordinates relative to player position
         final mapX = playerX - centerX + x;
         final mapY = playerY - centerY + y;
 
         if (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length) {
           row.add(map[mapY][mapX]);
         } else {
-          row.add('grass'); // Out of bounds is considered wall
+          row.add('grass'); // 边界外显示草地
         }
       }
       visible.add(row);
@@ -217,6 +223,7 @@ class _BoardPageState extends State<BoardPage> {
     return visible;
   }
 
+  // 移动玩家
   void _movePlayer(int dx, int dy) {
     final newX = playerX + dx;
     final newY = playerY + dy;
@@ -228,145 +235,82 @@ class _BoardPageState extends State<BoardPage> {
         setState(() {
           playerX = newX;
           playerY = newY;
-          // 移动消耗食物
-          // character['food'] = (character['food'] - 1).clamp(0, 100);
-          _applyTerrainMovementEffect();
-          // _saveCharacterData();
+          _applyTerrainMovementEffect(); // 应用地形移动效果
         });
       }
     }
   }
 
-  final Map<String, Map<String, dynamic>> _terrainEffects = {
-    'grass': {
-      'explore': [
-        {'text': '在草丛中发现了一些草药！生命值+5', 'hp': 5},
-        {'text': '发现了一些野果！饱食度+3', 'food': 3},
-        {'text': '什么也没发现...', 'hp': 0},
-      ],
-      'move': {'food': -1, 'san': 0},
-    },
-    'path': {
-      'explore': [
-        {'text': '在路上捡到了金币！金币+10', 'gold': 10},
-        {'text': '遇到商人交易获得金币！金币+15', 'gold': 15},
-        {'text': '被路过的旅人帮助，精神值+5', 'san': 5},
-      ],
-      'move': {'food': -0.5, 'san': 0},
-    },
-    'woods': {
-      'explore': [
-        {'text': '在树林中采集了蘑菇！饱食度+5', 'food': 5},
-        {'text': '被野生动物惊吓，精神值-3', 'san': -3},
-        {'text': '发现了一个隐藏的宝箱！金币+20', 'gold': 20},
-      ],
-      'move': {'food': -2, 'san': -1},
-    },
-    'building': {
-      'explore': [
-        {'text': '在建筑内找到了补给！生命值+10，饱食度+5', 'hp': 10, 'food': 5},
-        {'text': '发现了一个宝箱！金币+30', 'gold': 30},
-        {'text': '在书架上发现了一本有趣的书，精神值+8', 'san': 8},
-      ],
-      'move': {'food': -1, 'san': 1},
-    },
-    'water': {
-      'explore': {'text': '在水中无法进行探索'},
-      'move': {'text': '无法进入水中'},
-    },
-    'wall': {
-      'explore': {'text': '墙壁无法探索'},
-      'move': {'text': '无法穿过墙壁'},
-    },
-  };
-
-  // 地形移动效果判定（60%几率触发）
+  // 应用地形移动效果
   void _applyTerrainMovementEffect() {
-    if (Random().nextDouble() > 0.6) return; // 40%几率不触发任何效果
+    if (_rand.nextDouble() > 0.6) return; // 40%几率不触发效果
 
     final currentTerrain = map[playerY][playerX];
-    final rand = Random();
 
     switch (currentTerrain) {
       case 'woods':
-      // 树林中60%几率消耗更多食物（1-3点）
-        if (rand.nextDouble() < 0.6) {
-          final cost = 1 + rand.nextInt(2); // 随机消耗1-3点
-
-          setState(() {
-            character['food'] = (character['food'] - cost).clamp(0, 100);
-
-          });
+      // 树林中60%几率消耗更多食物
+        if (_rand.nextDouble() < 0.6) {
+          final cost = 1 + _rand.nextInt(2);
+          character['food'] = (character['food'] - cost).clamp(0, 100);
         }
-        if(rand.nextDouble() <0.3){
-          final hcost = rand.nextInt(2);
-          setState(() {
-            character['hp'] = (character['hp'] - hcost).clamp(0,100);
-          });
+        if (_rand.nextDouble() < 0.3) {
+          final hcost = _rand.nextInt(2);
+          character['hp'] = (character['hp'] - hcost).clamp(0, 100);
         }
         break;
 
       case 'path':
-      // 道路上60%几率恢复少量饱食度（0-1点）
-        if (rand.nextDouble() < 0.5) {
-          setState(() {
-            character['food'] = (character['food'] - 1).clamp(0, 100);
-          });
+      // 道路上50%几率消耗食物
+        if (_rand.nextDouble() < 0.5) {
+          character['food'] = (character['food'] - 1).clamp(0, 100);
         }
-        if(rand.nextDouble() <0.3){
-          final gain = rand.nextInt(3); // 随机恢复0-1点
-          setState(() {
-            character['san'] = (character['san'] + gain).clamp(0, 100);
-          });
+        if (_rand.nextDouble() < 0.3) {
+          final gain = _rand.nextInt(3);
+          character['san'] = (character['san'] + gain).clamp(0, 100);
         }
         break;
 
       case 'building':
-      // 建筑内60%几率影响精神值（50%几率恢复或减少1-2点）
-        if (rand.nextDouble() < 0.6) {
-          final change = rand.nextBool()
-              ? 1 + rand.nextInt(2)  // 恢复1-2点
-              : -1 - rand.nextInt(2); // 减少1-2点
-          setState(() {
-            character['san'] = (character['san'] + change).clamp(0, 100);
-          });
+      // 建筑内60%几率影响精神值
+        if (_rand.nextDouble() < 0.6) {
+          final change = _rand.nextBool()
+              ? 1 + _rand.nextInt(2)
+              : -1 - _rand.nextInt(2);
+          character['san'] = (character['san'] + change).clamp(0, 100);
         }
-        if (rand.nextDouble() < 0.6) {
-          setState(() {
-            character['food'] = (character['food'] - 1).clamp(0, 100);
-          });
+        if (_rand.nextDouble() < 0.6) {
+          character['food'] = (character['food'] - 1).clamp(0, 100);
         }
         break;
 
       default:
-      // 其他地形60%几率正常消耗1点食物
-        if (rand.nextDouble() < 0.6) {
-          setState(() {
-            character['food'] = (character['food'] - 1).clamp(0, 100);
-          });
+      // 其他地形60%几率消耗食物
+        if (_rand.nextDouble() < 0.6) {
+          character['food'] = (character['food'] - 1).clamp(0, 100);
         }
     }
 
     _checkDeath();
   }
 
+  // 探索当前格子
   void _explore() {
-    final currentTerrain = map[playerY][playerX];
-    final effect = _terrainEffects[currentTerrain]?['explore'];
     character['food'] = (character['food'] - 2).clamp(0, 100);
+    final currentTerrain = map[playerY][playerX];
+    final effect = MapEff.terrainEffects[currentTerrain]?['explore'];
 
     if (effect is List) {
       // 随机选择探索结果
-      final resultData = effect[Random().nextInt(effect.length)];
-      _applyEffect(resultData);
+      _applyEffect(effect[_rand.nextInt(effect.length)]);
     } else if (effect is Map) {
-      // 固定结果（如水、墙）
       setState(() {
         explorationResult = effect['text'] ?? '无法探索';
       });
     }
   }
 
+  // 应用效果到角色
   void _applyEffect(Map<String, dynamic> effect) {
     setState(() {
       explorationResult = effect['text'] ?? '什么也没发现';
@@ -378,33 +322,25 @@ class _BoardPageState extends State<BoardPage> {
     });
   }
 
-  // 打开宝箱逻辑
+  // 打开宝箱
   void _openChest(int x, int y) {
-    // 检查玩家是否在宝箱相邻位置
     final distance = max((x - playerX).abs(), (y - playerY).abs());
     if (distance > 1) {
-      setState(() {
-        explorationResult = '距离太远，无法打开宝箱';
-      });
+      setState(() => explorationResult = '距离太远，无法打开宝箱');
       return;
     }
 
-    final rand = Random();
-    final item = allItems[rand.nextInt(allItems.length)];
+    final item = allItems[_rand.nextInt(allItems.length)];
 
     setState(() {
-      // 移除宝箱
       chestPositions.removeWhere((p) => p.x == x && p.y == y);
-      // 添加新宝箱
       _addRandomChest();
-      // 显示获得物品
       explorationResult = '获得: ${item.name}';
-      // 添加到背包
       playerInventory.add(item);
     });
   }
 
-// 随机添加一个新宝箱
+  // 随机添加新宝箱
   void _addRandomChest() {
     final walkable = _getWalkablePositions()
         .where((p) => !chestPositions.any((cp) => cp.x == p.x && cp.y == p.y))
@@ -412,10 +348,11 @@ class _BoardPageState extends State<BoardPage> {
         .toList();
 
     if (walkable.isNotEmpty) {
-      chestPositions.add(walkable[Random().nextInt(walkable.length)]);
+      chestPositions.add(walkable[_rand.nextInt(walkable.length)]);
     }
   }
 
+  // 显示物品详情对话框
   void _showItemDetail(Item item, int index) {
     showDialog(
       context: context,
@@ -425,7 +362,7 @@ class _BoardPageState extends State<BoardPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(item.image, width: 60, height: 60,fit: BoxFit.fill,),
+            Image.asset(item.image, width: 60, height: 60, fit: BoxFit.fill),
             SizedBox(height: 16),
             Text(item.description, style: TextStyle(color: Colors.white)),
           ],
@@ -450,6 +387,7 @@ class _BoardPageState extends State<BoardPage> {
     );
   }
 
+  // 使用物品
   void _useItem(Item item, int index) {
     setState(() {
       playerInventory.removeAt(index);
@@ -479,123 +417,7 @@ class _BoardPageState extends State<BoardPage> {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: ()async{
-        bool _shouldShake = false;
-        int _shakeCount = 0;
-        double _shakeIntensity = 0;
-        late AnimationController _shakeController;  // 需要在StatefulWidget中声明
-
-        final shouldPop = await showGeneralDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          barrierColor: Colors.transparent,
-          pageBuilder: (context, _, __) {
-            // 初始化动画控制器
-            _shakeController = AnimationController(
-              vsync: Navigator.of(context),
-              duration: const Duration(milliseconds: 50),
-            )..repeat();
-
-            return FloatingTextBackground(
-              child: StatefulBuilder(
-                builder: (context, setState) {
-                  return AnimatedBuilder(
-                    animation: _shakeController,
-                    builder: (context, child) {
-                      // 计算当前抖动偏移量
-                      final intensity = pow(_shakeCount, 1.5).toDouble();
-                      final offsetX = _shouldShake
-                          ? (Random().nextDouble() * 2 - 1) * intensity
-                          : 0.0;
-                      final offsetY = _shouldShake
-                          ? (Random().nextDouble() * 2 - 1) * intensity
-                          : 0.0;
-
-                      return Transform.translate(
-                        offset: Offset(offsetX, offsetY),
-                        child: AlertDialog(
-                          backgroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                            side: const BorderSide(color: Colors.red, width: 2.0),
-                          ),
-                          title: const Text(
-                            '退出可不算逃离学校',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontFamily: 'MicC',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          content: Text(
-                            _shakeCount == 0
-                                ? '就算你走了我们也会把你抓回来的'
-                                : '你这样是要吃处分的',
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontFamily: 'MicC',
-                              fontSize: 16,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          actionsAlignment: MainAxisAlignment.center,
-                          actions: [
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
-                              ),
-                              onPressed: () {
-                                _shakeController.dispose();
-                                Navigator.pop(context, false);
-                              },
-                              child: const Text(
-                                '取消',
-                                style: TextStyle(fontFamily: 'MicC'),
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _shakeCount++;
-                                  _shakeIntensity = 5 + _shakeCount * 5;
-                                  _shouldShake = true;
-                                });
-
-                                if (_shakeCount >= 3) {
-                                  Future.delayed(const Duration(milliseconds: 300), () {
-                                    _shakeController.dispose();
-                                    Navigator.pop(context, true);
-                                  });
-                                }
-                              },
-                              child: const Text(
-                                '确定',
-                                style: TextStyle(fontFamily: 'MicC'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            );
-          },
-        );
-
-// 确保控制器被释放
-        if (!(shouldPop ?? false)) {
-          _shakeController.dispose();
-        }
-        return shouldPop ?? false;
-      },
+      onWillPop: () async => _showExitConfirmation(context),
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(
@@ -606,302 +428,26 @@ class _BoardPageState extends State<BoardPage> {
           ),
           child: Stack(
             children: [
-              Positioned(
-                left: 0,
-                top: -10,
-                child: Container(
-                  width: 70 * horizontalTiles.toDouble(), // 每个格子70宽
-                  height: 70 * verticalTiles.toDouble(),   // 每个格子70高
-                  decoration: BoxDecoration(
-                    // border: Border.all(color: Colors.white, width: 2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: GridView.builder(
-                    physics: NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: horizontalTiles, // 使用配置的横向数量
-                    ),
-                    itemCount: horizontalTiles * verticalTiles,
-                    itemBuilder: (context, index) {
+              // 地图渲染
+              _buildMapView(),
 
-                      final x = index % horizontalTiles;
-                      final y = index ~/ horizontalTiles;
+              // 角色状态面板
+              _buildStatusPanel(),
 
-                      // Get the visible map coordinates
-                      final visibleRow = visibleMap[y];
-                      final terrain = visibleRow[x];
+              // 探索结果提示
+              _buildExplorationResult(),
 
-                      final centerX = horizontalTiles ~/ 2;
-                      final centerY = verticalTiles ~/ 2;
-                      final mapX = playerX - centerX + x;
-                      final mapY = playerY - centerY + y;
+              // 移动控制按钮
+              _buildMovementControls(),
 
-                      // 检查是否在地图范围内
-                      // final terrain = (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length)
-                      //     ? map[mapY][mapX]
-                      //     : 'grass';
-
-                      final isPlayerHere = x == centerX && y == centerY;
-                      final isChest =  chestPositions.any((p) => p.x == mapX && p.y == mapY);
-
-                      if (terrain == null) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black.withOpacity(0.2)),
-                          ),
-                        );
-                      }
-
-                      return Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.black.withOpacity(0.2)),
-                        ),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // 地形背景
-                            Image.asset(
-                              terrainImages[terrain]!,
-                              fit: BoxFit.fill,
-                            ),
-
-                            // 宝箱显示
-                            if (isChest)
-                              Positioned(
-                                bottom: 0,
-                                left: 20,
-                                child: Center(
-                                  child: GestureDetector(
-                                    onTap: () => _openChest(mapX, mapY),
-                                    child: Image.asset(
-                                      'images/map/chest.png',
-                                      width: 30,
-                                      height: 30,
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                            // 玩家显示
-                            if (isPlayerHere)
-                              Center(
-                                child: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    // border: Border.all(color: Colors.white, width: 2),
-                                  ),
-                                  child: Image.asset(
-                                    character['image'],
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              Positioned(
-                top: 30,
-                left: 20,
-                child: Opacity(
-                  opacity: 0.85,
-                  child: Container(
-                    width: 200,
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.black),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 6),
-                        _buildStatBar('生命值', character['hp'], Colors.red),
-                        _buildStatBar('饱食', character['food'], Colors.orange),
-                        _buildStatBar('精神', character['san'], Colors.blue),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildStatValue('att', character['att'], Colors.deepOrange),
-                            _buildStatValue('gold', character['gold'], Colors.amber),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              Positioned(
-                right: 30,
-                top: 30,
-                child: Opacity(
-                  opacity: 0.7,
-                  child: Container(
-                    width: 220,
-                    height: 100,
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: Colors.black, width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child:
-                    Text(
-                      explorationResult,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500,height: 1.4,fontFamily: 'MicC',color: Colors.red),
-                    ),
-                  ),
-                ),
-              ),
-
-              Positioned(
-                bottom: 30,
-                left: 30,
-                child: Column(
-                  children: [
-                    _buildMovementButton(Icons.arrow_upward, () => _movePlayer(0, -1)),
-                    SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildMovementButton(Icons.arrow_back, () => _movePlayer(-1, 0)),
-                        SizedBox(width: 66),
-                        _buildMovementButton(Icons.arrow_forward, () => _movePlayer(1, 0)),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    _buildMovementButton(Icons.arrow_downward, () => _movePlayer(0, 1)),
-                  ],
-                ),
-              ),
-
-              Positioned(
-                bottom: 50,
-                right: 80,
-                child: ElevatedButton(
-                  onPressed: _explore,
-                  child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-                      child:Image(image: AssetImage('images/get.png'),fit: BoxFit.cover,width: 30,height: 30,)
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.85),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 4,
-                  ),
-                ),
-              ),
+              // 探索按钮
+              _buildExploreButton(),
 
               // 背包按钮
-              Positioned(
-                top: 40,
-                left: 240,
-                child: ElevatedButton(
-                  onPressed: () => setState(() => _showInventory = true),
-                  child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-                      child: Image(image: AssetImage('images/bag.png'),fit: BoxFit.cover,width: 20,height: 25,)
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.85),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
+              _buildInventoryButton(),
 
               // 背包界面
-              if (_showInventory)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _showInventory = false),
-                    child: Container(
-                      color: Colors.black54,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: GestureDetector(
-                          onTap: () {}, // 阻止事件冒泡
-                          child: Container(
-                            width: MediaQuery.of(context).size.width / 3,
-                            height: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[900],
-                              border: Border.all(color: Colors.white),
-                            ),
-                            padding: EdgeInsets.all(16),
-                            child: Column(
-                              children: [
-                                Text('背包',
-                                    style: TextStyle(fontSize: 24, color: Colors.white)),
-                                Divider(color: Colors.white),
-                                Expanded(
-                                  child: GridView.builder(
-                                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 3,
-                                      crossAxisSpacing: 8,
-                                      mainAxisSpacing: 8,
-                                      childAspectRatio: 1,
-                                    ),
-                                    itemCount: playerInventory.length,
-                                    itemBuilder: (context, index) {
-                                      final item = playerInventory[index];
-                                      return GestureDetector(
-                                        onTap: () => _showItemDetail(item, index),
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[800],
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Image.asset(
-                                                item.image,
-                                                width: 40,
-                                                height: 40,
-                                                fit: BoxFit.fill,
-                                              ),
-                                              SizedBox(height: 4),
-                                              Text(
-                                                item.name,
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              if (_showInventory) _buildInventoryView(),
             ],
           ),
         ),
@@ -909,6 +455,429 @@ class _BoardPageState extends State<BoardPage> {
     );
   }
 
+  // 显示退出确认对话框
+  Future<bool> _showExitConfirmation(BuildContext context) async {
+    bool _shouldShake = false;
+    int _shakeCount = 0;
+    late AnimationController _shakeController;
+
+    final shouldPop = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.transparent,
+      pageBuilder: (context, _, __) {
+        _shakeController = AnimationController(
+          vsync: Navigator.of(context),
+          duration: const Duration(milliseconds: 50),
+        )..repeat();
+
+        return FloatingTextBackground(
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return AnimatedBuilder(
+                animation: _shakeController,
+                builder: (context, child) {
+                  final intensity = pow(_shakeCount, 1.5).toDouble();
+                  final offsetX = _shouldShake
+                      ? (_rand.nextDouble() * 2 - 1) * intensity
+                      : 0.0;
+                  final offsetY = _shouldShake
+                      ? (_rand.nextDouble() * 2 - 1) * intensity
+                      : 0.0;
+
+                  return Transform.translate(
+                    offset: Offset(offsetX, offsetY),
+                    child: AlertDialog(
+                      backgroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        side: const BorderSide(color: Colors.red, width: 2.0),
+                      ),
+                      title: const Text(
+                        '退出可不算逃离学校',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontFamily: 'MicC',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      content: Text(
+                        _shakeCount == 0
+                            ? '就算你走了我们也会把你抓回来的'
+                            : '你这样是要吃处分的',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontFamily: 'MicC',
+                          fontSize: 16,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      actionsAlignment: MainAxisAlignment.center,
+                      actions: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          onPressed: () {
+                            _shakeController.dispose();
+                            Navigator.pop(context, false);
+                          },
+                          child: const Text(
+                            '取消',
+                            style: TextStyle(fontFamily: 'MicC'),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _shakeCount++;
+                              _shouldShake = true;
+                            });
+
+                            if (_shakeCount >= 3) {
+                              Future.delayed(const Duration(milliseconds: 300), () {
+                                _shakeController.dispose();
+                                Navigator.pop(context, true);
+                              });
+                            }
+                          },
+                          child: const Text(
+                            '确定',
+                            style: TextStyle(fontFamily: 'MicC'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    return shouldPop ?? false;
+  }
+
+  // 构建地图视图
+  Widget _buildMapView() {
+    return Positioned(
+      left: 0,
+      top: -10,
+      child: Container(
+        width: 70 * horizontalTiles.toDouble(),
+        height: 70 * verticalTiles.toDouble(),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: GridView.builder(
+          physics: NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: horizontalTiles,
+          ),
+          itemCount: horizontalTiles * verticalTiles,
+          itemBuilder: (context, index) {
+            final x = index % horizontalTiles;
+            final y = index ~/ horizontalTiles;
+            final visibleRow = visibleMap[y];
+            final terrain = visibleRow[x];
+
+            final centerX = horizontalTiles ~/ 2;
+            final centerY = verticalTiles ~/ 2;
+            final mapX = playerX - centerX + x;
+            final mapY = playerY - centerY + y;
+
+            final isPlayerHere = x == centerX && y == centerY;
+            final isChest = chestPositions.any((p) => p.x == mapX && p.y == mapY);
+
+            return Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.black.withOpacity(0.2)),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 地形背景
+                  Image.asset(
+                    terrainImages[terrain]!,
+                    fit: BoxFit.fill,
+                  ),
+
+                  // 宝箱显示
+                  if (isChest)
+                    Positioned(
+                      bottom: 0,
+                      left: 20,
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () => _openChest(mapX, mapY),
+                          child: Image.asset(
+                            'images/map/chest.png',
+                            width: 30,
+                            height: 30,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // 玩家显示
+                  if (isPlayerHere)
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                        ),
+                        child: Image.asset(
+                          character['image'],
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // 构建状态面板
+  Widget _buildStatusPanel() {
+    return Positioned(
+      top: 30,
+      left: 20,
+      child: Opacity(
+        opacity: 0.85,
+        child: Container(
+          width: 200,
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.black),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 6),
+              _buildStatBar('生命值', character['hp'], Colors.red),
+              _buildStatBar('饱食', character['food'], Colors.orange),
+              _buildStatBar('精神', character['san'], Colors.blue),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildStatValue('att', character['att'], Colors.deepOrange),
+                  _buildStatValue('gold', character['gold'], Colors.amber),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 构建探索结果提示
+  Widget _buildExplorationResult() {
+    return Positioned(
+      right: 30,
+      top: 30,
+      child: Opacity(
+        opacity: 0.7,
+        child: Container(
+          width: 220,
+          height: 100,
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: Colors.black, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Text(
+            explorationResult,
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+                fontFamily: 'MicC',
+                color: Colors.red
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 构建移动控制按钮
+  Widget _buildMovementControls() {
+    return Positioned(
+      bottom: 30,
+      left: 30,
+      child: Column(
+        children: [
+          _buildMovementButton(Icons.arrow_upward, () => _movePlayer(0, -1)),
+          SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildMovementButton(Icons.arrow_back, () => _movePlayer(-1, 0)),
+              SizedBox(width: 66),
+              _buildMovementButton(Icons.arrow_forward, () => _movePlayer(1, 0)),
+            ],
+          ),
+          SizedBox(height: 8),
+          _buildMovementButton(Icons.arrow_downward, () => _movePlayer(0, 1)),
+        ],
+      ),
+    );
+  }
+
+  // 构建探索按钮
+  Widget _buildExploreButton() {
+    return Positioned(
+      bottom: 50,
+      right: 80,
+      child: ElevatedButton(
+        onPressed: _explore,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+          child: Image(
+            image: AssetImage('images/get.png'),
+            fit: BoxFit.cover,
+            width: 30,
+            height: 30,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white.withOpacity(0.85),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          elevation: 4,
+        ),
+      ),
+    );
+  }
+
+  // 构建背包按钮
+  Widget _buildInventoryButton() {
+    return Positioned(
+      top: 40,
+      left: 240,
+      child: ElevatedButton(
+        onPressed: () => setState(() => _showInventory = true),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+          child: Image(
+            image: AssetImage('images/bag.png'),
+            fit: BoxFit.cover,
+            width: 20,
+            height: 25,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white.withOpacity(0.85),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 构建背包界面
+  Widget _buildInventoryView() {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: () => setState(() => _showInventory = false),
+        child: Container(
+          color: Colors.black54,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: () {},
+              child: Container(
+                width: MediaQuery.of(context).size.width / 3,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  border: Border.all(color: Colors.white),
+                ),
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text('背包', style: TextStyle(fontSize: 24, color: Colors.white)),
+                    Divider(color: Colors.white),
+                    Expanded(
+                      child: GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                        ),
+                        itemCount: playerInventory.length,
+                        itemBuilder: (context, index) {
+                          final item = playerInventory[index];
+                          return GestureDetector(
+                            onTap: () => _showItemDetail(item, index),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[800],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    item.image,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.fill,
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    item.name,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 构建状态条
   Widget _buildStatBar(String label, int value, Color color) {
     final isMax = value >= 100;
     return Padding(
@@ -966,7 +935,7 @@ class _BoardPageState extends State<BoardPage> {
     );
   }
 
-  //  金币
+  // 构建状态数值显示
   Widget _buildStatValue(String path, int value, Color color) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 0),
@@ -978,7 +947,12 @@ class _BoardPageState extends State<BoardPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image(image: AssetImage('images/${path}.png'), fit: BoxFit.cover, width: 10, height: 10),
+          Image(
+              image: AssetImage('images/${path}.png'),
+              fit: BoxFit.cover,
+              width: 10,
+              height: 10
+          ),
           SizedBox(width: 3),
           Text('$value', style: TextStyle(color: Colors.white)),
         ],
@@ -986,7 +960,7 @@ class _BoardPageState extends State<BoardPage> {
     );
   }
 
-  // 移动按钮
+  // 构建移动按钮
   Widget _buildMovementButton(IconData icon, VoidCallback onPressed) {
     return Material(
       borderRadius: BorderRadius.circular(10),
