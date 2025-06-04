@@ -195,13 +195,21 @@ class _BoardPageState extends State<BoardPage> {
   List<List<String>> get visibleMap {
     List<List<String>> visible = [];
 
-    for (int y = playerY - viewRadiusY; y <= playerY + viewRadiusY; y++) {
+    // Calculate the center position in the visible grid
+    int centerX = horizontalTiles ~/ 2;
+    int centerY = verticalTiles ~/ 2;
+
+    for (int y = 0; y < verticalTiles; y++) {
       List<String> row = [];
-      for (int x = playerX - viewRadiusX; x <= playerX + viewRadiusX; x++) {
-        if (x >= 0 && x < map[0].length && y >= 0 && y < map.length) {
-          row.add(map[y][x]);
+      for (int x = 0; x < horizontalTiles; x++) {
+        // Calculate map coordinates relative to player position
+        final mapX = playerX - centerX + x;
+        final mapY = playerY - centerY + y;
+
+        if (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length) {
+          row.add(map[mapY][mapX]);
         } else {
-          row.add('wall');
+          row.add('grass'); // Out of bounds is considered wall
         }
       }
       visible.add(row);
@@ -615,18 +623,34 @@ class _BoardPageState extends State<BoardPage> {
                     ),
                     itemCount: horizontalTiles * verticalTiles,
                     itemBuilder: (context, index) {
+
                       final x = index % horizontalTiles;
                       final y = index ~/ horizontalTiles;
-                      final mapX = playerX - viewRadiusX + x;
-                      final mapY = playerY - viewRadiusY + y;
+
+                      // Get the visible map coordinates
+                      final visibleRow = visibleMap[y];
+                      final terrain = visibleRow[x];
+
+                      final centerX = horizontalTiles ~/ 2;
+                      final centerY = verticalTiles ~/ 2;
+                      final mapX = playerX - centerX + x;
+                      final mapY = playerY - centerY + y;
 
                       // 检查是否在地图范围内
-                      final terrain = (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length)
-                          ? map[mapY][mapX]
-                          : 'grass';
+                      // final terrain = (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length)
+                      //     ? map[mapY][mapX]
+                      //     : 'grass';
 
-                      final isPlayerHere = mapX == playerX && mapY == playerY;
-                      final isChest = chestPositions.any((p) => p.x == mapX && p.y == mapY);
+                      final isPlayerHere = x == centerX && y == centerY;
+                      final isChest =  chestPositions.any((p) => p.x == mapX && p.y == mapY);
+
+                      if (terrain == null) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.black.withOpacity(0.2)),
+                          ),
+                        );
+                      }
 
                       return Container(
                         decoration: BoxDecoration(
