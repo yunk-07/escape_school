@@ -41,6 +41,9 @@ class _BoardPageState extends State<BoardPage> {
   // 背包显示状态
   bool _showInventory = false;
 
+  // 添加角色朝向状态 (true=右, false=左)
+  bool _facingRight = true;
+
   // 视野范围配置
   final int horizontalTiles = 13; // 横向显示格子数
   final int verticalTiles = 6;    // 纵向显示格子数
@@ -208,6 +211,13 @@ class _BoardPageState extends State<BoardPage> {
 
   // 移动玩家
   void _movePlayer(int dx, int dy) {
+    // 仅处理左右移动 (dy=0)
+    if (dy == 0 && dx != 0) {
+      setState(() {
+        _facingRight = dx > 0; // 根据移动方向更新朝向
+      });
+    }
+
     final newX = playerX + dx;
     final newY = playerY + dy;
     _checkDeath();
@@ -218,7 +228,7 @@ class _BoardPageState extends State<BoardPage> {
         setState(() {
           playerX = newX;
           playerY = newY;
-          _applyTerrainMovementEffect(); // 应用地形移动效果
+          _applyTerrainMovementEffect();
         });
       }
     }
@@ -792,15 +802,20 @@ class _BoardPageState extends State<BoardPage> {
                   // 玩家显示
                   if (isPlayerHere)
                     Center(
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                        ),
-                        child: Image.asset(
-                          character['image'],
-                          fit: BoxFit.cover,
+                      child: Transform(
+                        transform: Matrix4.identity()
+                          ..scale(_facingRight ? 1.0 : -1.0, 1.0), // 水平翻转
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                          ),
+                          child: Image.asset(
+                            character['image'],
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                     ),
