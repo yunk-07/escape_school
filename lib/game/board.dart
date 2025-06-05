@@ -41,10 +41,6 @@ class _BoardPageState extends State<BoardPage> {
   // 背包显示状态
   bool _showInventory = false;
 
-  // 添加音频播放器变量
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isMusicPlaying = true;
-
   // 视野范围配置
   final int horizontalTiles = 13; // 横向显示格子数
   final int verticalTiles = 6;    // 纵向显示格子数
@@ -67,24 +63,11 @@ class _BoardPageState extends State<BoardPage> {
   @override
   void initState() {
     super.initState();
-    _initBackgroundMusic(); // 初始化背景音乐
     character = Map<String, dynamic>.from(widget.character);
     _loadCharacterData().then((_) {
       _setRandomSpawnPoint(); // 设置随机出生点
       _initChests();         // 初始化宝箱
     });
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose(); // 释放音频资源
-    super.dispose();
-  }
-
-  // 初始化背景音乐
-  Future<void> _initBackgroundMusic() async {
-    await _audioPlayer.setReleaseMode(ReleaseMode.loop); // 循环播放
-    await _audioPlayer.play(AssetSource('music/background.mp3'));
   }
 
   // 获取所有可行走的格子位置
@@ -353,12 +336,15 @@ class _BoardPageState extends State<BoardPage> {
   }
 
   // 显示物品详情对话框
-  void _showItemDetail(Item item, int index) {
+  void _showItemDetail(Item item, int indexInSortedList) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(item.name, style: TextStyle(color: Colors.white)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5)
+        ),
+        backgroundColor: Color(0xFF282828),
+        title: Text(item.name, style: TextStyle(color: Colors.white),textAlign: TextAlign.center,),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -370,14 +356,17 @@ class _BoardPageState extends State<BoardPage> {
         actions: [
           TextButton(
             onPressed: () {
-              _useItem(item, index);
+              _useItem(item, indexInSortedList);
               Navigator.pop(context);
             },
             child: Text('使用', style: TextStyle(color: Colors.green)),
           ),
           TextButton(
             onPressed: () {
-              setState(() => playerInventory.removeAt(index));
+              final actualIndex = playerInventory.indexWhere((invItem) => invItem == item);
+              if (actualIndex != -1) {
+                setState(() => playerInventory.removeAt(actualIndex));
+              }
               Navigator.pop(context);
             },
             child: Text('丢弃', style: TextStyle(color: Colors.red)),
@@ -388,9 +377,17 @@ class _BoardPageState extends State<BoardPage> {
   }
 
   // 使用物品
-  void _useItem(Item item, int index) {
+  void _useItem(Item item, int indexInSortedList) {
+    // 找到物品在原始列表中的实际索引
+    final actualIndex = playerInventory.indexWhere((invItem) => invItem == item);
+
+    if (actualIndex == -1) return; // 没找到物品
+
     setState(() {
-      playerInventory.removeAt(index);
+      // 从原始列表中移除物品
+      playerInventory.removeAt(actualIndex);
+
+      // 应用物品效果
       item.effects.forEach((key, value) {
         switch (key) {
           case 'hp':
@@ -410,6 +407,7 @@ class _BoardPageState extends State<BoardPage> {
             break;
         }
       });
+
       explorationResult = '使用了: ${item.name}';
     });
   }
@@ -566,6 +564,170 @@ class _BoardPageState extends State<BoardPage> {
     return shouldPop ?? false;
   }
 
+  // 在 _BoardPageState 类中修改 _buildInventoryView 方法
+  Widget _buildInventoryView() {
+    final sortedInventory = List<Item>.from(playerInventory)
+      ..sort((a, b) {
+        final typeComparison = (a.type ?? '').compareTo(b.type ?? '');
+        if (typeComparison != 0) return typeComparison;
+        return a.name.compareTo(b.name);
+      });
+
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: () => setState(() => _showInventory = false),
+        child: Container(
+          color: Colors.black54,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: () {},
+              child: Container(
+                width: MediaQuery.of(context).size.width / 3,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  border: Border.all(color: Colors.white),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    // 背包标题 - 添加立体效果
+                    Container(
+                      child: Text(
+                        '背 包',
+                        style: TextStyle(
+                          fontSize: 28,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.5),
+                              blurRadius: 5,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    // 物品网格 - 添加排序功能
+                    Expanded(
+                      child: GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1,
+                        ),
+                        itemCount: sortedInventory.length,
+                        // 按物品类型排序
+                        itemBuilder: (context, index) {
+                          final item = sortedInventory[index];
+                          return _buildInventoryItem(item, index);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// 新增方法：构建单个物品格子
+  Widget _buildInventoryItem(Item item, int indexInSortedList) {
+    return GestureDetector(
+      onTap: () => _showItemDetail(item, indexInSortedList),
+      child: MouseRegion(
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: Color(0xFF282828),
+            borderRadius: BorderRadius.circular(5),
+            boxShadow: [
+              BoxShadow(
+                color: _getItemBorderColor(item.type),
+                blurRadius: 6,
+                offset: Offset(1, 1),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 物品图标 - 添加悬浮放大效果
+              AnimatedContainer(
+                duration: Duration(milliseconds: 200),
+                transform: Matrix4.identity()..scale(1.0),
+                child: Image.asset(
+                  item.image,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.fill,
+                ),
+              ),
+              SizedBox(height: 8),
+              // 物品名称
+              Text(
+                item.name,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.8),
+                      blurRadius: 2,
+                      offset: Offset(1, 1),
+                    ),
+                  ],
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              // 物品数量（如果有）
+              if (item.count > 1)
+                Text(
+                  'x${item.count}',
+                  style: TextStyle(
+                    color: Colors.amber,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// 根据物品类型获取边框颜色
+  Color _getItemBorderColor(String type) {
+    switch (type) {
+      case 'weapon':
+        return Colors.red;
+      case 'food':
+        return Colors.green;
+      case 'potion':
+        return Colors.blue;
+      case 'material':
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
+  }
+
   // 构建地图视图
   Widget _buildMapView() {
     return Positioned(
@@ -699,7 +861,7 @@ class _BoardPageState extends State<BoardPage> {
           height: 100,
           padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.black,
             borderRadius: BorderRadius.circular(5),
             border: Border.all(color: Colors.black, width: 1),
             boxShadow: [
@@ -716,8 +878,8 @@ class _BoardPageState extends State<BoardPage> {
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
                 height: 1.4,
-                fontFamily: 'MicC',
-                color: Colors.red
+                // fontFamily: 'MicC',
+                color: Colors.white
             ),
           ),
         ),
@@ -796,81 +958,6 @@ class _BoardPageState extends State<BoardPage> {
           backgroundColor: Colors.white.withOpacity(0.85),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 构建背包界面
-  Widget _buildInventoryView() {
-    return Positioned.fill(
-      child: GestureDetector(
-        onTap: () => setState(() => _showInventory = false),
-        child: Container(
-          color: Colors.black54,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () {},
-              child: Container(
-                width: MediaQuery.of(context).size.width / 3,
-                height: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  border: Border.all(color: Colors.white),
-                ),
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Text('背包', style: TextStyle(fontSize: 24, color: Colors.white)),
-                    Divider(color: Colors.white),
-                    Expanded(
-                      child: GridView.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                          childAspectRatio: 1,
-                        ),
-                        itemCount: playerInventory.length,
-                        itemBuilder: (context, index) {
-                          final item = playerInventory[index];
-                          return GestureDetector(
-                            onTap: () => _showItemDetail(item, index),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Image.asset(
-                                    item.image,
-                                    width: 40,
-                                    height: 40,
-                                    fit: BoxFit.fill,
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    item.name,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         ),
       ),
