@@ -3,11 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/mapData.dart';
+import '../data/shop.dart';
 import 'gameOver.dart';
 import 'package:escape_from_school/data/props.dart';
 import '../eff02.dart';
 import '../data/mapEff.dart'; // 地形效果数据
-import 'package:audioplayers/audioplayers.dart';
 
 class BoardPage extends StatefulWidget {
   final Map<String, dynamic> character;
@@ -44,6 +44,10 @@ class _BoardPageState extends State<BoardPage> {
   // 添加角色朝向状态 (true=右, false=左)
   bool _facingRight = true;
 
+  Shop? schoolShop;
+  bool showShop = false; // 是否显示商店界面
+  Point? shopPosition; // 商店位置
+
   // 视野范围配置
   final int horizontalTiles = 13; // 横向显示格子数
   final int verticalTiles = 6;    // 纵向显示格子数
@@ -70,6 +74,124 @@ class _BoardPageState extends State<BoardPage> {
     _loadCharacterData().then((_) {
       _setRandomSpawnPoint(); // 设置随机出生点
       _initChests();         // 初始化宝箱
+      _initShop(); // 初始化商店
+    });
+  }
+
+  // 初始化商店位置（固定或随机）
+// 初始化商店
+  void _initShop() {
+    // 首选位置（地图右下角区域）
+    int preferredX = 4;
+    int preferredY = 4;
+
+    // 检查首选位置是否可行走
+    if (_isWalkable(preferredX, preferredY)) {
+      schoolShop = Shop(
+        position: Point(preferredX, preferredY),
+        items: _generateShopItems(),
+        lastPriceChange: DateTime.now(),
+      );
+      return;
+    }
+
+    // 如果首选位置不可行走，搜索附近位置
+    for (int radius = 1; radius < 10; radius++) {
+      for (int y = preferredY - radius; y <= preferredY + radius; y++) {
+        for (int x = preferredX - radius; x <= preferredX + radius; x++) {
+          if (x >= 0 && x < map[0].length &&
+              y >= 0 && y < map.length &&
+              _isWalkable(x, y)) {
+            schoolShop = Shop(
+              position: Point(x, y),
+              items: _generateShopItems(),
+              lastPriceChange: DateTime.now(),
+            );
+            return;
+          }
+        }
+      }
+    }
+
+    // 实在找不到就放在(1,1)位置
+    schoolShop = Shop(
+      position: Point(4, 4),
+      items: _generateShopItems(),
+      lastPriceChange: DateTime.now(),
+    );
+
+    print('商店初始化在位置: ${schoolShop?.position}'); // 调试输出
+  }
+
+  // 生成商店商品
+  List<ShopItem> _generateShopItems() {
+    // 筛选出所有可出售的物品
+    final availableItems = allItems.where((item) => item.availableInShop).toList();
+
+    // 如果没有可出售物品，使用备用方案
+    if (availableItems.isEmpty) {
+      return [
+        ShopItem(
+          item: Item(
+            id: 'default_item',
+            name: '默认物品',
+            description: '商店备用物品',
+            image: 'images/default.png',
+            effects: {},
+            type: 'misc',
+            availableInShop: true,
+            basePrice: 10,
+          ),
+          price: 10,
+          stock: 5,
+        )
+      ];
+    }
+
+    // 随机选择3-5个商品
+    final random = Random();
+    final itemCount = 3 + random.nextInt(3); // 3到5个商品
+    final shopItems = <ShopItem>[];
+
+    // 随机打乱列表并取前itemCount个
+    availableItems.shuffle(random);
+
+    for (var i = 0; i < min(itemCount, availableItems.length); i++) {
+      final item = availableItems[i];
+      shopItems.add(ShopItem(
+        item: item,
+        price: _calculatePrice(item.basePrice), // 价格浮动计算
+        stock: 1 + random.nextInt(4), // 1-4个库存
+      ));
+    }
+
+    return shopItems;
+  }
+
+// 价格浮动计算 (±20%)
+  int _calculatePrice(int basePrice) {
+    final random = Random();
+    final variation = (basePrice * 0.2).round();
+    return basePrice + random.nextInt(variation * 2) - variation;
+  }
+
+// 尝试打开商店
+  void _tryOpenShop(int x, int y) {
+    if (schoolShop == null) return;
+    // 检查是否是商店位置
+    if (schoolShop?.position.x != x || schoolShop?.position.y != y) return;
+
+    // 距离检查
+    final dx = (x - playerX).abs();
+    final dy = (y - playerY).abs();
+    if (dx > 1 || dy > 1) {
+      setState(() => explorationResult = '需要靠近商店才能交易');
+      return;
+    }
+
+    setState(() {
+      schoolShop?.fluctuatePrices();
+      showShop = true;
     });
   }
 
@@ -158,8 +280,20 @@ class _BoardPageState extends State<BoardPage> {
     }
   }
 
+  // 检查刷新
+  void checkShopRefresh() {
+    if (schoolShop != null && schoolShop!.shouldRefresh()) {
+      setState(() {
+        schoolShop!.refreshItems(allItems);
+      });
+    }
+  }
+
   // 死亡检查
   void _checkDeath() {
+
+    checkShopRefresh();
+
     final isDead = character['hp'] <= 0 ||
         character['food'] <= 0 ||
         character['san'] <= 0 ||
@@ -456,6 +590,8 @@ class _BoardPageState extends State<BoardPage> {
 
               // 背包界面
               if (_showInventory) _buildInventoryView(),
+
+              if(showShop && schoolShop != null) _buildShopPanel(),
             ],
           ),
         ),
@@ -769,6 +905,10 @@ class _BoardPageState extends State<BoardPage> {
             final isPlayerHere = x == centerX && y == centerY;
             final isChest = chestPositions.any((p) => p.x == mapX && p.y == mapY);
 
+            final isShop = schoolShop != null &&
+                mapX == schoolShop!.position.x &&
+                mapY == schoolShop!.position.y;
+
             return Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.black.withOpacity(0.2)),
@@ -799,12 +939,28 @@ class _BoardPageState extends State<BoardPage> {
                       ),
                     ),
 
+                  // 商店显示
+                  if (isShop)
+                    Positioned(
+                      bottom: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () => schoolShop != null ? _tryOpenShop(mapX, mapY) : null,
+                        child: Image.asset(
+                          'images/map/shop.png',
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain, // 修改为contain确保完整显示
+                        ),
+                      ),
+                    ),
+
                   // 玩家显示
                   if (isPlayerHere)
                     Center(
                       child: Transform(
                         transform: Matrix4.identity()
-                          ..scale(_facingRight ? 1.0 : -1.0, 1.0), // 水平翻转
+                          ..scale(_facingRight ? 1.0 : -1.0, 1.0),
                         alignment: Alignment.center,
                         child: Container(
                           width: 40,
@@ -826,6 +982,277 @@ class _BoardPageState extends State<BoardPage> {
         ),
       ),
     );
+  }
+
+  // 商店页面组件
+  Widget _buildShopPanel() {
+    if (schoolShop == null || !showShop) return SizedBox.shrink();
+
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: () => setState(() => showShop = false),
+        child: Container(
+          color: Colors.black54,
+          child: Center(
+            child: GestureDetector(
+              onTap: () {}, // 阻止事件冒泡
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.8,
+                height: MediaQuery.of(context).size.height * 0.7,
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Column(
+                  children: [
+                    // 顶部标题栏
+                    Stack(
+                      children: [
+                        // 居中标题
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                '学校小卖部',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  color: Colors.red,
+                                  fontFamily: 'MicC',
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (schoolShop != null)
+                                Text(
+                                  '下次刷新: ${_formatTimeRemaining(schoolShop!.lastRefreshTime.add(schoolShop!.refreshInterval))}',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // 右上角图片按钮
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton(
+                            onPressed: () => setState(() => showShop = false),
+                            icon: Image.asset(
+                              'images/close_icon.png', // 请替换为您的关闭图标路径
+                              width: 24,
+                              height: 24,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Expanded(
+                      child: GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 6,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 0.8,
+                        ),
+                        itemCount: _getTotalItemCount(),
+                        itemBuilder: (context, index) {
+                          final itemInfo = _getItemByIndex(index);
+                          final item = itemInfo['item'];
+                          final isMainItem = itemInfo['isMainItem'];
+
+                          return GestureDetector(
+                            onTap: () => _showPurchaseDialog(item),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[800],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isMainItem ? Colors.white : Colors.white.withOpacity(0.5),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Stack(
+                                children: [
+                                  // 价格只在主商品上显示
+                                  if (isMainItem) Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('${item.currentPrice}',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        SizedBox(width: 2),
+                                        Image.asset('images/gold.png', width: 12, height: 12),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // 图片显示 - 副本商品添加半透明效果
+                                  Center(
+                                    child: Opacity(
+                                      opacity: isMainItem ? 1.0 : 0.6,
+                                      child: Image.asset(
+                                        item.item.image,
+                                        width: 40,
+                                        height: 40,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // 名称只在主商品上显示
+                                  if (isMainItem) Positioned(
+                                    bottom: 8,
+                                    left: 0,
+                                    right: 0,
+                                    child: Text(
+                                      item.item.name,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTimeRemaining(DateTime refreshTime) {
+    final remaining = refreshTime.difference(DateTime.now());
+    if (remaining.isNegative) return '即将刷新';
+    return '${remaining.inMinutes}分${remaining.inSeconds.remainder(60)}秒';
+  }
+
+// 计算总商品数量（考虑库存）
+  int _getTotalItemCount() {
+    if (schoolShop == null) return 0;
+    return schoolShop!.items.fold(0, (sum, item) => sum + item.stock);
+  }
+
+// 根据索引获取对应的商品信息
+  Map<String, dynamic> _getItemByIndex(int index) {
+    int currentIndex = 0;
+    for (var item in schoolShop!.items) {
+      if (index < currentIndex + item.stock) {
+        return {
+          'item': item,
+          'isMainItem': (index == currentIndex), // 第一个是该商品的主显示
+        };
+      }
+      currentIndex += item.stock;
+    }
+    return {'item': schoolShop!.items.last, 'isMainItem': true};
+  }
+
+  // 购买确认对话框
+  void _showPurchaseDialog(ShopItem shopItem) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(5)
+        ),
+        backgroundColor: Color(0xFF282828),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,  // 对话框内容高度根据内容自动调整
+          crossAxisAlignment: CrossAxisAlignment.stretch,  // 横向拉伸填满可用空间
+          children: [
+            // 顶部行布局：左侧物品名称 + 右侧价格和金币图标
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,  // 左右两端对齐
+              children: [
+                // 左侧物品名称
+                Text(
+                    shopItem.item.name,
+                    style: TextStyle(fontSize: 18, color: Colors.white)
+                ),
+                // 右侧价格和金币图标
+                Row(
+                  children: [
+                    Text(
+                      '${shopItem.currentPrice}',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    SizedBox(width: 4),  // 价格和金币图标之间的间距
+                    Image.asset('images/gold.png', width: 16, height: 16),  // 金币图标
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: 16),  // 名称行和物品图片之间的间距
+            // 中间物品图片（居中显示）
+            Center(
+              child: Image.asset(shopItem.item.image, width: 60, height: 60),
+            ),
+          ],
+        ),
+        // 底部按钮区域
+        actions: [
+          // 取消按钮（左侧，使用Expanded平均分配空间）
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('取消'),
+            ),
+          ),
+          // 购买按钮（右侧，使用Expanded平均分配空间）
+          Expanded(
+            child: TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _buyItem(shopItem);
+              },
+              child: Text(
+                '购买',
+                style: TextStyle(
+                  // 根据金币是否足够和库存决定按钮颜色
+                  color: character['gold'] >= shopItem.currentPrice && shopItem.stock > 0
+                      ? Colors.green  // 可购买状态为绿色
+                      : Colors.grey,  // 不可购买状态为灰色
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// 购买商品
+  void _buyItem(ShopItem shopItem) {
+    if (character['gold'] < shopItem.currentPrice || shopItem.stock <= 0) return;
+
+    setState(() {
+      character['gold'] -= shopItem.currentPrice;
+      shopItem.stock--;
+      playerInventory.add(shopItem.item);
+      explorationResult = '购买了: ${shopItem.item.name}';
+    });
   }
 
   // 构建状态面板
