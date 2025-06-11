@@ -84,7 +84,7 @@ class _BoardPageState extends State<BoardPage> {
   void initState() {
     super.initState();
     character = Map<String, dynamic>.from(widget.character);
-    ghostManager = GhostManager(); // 初始化鬼管理器
+    ghostManager = GhostManager(map: map); // 初始化鬼管理器
     _loadCharacterData().then((_) {
       _setRandomSpawnPoint(); // 设置随机出生点
       _initChests(); // 初始化宝箱

@@ -14,6 +14,10 @@ abstract class Ghost {
   bool isInCooldown = false;
   bool isChasing = false;
   Point<int>? position;
+  // 新增逃跑相关属性
+  Point<int>? fleeDestination; // 逃跑目标位置
+  int fleeDistance; // 逃跑距离
+  bool isFleeing = false; // 是否正在逃跑
 
   Ghost({
     required this.name,
@@ -23,6 +27,7 @@ abstract class Ghost {
     required this.moveSpeed,
     required this.cooldownTime,
     required this.maxAttacks,
+    this.fleeDistance = 10, // 默认逃跑10格距离
   }) : remainingAttacks = maxAttacks;
 
   // 攻击玩家时的效果
@@ -138,8 +143,11 @@ class TricksterGhost extends Ghost {
 
 // 鬼管理器
 class GhostManager {
+  final List<List<String>> map; // 添加地图数据成员
   final List<Ghost> _ghosts = [];
   final Random _random = Random();
+
+  GhostManager({required this.map});
 
   List<Ghost> get ghosts => List.unmodifiable(_ghosts);
 
@@ -205,18 +213,43 @@ class GhostManager {
       List<List<String>> map,
       Function(Map<String, int>) onPlayerAttacked,
       ) {
-    if (ghost.position == null || ghost.isInCooldown) return;
+    if (ghost.position == null) return;
 
-    // 检查玩家是否在察觉范围内
-    final dx = (ghost.position!.x - playerPosition.x).abs();
-    final dy = (ghost.position!.y - playerPosition.y).abs();
-    final inRange = dx <= ghost.detectionRange && dy <= ghost.detectionRange;
+    if (ghost.isFleeing) {
+      // 逃跑状态下的移动逻辑
+      _moveGhostToFlee(ghost, map);
+    } else if (!ghost.isInCooldown) {
+      // 原有追逐逻辑
+      final inRange = _isPlayerInDetectionRange(ghost, playerPosition);
+      ghost.isChasing = inRange;
 
-    if (inRange) {
-      ghost.isChasing = true;
-      _moveGhostTowardsPlayer(ghost, playerPosition, map, onPlayerAttacked);
+      if (inRange) {
+        _moveGhostTowardsPlayer(ghost, playerPosition, map, onPlayerAttacked);
+      } else {
+        _moveGhostRandomly(ghost, map);
+      }
+    }
+  }
+
+  // 新增方法：鬼逃跑移动
+  void _moveGhostToFlee(Ghost ghost, List<List<String>> map) {
+    if (ghost.position == null || ghost.fleeDestination == null) return;
+
+    // 计算移动方向
+    int dx = 0;
+    int dy = 0;
+
+    if (ghost.position!.x < ghost.fleeDestination!.x) dx = 1;
+    else if (ghost.position!.x > ghost.fleeDestination!.x) dx = -1;
+
+    if (ghost.position!.y < ghost.fleeDestination!.y) dy = 1;
+    else if (ghost.position!.y > ghost.fleeDestination!.y) dy = -1;
+
+    // 尝试移动
+    if (dx != 0 || dy != 0) {
+      _tryMoveGhost(ghost, dx, dy, map, null, null);
     } else {
-      ghost.isChasing = false;
+      // 到达逃跑目的地，随机游荡
       _moveGhostRandomly(ghost, map);
     }
   }
@@ -304,11 +337,7 @@ class GhostManager {
   // 鬼攻击玩家
   void _ghostAttackPlayer(Ghost ghost, Function(Map<String, int>) onPlayerAttacked) {
     if (ghost.remainingAttacks <= 0) {
-      ghost.isInCooldown = true;
-      Future.delayed(Duration(seconds: ghost.cooldownTime), () {
-        ghost.isInCooldown = false;
-        ghost.resetAttacks();
-      });
+      _startGhostCooldown(ghost);
       return;
     }
 
@@ -317,11 +346,62 @@ class GhostManager {
     onPlayerAttacked(effects);
 
     if (ghost.remainingAttacks <= 0) {
-      ghost.isInCooldown = true;
-      Future.delayed(Duration(seconds: ghost.cooldownTime), () {
-        ghost.isInCooldown = false;
-        ghost.resetAttacks();
-      });
+      _startGhostCooldown(ghost);
     }
+  }
+
+  // 新增方法：开始鬼的冷却和逃跑
+  void _startGhostCooldown(Ghost ghost) {
+    ghost.isInCooldown = true;
+    ghost.isFleeing = true;
+    ghost.isChasing = false;
+
+    _setFleeDestination(ghost);
+
+    Future.delayed(Duration(seconds: ghost.cooldownTime), () {
+      ghost.isInCooldown = false;
+      ghost.isFleeing = false;
+      ghost.resetAttacks();
+    });
+  }
+
+  bool _isPlayerInDetectionRange(Ghost ghost, Point<int> playerPosition) {
+    if (ghost.position == null) return false;
+
+    final dx = (ghost.position!.x - playerPosition.x).abs();
+    final dy = (ghost.position!.y - playerPosition.y).abs();
+
+    return dx <= ghost.detectionRange && dy <= ghost.detectionRange;
+  }
+
+  // 新增方法：设置逃跑目标
+  void _setFleeDestination(Ghost ghost) {
+    if (ghost.position == null) return;
+
+    // 随机选择一个远离玩家的方向
+    final directions = [
+      Point(1, 1), Point(-1, 1), Point(1, -1), Point(-1, -1),
+      Point(1, 0), Point(-1, 0), Point(0, 1), Point(0, -1)
+    ]..shuffle(_random);
+
+    // 尝试每个方向直到找到可行的逃跑路径
+    for (final dir in directions) {
+      final targetX = ghost.position!.x + dir.x * ghost.fleeDistance;
+      final targetY = ghost.position!.y + dir.y * ghost.fleeDistance;
+
+      // 确保目标位置在地图范围内
+      if (targetX >= 0 && targetX < map[0].length &&
+          targetY >= 0 && targetY < map.length) {
+        ghost.fleeDestination = Point(targetX, targetY);
+        print('${ghost.name}开始逃跑至($targetX, $targetY)');
+        return;
+      }
+    }
+
+    // 如果没有找到合适的目标，随机选择一个附近位置
+    ghost.fleeDestination = Point(
+      ghost.position!.x + _random.nextInt(5) - 2,
+      ghost.position!.y + _random.nextInt(5) - 2,
+    );
   }
 }
