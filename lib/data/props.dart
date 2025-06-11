@@ -64,4 +64,14 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 8
   ),
+  Item(
+      id: 'book01',
+      name: '学生守则',
+      image: 'images/items/book.png',
+      description: '三百多页？不管了看一下吧说不定有好处',
+      effects: {'san':-25,'att': 2},
+      type: 'potion',
+      availableInShop: true,
+      basePrice: 0
+  ),
 ];
