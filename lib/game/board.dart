@@ -49,9 +49,13 @@ class _BoardPageState extends State<BoardPage> {
   bool showShop = false; // 是否显示商店界面
   Point? shopPosition; // 商店位置
 
-  // DateTime _lastRefreshCheck = DateTime.now();
-  // DateTime _lastShopCheck = DateTime.now();
   Timer? _shopRefreshTimer; // 添加定时器变量
+
+  // 移动冷却相关变量
+  late Timer _moveCooldownTimer;
+  bool _canMove = true;
+  double _moveCooldown = 1.0; // 基础冷却时间(秒)
+  double _currentCooldown = 0.0; // 当前剩余冷却时间
 
   // 视野范围配置
   final int horizontalTiles = 13; // 横向显示格子数
@@ -87,6 +91,7 @@ class _BoardPageState extends State<BoardPage> {
   @override
   void dispose() {
     _shopRefreshTimer?.cancel(); // 组件销毁时取消定时器
+    _moveCooldownTimer.cancel(); // 确保计时器被取消
     super.dispose();
   }
 
@@ -293,10 +298,15 @@ class _BoardPageState extends State<BoardPage> {
 
   // 移动玩家
   void _movePlayer(int dx, int dy) {
+    // 检查是否可以移动
+    if (!_canMove) {
+      return;
+    }
+
     // 仅处理左右移动 (dy=0)
     if (dy == 0 && dx != 0) {
       setState(() {
-        _facingRight = dx > 0; // 根据移动方向更新朝向
+        _facingRight = dx > 0;
       });
     }
 
@@ -311,9 +321,35 @@ class _BoardPageState extends State<BoardPage> {
           playerX = newX;
           playerY = newY;
           _applyTerrainMovementEffect();
+          _startMoveCooldown(); // 开始移动冷却
         });
       }
     }
+  }
+
+  // 计算冷却时间 - att越高冷却越短
+  double _calculateCooldown() {
+    // 基础冷却1秒，att每增加1点减少0.02秒，最低0.2秒
+    return max(0.2, _moveCooldown - (character['att'] * 0.02));
+  }
+
+  // 开始移动冷却
+  void _startMoveCooldown() {
+    setState(() {
+      _canMove = false;
+      _currentCooldown = _calculateCooldown();
+    });
+
+    _moveCooldownTimer = Timer.periodic(Duration(milliseconds: 100), (timer) {
+      setState(() {
+        _currentCooldown -= 0.1;
+        if (_currentCooldown <= 0) {
+          _currentCooldown = 0;
+          _canMove = true;
+          timer.cancel();
+        }
+      });
+    });
   }
 
   // 应用地形移动效果
