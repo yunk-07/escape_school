@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -48,6 +49,10 @@ class _BoardPageState extends State<BoardPage> {
   bool showShop = false; // 是否显示商店界面
   Point? shopPosition; // 商店位置
 
+  // DateTime _lastRefreshCheck = DateTime.now();
+  // DateTime _lastShopCheck = DateTime.now();
+  Timer? _shopRefreshTimer; // 添加定时器变量
+
   // 视野范围配置
   final int horizontalTiles = 13; // 横向显示格子数
   final int verticalTiles = 6;    // 纵向显示格子数
@@ -75,97 +80,51 @@ class _BoardPageState extends State<BoardPage> {
       _setRandomSpawnPoint(); // 设置随机出生点
       _initChests();         // 初始化宝箱
       _initShop(); // 初始化商店
+      _startShopRefreshTimer(); // 启动定时器
+    });
+  }
+
+  @override
+  void dispose() {
+    _shopRefreshTimer?.cancel(); // 组件销毁时取消定时器
+    super.dispose();
+  }
+
+  void _startShopRefreshTimer() {
+    // 取消现有定时器（如果有）
+    _shopRefreshTimer?.cancel();
+
+    // 设置随机刷新间隔（90秒±30秒）
+    final random = Random();
+    final seconds = 90 + random.nextInt(61) - 30; // 60-120秒之间
+    final duration = Duration(seconds: seconds);
+
+    print('商店将在${duration.inSeconds}秒后刷新');
+
+    _shopRefreshTimer = Timer(duration, () {
+      if (mounted) {
+        setState(() {
+          schoolShop?.refreshItems();
+        });
+        // 刷新后重新启动定时器
+        _startShopRefreshTimer();
+      }
     });
   }
 
   // 初始化商店位置（固定或随机）
 // 初始化商店
   void _initShop() {
-    // 首选位置（地图右下角区域）
-    int preferredX = 4;
-    int preferredY = 4;
 
-    // 检查首选位置是否可行走
-    if (_isWalkable(preferredX, preferredY)) {
-      schoolShop = Shop(
-        position: Point(preferredX, preferredY),
-        items: _generateShopItems(),
-        lastPriceChange: DateTime.now(),
-      );
-      return;
-    }
-
-    // 如果首选位置不可行走，搜索附近位置
-    for (int radius = 1; radius < 10; radius++) {
-      for (int y = preferredY - radius; y <= preferredY + radius; y++) {
-        for (int x = preferredX - radius; x <= preferredX + radius; x++) {
-          if (x >= 0 && x < map[0].length &&
-              y >= 0 && y < map.length &&
-              _isWalkable(x, y)) {
-            schoolShop = Shop(
-              position: Point(x, y),
-              items: _generateShopItems(),
-              lastPriceChange: DateTime.now(),
-            );
-            return;
-          }
-        }
-      }
-    }
-
-    // 实在找不到就放在(1,1)位置
+    // 在找到位置后同样初始化为空列表并立即刷新
     schoolShop = Shop(
-      position: Point(4, 4),
-      items: _generateShopItems(),
+      position: Point(4,4),
+      items: [],
       lastPriceChange: DateTime.now(),
     );
-
-    print('商店初始化在位置: ${schoolShop?.position}'); // 调试输出
-  }
-
-  // 生成商店商品
-  List<ShopItem> _generateShopItems() {
-    // 筛选出所有可出售的物品
-    final availableItems = allItems.where((item) => item.availableInShop).toList();
-
-    // 如果没有可出售物品，使用备用方案
-    if (availableItems.isEmpty) {
-      return [
-        ShopItem(
-          item: Item(
-            id: 'default_item',
-            name: '默认物品',
-            description: '商店备用物品',
-            image: 'images/default.png',
-            effects: {},
-            type: 'misc',
-            availableInShop: true,
-            basePrice: 10,
-          ),
-          price: 10,
-          stock: 5,
-        )
-      ];
-    }
-
-    // 随机选择3-5个商品
-    final random = Random();
-    final itemCount = 3 + random.nextInt(3); // 3到5个商品
-    final shopItems = <ShopItem>[];
-
-    // 随机打乱列表并取前itemCount个
-    availableItems.shuffle(random);
-
-    for (var i = 0; i < min(itemCount, availableItems.length); i++) {
-      final item = availableItems[i];
-      shopItems.add(ShopItem(
-        item: item,
-        price: _calculatePrice(item.basePrice), // 价格浮动计算
-        stock: 1 + random.nextInt(4), // 1-4个库存
-      ));
-    }
-
-    return shopItems;
+    setState(() {
+      schoolShop!.refreshItems();
+    });
   }
 
 // 价格浮动计算 (±20%)
@@ -280,19 +239,8 @@ class _BoardPageState extends State<BoardPage> {
     }
   }
 
-  // 检查刷新
-  void checkShopRefresh() {
-    if (schoolShop != null && schoolShop!.shouldRefresh()) {
-      setState(() {
-        schoolShop!.refreshItems(allItems);
-      });
-    }
-  }
-
   // 死亡检查
   void _checkDeath() {
-
-    checkShopRefresh();
 
     final isDead = character['hp'] <= 0 ||
         character['food'] <= 0 ||
@@ -500,13 +448,6 @@ class _BoardPageState extends State<BoardPage> {
         actions: [
           TextButton(
             onPressed: () {
-              _useItem(item, indexInSortedList);
-              Navigator.pop(context);
-            },
-            child: Text('使用', style: TextStyle(color: Colors.green)),
-          ),
-          TextButton(
-            onPressed: () {
               final actualIndex = playerInventory.indexWhere((invItem) => invItem == item);
               if (actualIndex != -1) {
                 setState(() => playerInventory.removeAt(actualIndex));
@@ -514,6 +455,14 @@ class _BoardPageState extends State<BoardPage> {
               Navigator.pop(context);
             },
             child: Text('丢弃', style: TextStyle(color: Colors.red)),
+          ),
+
+          TextButton(
+            onPressed: () {
+              _useItem(item, indexInSortedList);
+              Navigator.pop(context);
+            },
+            child: Text('使用', style: TextStyle(color: Colors.green)),
           ),
         ],
       ),
@@ -841,16 +790,6 @@ class _BoardPageState extends State<BoardPage> {
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
-              // 物品数量（如果有）
-              if (item.count > 1)
-                Text(
-                  'x${item.count}',
-                  style: TextStyle(
-                    color: Colors.amber,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
             ],
           ),
         ),
@@ -1022,30 +961,7 @@ class _BoardPageState extends State<BoardPage> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              if (schoolShop != null)
-                                Text(
-                                  '下次刷新: ${_formatTimeRemaining(schoolShop!.lastRefreshTime.add(schoolShop!.refreshInterval))}',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
                             ],
-                          ),
-                        ),
-                        // 右上角图片按钮
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: IconButton(
-                            onPressed: () => setState(() => showShop = false),
-                            icon: Image.asset(
-                              'images/close_icon.png', // 请替换为您的关闭图标路径
-                              width: 24,
-                              height: 24,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(),
                           ),
                         ),
                       ],
@@ -1213,31 +1129,38 @@ class _BoardPageState extends State<BoardPage> {
         ),
         // 底部按钮区域
         actions: [
-          // 取消按钮（左侧，使用Expanded平均分配空间）
-          Expanded(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('取消'),
-            ),
-          ),
-          // 购买按钮（右侧，使用Expanded平均分配空间）
-          Expanded(
-            child: TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _buyItem(shopItem);
-              },
-              child: Text(
-                '购买',
-                style: TextStyle(
-                  // 根据金币是否足够和库存决定按钮颜色
-                  color: character['gold'] >= shopItem.currentPrice && shopItem.stock > 0
-                      ? Colors.green  // 可购买状态为绿色
-                      : Colors.grey,  // 不可购买状态为灰色
+          Container(
+            width: double.infinity,
+            child: Row(
+              children: [
+                // 取消按钮（左侧，使用Expanded平均分配空间）
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('取消'),
+                  ),
                 ),
-              ),
+                // 购买按钮（右侧，使用Expanded平均分配空间）
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _buyItem(shopItem);
+                    },
+                    child: Text(
+                      '购买',
+                      style: TextStyle(
+                        // 根据金币是否足够和库存决定按钮颜色
+                        color: character['gold'] >= shopItem.currentPrice && shopItem.stock > 0
+                            ? Colors.green  // 可购买状态为绿色
+                            : Colors.grey,  // 不可购买状态为灰色
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
+          )
         ],
       ),
     );
@@ -1485,6 +1408,21 @@ class _BoardPageState extends State<BoardPage> {
           SizedBox(width: 3),
           Text('$value', style: TextStyle(color: Colors.white)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDebugButton() {
+    return Positioned(
+      bottom: 100,
+      right: 20,
+      child: ElevatedButton(
+        onPressed: () {
+          setState(() {
+            schoolShop?.refreshItems();
+          });
+        },
+        child: Text('手动刷新商店'),
       ),
     );
   }

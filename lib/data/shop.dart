@@ -1,5 +1,6 @@
 // data/shop.dart
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:escape_from_school/data/props.dart';
 
@@ -9,26 +10,73 @@ class Shop {
   DateTime lastPriceChange;
   DateTime lastRefreshTime; // 新增：最后刷新时间
   Duration refreshInterval; // 新增：刷新间隔
+  List<Item> shopItemsPool; // 商店专用物品池
+  final List<VoidCallback> _listeners = [];
 
   Shop({
     required this.position,
     required this.items,
     required this.lastPriceChange,
-    this.refreshInterval = const Duration(minutes: 30), // 默认30分钟刷新一次
-  }) : lastRefreshTime = DateTime.now();
-
-  // 检查是否需要刷新商品
-  bool shouldRefresh() {
-    return DateTime.now().difference(lastRefreshTime) >= refreshInterval;
+    Duration? refreshInterval,
+  }) : lastRefreshTime = DateTime.now(),
+        refreshInterval = refreshInterval ?? Duration(seconds: 90 + Random().nextInt(61) - 30),
+        shopItemsPool = allItems.where((item) => item.availableInShop).toList() {
+    // 确保初始刷新时间设置正确
+    if (items.isEmpty) {
+      refreshItems();
+    }
   }
 
-  // 刷新商店商品
-  void refreshItems(List<Item> allItems) {
+  // 创建商店专用物品池
+  static List<Item> _createShopItemsPool() {
+    return allItems.where((item) => item.availableInShop).toList();
+  }
+
+  void refreshItems() {
     final random = Random();
-    final itemCount = 3 + random.nextInt(3); // 3-5个商品
-    items = _generateShopItemsFromPool(allItems, itemCount);
+    // 设置下一次刷新时间（90秒±30秒随机浮动）
+    refreshInterval = Duration(seconds: 90 + random.nextInt(61) - 30);
+
+    // 1. 随机保留1个未售完商品（如果有）
+    List<ShopItem> remainingItems = [];
+    if (items.isNotEmpty) {
+      final inStockItems = items.where((item) => item.stock > 0).toList();
+      if (inStockItems.isNotEmpty) {
+        remainingItems = [inStockItems[random.nextInt(inStockItems.length)]];
+      }
+    }
+
+    // 2. 计算需要新增的数量 (确保总数3-5个)
+    final targetCount = 3 + random.nextInt(3);
+    final newItemCount = max(0, targetCount - remainingItems.length);
+
+    // 3. 从专用物品池生成新商品
+    final availableItems = List<Item>.from(shopItemsPool)
+      ..removeWhere((item) => remainingItems.any((i) => i.item.id == item.id))
+      ..shuffle(random);
+
+    final newItems = availableItems.take(newItemCount).map((item) => ShopItem(
+      item: item,
+      price: _calculatePrice(item.basePrice),
+      stock: 1 + random.nextInt(4),
+    )).toList();
+
+    // 4. 更新商品列表
+    items = [...remainingItems, ...newItems];
     lastRefreshTime = DateTime.now();
-    lastPriceChange = DateTime.now(); // 刷新后重置价格浮动时间
+    lastPriceChange = DateTime.now();
+
+    print('商店刷新完成 - 时间: ${DateTime.now()}, 商品数: ${items.length}');
+    notifyListeners();
+  }
+
+  // 添加监听机制
+  void addListener(VoidCallback listener) => _listeners.add(listener);
+  void removeListener(VoidCallback listener) => _listeners.remove(listener);
+  void notifyListeners() {
+    for (final listener in _listeners) {
+      listener();
+    }
   }
 
   // 从物品池生成商品
