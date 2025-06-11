@@ -8,7 +8,8 @@ import '../data/shop.dart';
 import 'gameOver.dart';
 import 'package:escape_from_school/data/props.dart';
 import '../eff02.dart';
-import '../data/mapEff.dart'; // 地形效果数据
+import '../data/mapEff.dart';
+import 'ghost.dart'; // 地形效果数据
 
 class BoardPage extends StatefulWidget {
   final Map<String, dynamic> character;
@@ -59,9 +60,12 @@ class _BoardPageState extends State<BoardPage> {
 
   // 视野范围配置
   final int horizontalTiles = 13; // 横向显示格子数
-  final int verticalTiles = 6;    // 纵向显示格子数
-  final int viewRadiusX = 3;      // 水平视野半径
-  final int viewRadiusY = 3;      // 垂直视野半径
+  final int verticalTiles = 6; // 纵向显示格子数
+  final int viewRadiusX = 3; // 水平视野半径
+  final int viewRadiusY = 3; // 垂直视野半径
+
+  // 添加鬼管理器
+  late GhostManager ghostManager;
 
   // 地形图片映射
   static const terrainImages = {
@@ -80,11 +84,14 @@ class _BoardPageState extends State<BoardPage> {
   void initState() {
     super.initState();
     character = Map<String, dynamic>.from(widget.character);
+    ghostManager = GhostManager(); // 初始化鬼管理器
     _loadCharacterData().then((_) {
       _setRandomSpawnPoint(); // 设置随机出生点
-      _initChests();         // 初始化宝箱
+      _initChests(); // 初始化宝箱
       _initShop(); // 初始化商店
       _startShopRefreshTimer(); // 启动定时器
+      _initGhost(); // 初始化鬼
+      _startGhostUpdateTimer(); // 启动鬼更新计时器
     });
   }
 
@@ -92,7 +99,57 @@ class _BoardPageState extends State<BoardPage> {
   void dispose() {
     _shopRefreshTimer?.cancel(); // 组件销毁时取消定时器
     _moveCooldownTimer.cancel(); // 确保计时器被取消
+    ghostManager.clearAllGhosts(); // 清理所有鬼
     super.dispose();
+  }
+
+  // 初始化鬼
+  void _initGhost() {
+    final walkable = _getWalkablePositions()
+        .where((p) => !(p.x == playerX && p.y == playerY))
+        .toList();
+
+    if (walkable.isNotEmpty) {
+      // 添加一个普通鬼，现在会传入地图数据
+      ghostManager.addRandomGhost(NormalGhost, walkable, Point(playerX, playerY));
+    } else {
+      print('没有可行走位置生成鬼');
+    }
+  }
+
+  // 启动鬼更新计时器
+  void _startGhostUpdateTimer() {
+    Timer.periodic(Duration(milliseconds: 500), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        ghostManager.updateAll(
+          Point(playerX, playerY),
+          map, // 传递地图数据
+          _applyGhostAttackEffects,
+        );
+      });
+    });
+  }
+
+
+  // 处理鬼攻击效果
+  void _applyGhostAttackEffects(Map<String, int> effects) {
+    setState(() {
+      effects.forEach((key, value) {
+        if (key == 'gold') {
+          character['gold'] += value; // 金币可以是负数
+        } else {
+          character[key] = (character[key] + value).clamp(0, 100);
+        }
+      });
+
+      explorationResult = '被鬼攻击了！';
+      _checkDeath();
+    });
   }
 
   void _startShopRefreshTimer() {
@@ -118,12 +175,11 @@ class _BoardPageState extends State<BoardPage> {
   }
 
   // 初始化商店位置（固定或随机）
-// 初始化商店
+  // 初始化商店
   void _initShop() {
-
     // 在找到位置后同样初始化为空列表并立即刷新
     schoolShop = Shop(
-      position: Point(4,4),
+      position: Point(4, 4),
       items: [],
       lastPriceChange: DateTime.now(),
     );
@@ -132,14 +188,14 @@ class _BoardPageState extends State<BoardPage> {
     });
   }
 
-// 价格浮动计算 (±20%)
+  // 价格浮动计算 (±20%)
   int _calculatePrice(int basePrice) {
     final random = Random();
     final variation = (basePrice * 0.2).round();
     return basePrice + random.nextInt(variation * 2) - variation;
   }
 
-// 尝试打开商店
+  // 尝试打开商店
   void _tryOpenShop(int x, int y) {
     if (schoolShop == null) return;
     // 检查是否是商店位置
@@ -175,9 +231,10 @@ class _BoardPageState extends State<BoardPage> {
   // 初始化宝箱位置
   void _initChests() {
     chestPositions.clear();
-    final walkable = _getWalkablePositions()
-        .where((p) => !(p.x == playerX && p.y == playerY))
-        .toList();
+    final walkable =
+        _getWalkablePositions()
+            .where((p) => !(p.x == playerX && p.y == playerY))
+            .toList();
 
     // 随机选择位置，最多100个宝箱
     for (int i = 0; i < min(100, walkable.length); i++) {
@@ -246,27 +303,32 @@ class _BoardPageState extends State<BoardPage> {
 
   // 死亡检查
   void _checkDeath() {
-
-    final isDead = character['hp'] <= 0 ||
+    final isDead =
+        character['hp'] <= 0 ||
         character['food'] <= 0 ||
         character['san'] <= 0 ||
         character['gold'] <= -100;
 
     if (isDead) {
       String deathReason = '';
-      if (character['hp'] <= 0) deathReason = '你在学校死了（要吃处分的）';
-      else if (character['food'] <= 0) deathReason = '你在学校饿死了（肯定是吃外卖吃死的）';
-      else if (character['san'] <= 0) deathReason = '你神智不清迷失了';
-      else if (character['gold'] <= -100) deathReason = '你负债累累';
+      if (character['hp'] <= 0)
+        deathReason = '你在学校死了（要吃处分的）';
+      else if (character['food'] <= 0)
+        deathReason = '你在学校饿死了（肯定是吃外卖吃死的）';
+      else if (character['san'] <= 0)
+        deathReason = '你神智不清迷失了';
+      else if (character['gold'] <= -100)
+        deathReason = '你负债累累';
 
       Future.delayed(Duration.zero, () {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => GameOverPage(
-              deathReason: deathReason,
-              characterImage: character['image'],
-            ),
+            builder:
+                (context) => GameOverPage(
+                  deathReason: deathReason,
+                  characterImage: character['image'],
+                ),
           ),
         );
       });
@@ -285,7 +347,10 @@ class _BoardPageState extends State<BoardPage> {
         final mapX = playerX - centerX + x;
         final mapY = playerY - centerY + y;
 
-        if (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length) {
+        if (mapX >= 0 &&
+            mapX < map[0].length &&
+            mapY >= 0 &&
+            mapY < map.length) {
           row.add(map[mapY][mapX]);
         } else {
           row.add('grass'); // 边界外显示草地
@@ -333,7 +398,6 @@ class _BoardPageState extends State<BoardPage> {
       return;
     }
 
-
     // 仅处理左右移动 (dy=0)
     if (dy == 0 && dx != 0) {
       setState(() {
@@ -358,11 +422,11 @@ class _BoardPageState extends State<BoardPage> {
     }
   }
 
-// 计算冷却时间 - 支持负值ATT
+  // 计算冷却时间 - 支持负值ATT
   double _calculateCooldown() {
     // 基础冷却1秒，att每增加1点减少0.02秒
     // att为负时，冷却时间增加，无上限限制
-    double cooldown = 1.0 - (character['att'] * 0.02);
+    double cooldown = 1.0 - (character['att'] * 0.05);
 
     // 最低不低于0.2秒，但允许无上限增加
     return cooldown.clamp(0.2, double.infinity);
@@ -400,7 +464,7 @@ class _BoardPageState extends State<BoardPage> {
 
     switch (currentTerrain) {
       case 'woods':
-      // 树林中60%几率消耗更多食物
+        // 树林中60%几率消耗更多食物
         if (_rand.nextDouble() < 0.6) {
           final cost = 1 + _rand.nextInt(2);
           character['food'] = (character['food'] - cost).clamp(0, 100);
@@ -412,7 +476,7 @@ class _BoardPageState extends State<BoardPage> {
         break;
 
       case 'path':
-      // 道路上50%几率消耗食物
+        // 道路上50%几率消耗食物
         if (_rand.nextDouble() < 0.5) {
           character['food'] = (character['food'] - 1).clamp(0, 100);
         }
@@ -423,11 +487,10 @@ class _BoardPageState extends State<BoardPage> {
         break;
 
       case 'building':
-      // 建筑内60%几率影响精神值
+        // 建筑内60%几率影响精神值
         if (_rand.nextDouble() < 0.6) {
-          final change = _rand.nextBool()
-              ? 1 + _rand.nextInt(2)
-              : -1 - _rand.nextInt(2);
+          final change =
+              _rand.nextBool() ? 1 + _rand.nextInt(2) : -1 - _rand.nextInt(2);
           character['san'] = (character['san'] + change).clamp(0, 100);
         }
         if (_rand.nextDouble() < 0.6) {
@@ -436,7 +499,7 @@ class _BoardPageState extends State<BoardPage> {
         break;
 
       default:
-      // 其他地形60%几率消耗食物
+        // 其他地形60%几率消耗食物
         if (_rand.nextDouble() < 0.6) {
           character['food'] = (character['food'] - 1).clamp(0, 100);
         }
@@ -466,9 +529,14 @@ class _BoardPageState extends State<BoardPage> {
     setState(() {
       explorationResult = effect['text'] ?? '什么也没发现';
       character['gold'] += effect['gold']?.toInt() ?? 0;
-      character['hp'] = (character['hp'] + (effect['hp']?.toInt() ?? 0)).clamp(0, 100);
-      character['san'] = (character['san'] + (effect['san']?.toInt() ?? 0)).clamp(0, 100);
-      character['food'] = (character['food'] + (effect['food']?.toInt() ?? 0)).clamp(0, 100);
+      character['hp'] = (character['hp'] + (effect['hp']?.toInt() ?? 0)).clamp(
+        0,
+        100,
+      );
+      character['san'] = (character['san'] + (effect['san']?.toInt() ?? 0))
+          .clamp(0, 100);
+      character['food'] = (character['food'] + (effect['food']?.toInt() ?? 0))
+          .clamp(0, 100);
       _checkDeath();
     });
   }
@@ -493,10 +561,13 @@ class _BoardPageState extends State<BoardPage> {
 
   // 随机添加新宝箱
   void _addRandomChest() {
-    final walkable = _getWalkablePositions()
-        .where((p) => !chestPositions.any((cp) => cp.x == p.x && cp.y == p.y))
-        .where((p) => !(p.x == playerX && p.y == playerY))
-        .toList();
+    final walkable =
+        _getWalkablePositions()
+            .where(
+              (p) => !chestPositions.any((cp) => cp.x == p.x && cp.y == p.y),
+            )
+            .where((p) => !(p.x == playerX && p.y == playerY))
+            .toList();
 
     if (walkable.isNotEmpty) {
       chestPositions.add(walkable[_rand.nextInt(walkable.length)]);
@@ -507,48 +578,62 @@ class _BoardPageState extends State<BoardPage> {
   void _showItemDetail(Item item, int indexInSortedList) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(5)
-        ),
-        backgroundColor: Color(0xFF282828),
-        title: Text(item.name, style: TextStyle(color: Colors.white),textAlign: TextAlign.center,),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(item.image, width: 60, height: 60, fit: BoxFit.fill),
-            SizedBox(height: 16),
-            Text(item.description, style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              final actualIndex = playerInventory.indexWhere((invItem) => invItem == item);
-              if (actualIndex != -1) {
-                setState(() => playerInventory.removeAt(actualIndex));
-              }
-              Navigator.pop(context);
-            },
-            child: Text('丢弃', style: TextStyle(color: Colors.red)),
-          ),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+            backgroundColor: Color(0xFF282828),
+            title: Text(
+              item.name,
+              style: TextStyle(color: Colors.white),
+              textAlign: TextAlign.center,
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  item.image,
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.fill,
+                ),
+                SizedBox(height: 16),
+                Text(item.description, style: TextStyle(color: Colors.white)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final actualIndex = playerInventory.indexWhere(
+                    (invItem) => invItem == item,
+                  );
+                  if (actualIndex != -1) {
+                    setState(() => playerInventory.removeAt(actualIndex));
+                  }
+                  Navigator.pop(context);
+                },
+                child: Text('丢弃', style: TextStyle(color: Colors.red)),
+              ),
 
-          TextButton(
-            onPressed: () {
-              _useItem(item, indexInSortedList);
-              Navigator.pop(context);
-            },
-            child: Text('使用', style: TextStyle(color: Colors.green)),
+              TextButton(
+                onPressed: () {
+                  _useItem(item, indexInSortedList);
+                  Navigator.pop(context);
+                },
+                child: Text('使用', style: TextStyle(color: Colors.green)),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   // 使用物品
   void _useItem(Item item, int indexInSortedList) {
     // 找到物品在原始列表中的实际索引
-    final actualIndex = playerInventory.indexWhere((invItem) => invItem == item);
+    final actualIndex = playerInventory.indexWhere(
+      (invItem) => invItem == item,
+    );
 
     if (actualIndex == -1) return; // 没找到物品
 
@@ -572,7 +657,7 @@ class _BoardPageState extends State<BoardPage> {
             character['san'] = (character['san'] + value).clamp(0, 100);
             break;
           case 'att':
-          // 移除clamp限制，允许ATT变为负值
+            // 移除clamp限制，允许ATT变为负值
             character['att'] = character['att'] + value;
             // 更新移动冷却时间
             if (!_canMove) {
@@ -621,7 +706,9 @@ class _BoardPageState extends State<BoardPage> {
               // 背包界面
               if (_showInventory) _buildInventoryView(),
 
-              if(showShop && schoolShop != null) _buildShopPanel(),
+              if (showShop && schoolShop != null) _buildShopPanel(),
+
+
             ],
           ),
         ),
@@ -652,12 +739,14 @@ class _BoardPageState extends State<BoardPage> {
                 animation: _shakeController,
                 builder: (context, child) {
                   final intensity = pow(_shakeCount, 1.5).toDouble();
-                  final offsetX = _shouldShake
-                      ? (_rand.nextDouble() * 2 - 1) * intensity
-                      : 0.0;
-                  final offsetY = _shouldShake
-                      ? (_rand.nextDouble() * 2 - 1) * intensity
-                      : 0.0;
+                  final offsetX =
+                      _shouldShake
+                          ? (_rand.nextDouble() * 2 - 1) * intensity
+                          : 0.0;
+                  final offsetY =
+                      _shouldShake
+                          ? (_rand.nextDouble() * 2 - 1) * intensity
+                          : 0.0;
 
                   return Transform.translate(
                     offset: Offset(offsetX, offsetY),
@@ -678,9 +767,7 @@ class _BoardPageState extends State<BoardPage> {
                         textAlign: TextAlign.center,
                       ),
                       content: Text(
-                        _shakeCount == 0
-                            ? '就算你走了我们也会把你抓回来的'
-                            : '你这样是要吃处分的',
+                        _shakeCount == 0 ? '就算你走了我们也会把你抓回来的' : '你这样是要吃处分的',
                         style: const TextStyle(
                           color: Colors.red,
                           fontFamily: 'MicC',
@@ -715,10 +802,13 @@ class _BoardPageState extends State<BoardPage> {
                             });
 
                             if (_shakeCount >= 3) {
-                              Future.delayed(const Duration(milliseconds: 300), () {
-                                _shakeController.dispose();
-                                Navigator.pop(context, true);
-                              });
+                              Future.delayed(
+                                const Duration(milliseconds: 300),
+                                () {
+                                  _shakeController.dispose();
+                                  Navigator.pop(context, true);
+                                },
+                              );
                             }
                           },
                           child: const Text(
@@ -742,12 +832,11 @@ class _BoardPageState extends State<BoardPage> {
 
   // 在 _BoardPageState 类中修改 _buildInventoryView 方法
   Widget _buildInventoryView() {
-    final sortedInventory = List<Item>.from(playerInventory)
-      ..sort((a, b) {
-        final typeComparison = (a.type ?? '').compareTo(b.type ?? '');
-        if (typeComparison != 0) return typeComparison;
-        return a.name.compareTo(b.name);
-      });
+    final sortedInventory = List<Item>.from(playerInventory)..sort((a, b) {
+      final typeComparison = (a.type ?? '').compareTo(b.type ?? '');
+      if (typeComparison != 0) return typeComparison;
+      return a.name.compareTo(b.name);
+    });
 
     return Positioned.fill(
       child: GestureDetector(
@@ -821,7 +910,7 @@ class _BoardPageState extends State<BoardPage> {
     );
   }
 
-// 新增方法：构建单个物品格子
+  // 新增方法：构建单个物品格子
   Widget _buildInventoryItem(Item item, int indexInSortedList) {
     return GestureDetector(
       onTap: () => _showItemDetail(item, indexInSortedList),
@@ -878,7 +967,7 @@ class _BoardPageState extends State<BoardPage> {
     );
   }
 
-// 根据物品类型获取边框颜色
+  // 根据物品类型获取边框颜色
   Color _getItemBorderColor(String type) {
     switch (type) {
       case 'weapon':
@@ -902,9 +991,7 @@ class _BoardPageState extends State<BoardPage> {
       child: Container(
         width: 70 * horizontalTiles.toDouble(),
         height: 70 * verticalTiles.toDouble(),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
         child: Stack(
           children: [
             GridView.builder(
@@ -925,9 +1012,12 @@ class _BoardPageState extends State<BoardPage> {
                 final mapY = playerY - centerY + y;
 
                 final isPlayerHere = x == centerX && y == centerY;
-                final isChest = chestPositions.any((p) => p.x == mapX && p.y == mapY);
+                final isChest = chestPositions.any(
+                  (p) => p.x == mapX && p.y == mapY,
+                );
 
-                final isShop = schoolShop != null &&
+                final isShop =
+                    schoolShop != null &&
                     mapX == schoolShop!.position.x &&
                     mapY == schoolShop!.position.y;
 
@@ -953,10 +1043,7 @@ class _BoardPageState extends State<BoardPage> {
                     fit: StackFit.expand,
                     children: [
                       // 地形背景
-                      Image.asset(
-                        terrainImages[terrain]!,
-                        fit: BoxFit.fill,
-                      ),
+                      Image.asset(terrainImages[terrain]!, fit: BoxFit.fill),
 
                       // 圆形暗边效果 - 使用径向渐变
                       // if (opacity < 1.0)
@@ -1000,7 +1087,11 @@ class _BoardPageState extends State<BoardPage> {
                           bottom: 4,
                           right: 4,
                           child: GestureDetector(
-                            onTap: () => schoolShop != null ? _tryOpenShop(mapX, mapY) : null,
+                            onTap:
+                                () =>
+                                    schoolShop != null
+                                        ? _tryOpenShop(mapX, mapY)
+                                        : null,
                             child: Image.asset(
                               'images/map/shop.png',
                               width: 40,
@@ -1014,15 +1105,14 @@ class _BoardPageState extends State<BoardPage> {
                       if (isPlayerHere)
                         Center(
                           child: Transform(
-                            transform: Matrix4.identity()
-                              ..scale(_facingRight ? 1.0 : -1.0, 1.0),
+                            transform:
+                                Matrix4.identity()
+                                  ..scale(_facingRight ? 1.0 : -1.0, 1.0),
                             alignment: Alignment.center,
                             child: Container(
                               width: 40,
                               height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                              ),
+                              decoration: BoxDecoration(shape: BoxShape.circle),
                               child: Image.asset(
                                 character['image'],
                                 fit: BoxFit.cover,
@@ -1030,6 +1120,36 @@ class _BoardPageState extends State<BoardPage> {
                             ),
                           ),
                         ),
+
+                      for (final ghost in ghostManager.ghosts)
+                        if (ghost.position != null &&
+                            mapX == ghost.position!.x &&
+                            mapY == ghost.position!.y)
+                          Positioned(
+                            top: 10,
+                            left: 20,
+                            child: Opacity(
+                              opacity: ghost.isInCooldown ? 0.5 : 1.0,
+                              child: ColorFiltered(
+                                colorFilter:
+                                ghost.isChasing
+                                    ? ColorFilter.mode(
+                                  Colors.red,
+                                  BlendMode.modulate,
+                                )
+                                    : ColorFilter.mode(
+                                  Colors.transparent,
+                                  BlendMode.multiply,
+                                ),
+                                child: Image.asset(
+                                  ghost.imagePath,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          ),
                     ],
                   ),
                 );
@@ -1042,10 +1162,7 @@ class _BoardPageState extends State<BoardPage> {
                   gradient: RadialGradient(
                     center: Alignment.center,
                     radius: 0.5,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.9),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
                     stops: [0.4, 1.0],
                   ),
                 ),
@@ -1122,30 +1239,40 @@ class _BoardPageState extends State<BoardPage> {
                                 color: Colors.grey[800],
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: isMainItem ? Colors.white : Colors.white.withOpacity(0.5),
+                                  color:
+                                      isMainItem
+                                          ? Colors.white
+                                          : Colors.white.withOpacity(0.5),
                                   width: 2,
                                 ),
                               ),
                               child: Stack(
                                 children: [
                                   // 价格只在主商品上显示
-                                  if (isMainItem) Positioned(
-                                    top: 4,
-                                    right: 4,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('${item.currentPrice}',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
+                                  if (isMainItem)
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${item.currentPrice}',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
                                           ),
-                                        ),
-                                        SizedBox(width: 2),
-                                        Image.asset('images/gold.png', width: 12, height: 12,fit: BoxFit.fill,),
-                                      ],
+                                          SizedBox(width: 2),
+                                          Image.asset(
+                                            'images/gold.png',
+                                            width: 12,
+                                            height: 12,
+                                            fit: BoxFit.fill,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
 
                                   // 图片显示 - 副本商品添加半透明效果
                                   Center(
@@ -1161,21 +1288,22 @@ class _BoardPageState extends State<BoardPage> {
                                   ),
 
                                   // 名称只在主商品上显示
-                                  if (isMainItem) Positioned(
-                                    bottom: 8,
-                                    left: 0,
-                                    right: 0,
-                                    child: Text(
-                                      item.item.name,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
+                                  if (isMainItem)
+                                    Positioned(
+                                      bottom: 8,
+                                      left: 0,
+                                      right: 0,
+                                      child: Text(
+                                        item.item.name,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -1199,13 +1327,13 @@ class _BoardPageState extends State<BoardPage> {
     return '${remaining.inMinutes}分${remaining.inSeconds.remainder(60)}秒';
   }
 
-// 计算总商品数量（考虑库存）
+  // 计算总商品数量（考虑库存）
   int _getTotalItemCount() {
     if (schoolShop == null) return 0;
     return schoolShop!.items.fold(0, (sum, item) => sum + item.stock);
   }
 
-// 根据索引获取对应的商品信息
+  // 根据索引获取对应的商品信息
   Map<String, dynamic> _getItemByIndex(int index) {
     int currentIndex = 0;
     for (var item in schoolShop!.items) {
@@ -1224,86 +1352,97 @@ class _BoardPageState extends State<BoardPage> {
   void _showPurchaseDialog(ShopItem shopItem) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(5)
-        ),
-        backgroundColor: Color(0xFF282828),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,  // 对话框内容高度根据内容自动调整
-          crossAxisAlignment: CrossAxisAlignment.stretch,  // 横向拉伸填满可用空间
-          children: [
-            // 顶部行布局：左侧物品名称 + 右侧价格和金币图标
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,  // 左右两端对齐
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+            backgroundColor: Color(0xFF282828),
+            content: Column(
+              mainAxisSize: MainAxisSize.min, // 对话框内容高度根据内容自动调整
+              crossAxisAlignment: CrossAxisAlignment.stretch, // 横向拉伸填满可用空间
               children: [
-                // 左侧物品名称
-                Text(
-                    shopItem.item.name,
-                    style: TextStyle(fontSize: 18, color: Colors.white)
-                ),
-                // 右侧价格和金币图标
+                // 顶部行布局：左侧物品名称 + 右侧价格和金币图标
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // 左右两端对齐
                   children: [
+                    // 左侧物品名称
                     Text(
-                      '${shopItem.currentPrice}',
-                      style: TextStyle(color: Colors.white),
+                      shopItem.item.name,
+                      style: TextStyle(fontSize: 18, color: Colors.white),
                     ),
-                    SizedBox(width: 4),  // 价格和金币图标之间的间距
-                    Image.asset('images/gold.png', width: 16, height: 16),  // 金币图标
+                    // 右侧价格和金币图标
+                    Row(
+                      children: [
+                        Text(
+                          '${shopItem.currentPrice}',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        SizedBox(width: 4),
+                        // 价格和金币图标之间的间距
+                        Image.asset('images/gold.png', width: 16, height: 16),
+                        // 金币图标
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-            SizedBox(height: 16),  // 名称行和物品图片之间的间距
-            // 中间物品图片（居中显示）
-            Center(
-              child: Image.asset(shopItem.item.image, width: 60, height: 60),
-            ),
-          ],
-        ),
-        // 底部按钮区域
-        actions: [
-          Container(
-            width: double.infinity,
-            child: Row(
-              children: [
-                // 取消按钮（左侧，使用Expanded平均分配空间）
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('取消'),
+                SizedBox(height: 16), // 名称行和物品图片之间的间距
+                // 中间物品图片（居中显示）
+                Center(
+                  child: Image.asset(
+                    shopItem.item.image,
+                    width: 60,
+                    height: 60,
                   ),
                 ),
-                // 购买按钮（右侧，使用Expanded平均分配空间）
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _buyItem(shopItem);
-                    },
-                    child: Text(
-                      '购买',
-                      style: TextStyle(
-                        // 根据金币是否足够和库存决定按钮颜色
-                        color: character['gold'] >= shopItem.currentPrice && shopItem.stock > 0
-                            ? Colors.green  // 可购买状态为绿色
-                            : Colors.grey,  // 不可购买状态为灰色
+              ],
+            ),
+            // 底部按钮区域
+            actions: [
+              Container(
+                width: double.infinity,
+                child: Row(
+                  children: [
+                    // 取消按钮（左侧，使用Expanded平均分配空间）
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('取消'),
                       ),
                     ),
-                  ),
+                    // 购买按钮（右侧，使用Expanded平均分配空间）
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _buyItem(shopItem);
+                        },
+                        child: Text(
+                          '购买',
+                          style: TextStyle(
+                            // 根据金币是否足够和库存决定按钮颜色
+                            color:
+                                character['gold'] >= shopItem.currentPrice &&
+                                        shopItem.stock > 0
+                                    ? Colors
+                                        .green // 可购买状态为绿色
+                                    : Colors.grey, // 不可购买状态为灰色
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          )
-        ],
-      ),
+              ),
+            ],
+          ),
     );
   }
 
-// 购买商品
+  // 购买商品
   void _buyItem(ShopItem shopItem) {
-    if (character['gold'] < shopItem.currentPrice || shopItem.stock <= 0) return;
+    if (character['gold'] < shopItem.currentPrice || shopItem.stock <= 0)
+      return;
 
     setState(() {
       character['gold'] -= shopItem.currentPrice;
@@ -1375,11 +1514,11 @@ class _BoardPageState extends State<BoardPage> {
           child: Text(
             explorationResult,
             style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-                // fontFamily: 'MicC',
-                color: Colors.white
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+              // fontFamily: 'MicC',
+              color: Colors.white,
             ),
           ),
         ),
@@ -1401,7 +1540,10 @@ class _BoardPageState extends State<BoardPage> {
             children: [
               _buildMovementButton(Icons.arrow_back, () => _movePlayer(-1, 0)),
               SizedBox(width: 66),
-              _buildMovementButton(Icons.arrow_forward, () => _movePlayer(1, 0)),
+              _buildMovementButton(
+                Icons.arrow_forward,
+                () => _movePlayer(1, 0),
+              ),
             ],
           ),
           SizedBox(height: 8),
@@ -1486,15 +1628,16 @@ class _BoardPageState extends State<BoardPage> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     color: color.withOpacity(0.7),
-                    boxShadow: isMax
-                        ? [
-                      BoxShadow(
-                        color: color,
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                        : null,
+                    boxShadow:
+                        isMax
+                            ? [
+                              BoxShadow(
+                                color: color,
+                                blurRadius: 6,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                            : null,
                   ),
                   child: Center(
                     child: Text(
@@ -1535,10 +1678,10 @@ class _BoardPageState extends State<BoardPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Image(
-              image: AssetImage('images/${path}.png'),
-              fit: BoxFit.cover,
-              width: 10,
-              height: 10
+            image: AssetImage('images/${path}.png'),
+            fit: BoxFit.cover,
+            width: 10,
+            height: 10,
           ),
           SizedBox(width: 3),
           Text('$value', style: TextStyle(color: Colors.white)),
@@ -1569,11 +1712,12 @@ class _BoardPageState extends State<BoardPage> {
 
     return Material(
       borderRadius: BorderRadius.circular(10),
-      color: isCoolingDown
-          ? Colors.grey.withOpacity(0.5)
-          : isImpaired
-          ? Colors.red.withOpacity(0.3)
-          : Colors.white.withOpacity(0.7),
+      color:
+          isCoolingDown
+              ? Colors.grey.withOpacity(0.5)
+              : isImpaired
+              ? Colors.red.withOpacity(0.3)
+              : Colors.white.withOpacity(0.7),
       elevation: isImpaired ? 0 : 2,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -1584,21 +1728,23 @@ class _BoardPageState extends State<BoardPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isImpaired
-                  ? Colors.red.withOpacity(0.5)
-                  : isCoolingDown
-                  ? Colors.grey.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.1),
+              color:
+                  isImpaired
+                      ? Colors.red.withOpacity(0.5)
+                      : isCoolingDown
+                      ? Colors.grey.withOpacity(0.3)
+                      : Colors.black.withOpacity(0.1),
             ),
           ),
           child: Icon(
-              icon,
-              size: 32,
-              color: isImpaired
-                  ? Colors.red.withOpacity(0.7)
-                  : isCoolingDown
-                  ? Colors.grey
-                  : Colors.white
+            icon,
+            size: 32,
+            color:
+                isImpaired
+                    ? Colors.red.withOpacity(0.7)
+                    : isCoolingDown
+                    ? Colors.grey
+                    : Colors.white,
           ),
         ),
       ),
