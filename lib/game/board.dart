@@ -824,100 +824,153 @@ class _BoardPageState extends State<BoardPage> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
         ),
-        child: GridView.builder(
-          physics: NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: horizontalTiles,
-          ),
-          itemCount: horizontalTiles * verticalTiles,
-          itemBuilder: (context, index) {
-            final x = index % horizontalTiles;
-            final y = index ~/ horizontalTiles;
-            final visibleRow = visibleMap[y];
-            final terrain = visibleRow[x];
-
-            final centerX = horizontalTiles ~/ 2;
-            final centerY = verticalTiles ~/ 2;
-            final mapX = playerX - centerX + x;
-            final mapY = playerY - centerY + y;
-
-            final isPlayerHere = x == centerX && y == centerY;
-            final isChest = chestPositions.any((p) => p.x == mapX && p.y == mapY);
-
-            final isShop = schoolShop != null &&
-                mapX == schoolShop!.position.x &&
-                mapY == schoolShop!.position.y;
-
-            return Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.black.withOpacity(0.2)),
+        child: Stack(
+          children: [
+            GridView.builder(
+              physics: NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: horizontalTiles,
               ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 地形背景
-                  Image.asset(
-                    terrainImages[terrain]!,
-                    fit: BoxFit.fill,
+              itemCount: horizontalTiles * verticalTiles,
+              itemBuilder: (context, index) {
+                final x = index % horizontalTiles;
+                final y = index ~/ horizontalTiles;
+                final visibleRow = visibleMap[y];
+                final terrain = visibleRow[x];
+
+                final centerX = horizontalTiles ~/ 2;
+                final centerY = verticalTiles ~/ 2;
+                final mapX = playerX - centerX + x;
+                final mapY = playerY - centerY + y;
+
+                final isPlayerHere = x == centerX && y == centerY;
+                final isChest = chestPositions.any((p) => p.x == mapX && p.y == mapY);
+
+                final isShop = schoolShop != null &&
+                    mapX == schoolShop!.position.x &&
+                    mapY == schoolShop!.position.y;
+
+                // 计算与玩家的欧几里得距离（圆形视野）
+                // final distance = sqrt(pow(x - centerX, 2) + pow(y - centerY, 2));
+                // final maxRadius = min(viewRadiusX, viewRadiusY).toDouble();
+                //
+                // // 计算透明度 - 使用平滑过渡
+                // double opacity;
+                // if (distance <= maxRadius - 1) {
+                // opacity = 1.0; // 完全可见区域
+                // } else if (distance <= maxRadius) {
+                // opacity = 0.7; // 边缘半透明
+                // } else {
+                // opacity = 0.3; // 视野外低透明度
+                // }
+
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.black.withOpacity(0.2)),
                   ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // 地形背景
+                      Image.asset(
+                        terrainImages[terrain]!,
+                        fit: BoxFit.fill,
+                      ),
 
-                  // 宝箱显示
-                  if (isChest)
-                    Positioned(
-                      bottom: 0,
-                      left: 20,
-                      child: Center(
-                        child: GestureDetector(
-                          onTap: () => _openChest(mapX, mapY),
-                          child: Image.asset(
-                            'images/map/chest.png',
-                            width: 30,
-                            height: 30,
+                      // 圆形暗边效果 - 使用径向渐变
+                      // if (opacity < 1.0)
+                      //   Container(
+                      //     decoration: BoxDecoration(
+                      //       gradient: RadialGradient(
+                      //         center: Alignment(0, 0),
+                      //         radius: 1.0,
+                      //         colors: [
+                      //           Colors.transparent,
+                      //           Colors.black.withOpacity(1.0 - opacity),
+                      //         ],
+                      //         stops: [
+                      //           0.7,
+                      //           1.0,
+                      //         ],
+                      //       ),
+                      //     ),
+                      //   ),
+
+                      // 宝箱显示
+                      if (isChest)
+                        Positioned(
+                          bottom: 0,
+                          left: 20,
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: () => _openChest(mapX, mapY),
+                              child: Image.asset(
+                                'images/map/chest.png',
+                                width: 30,
+                                height: 30,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
 
-                  // 商店显示
-                  if (isShop)
-                    Positioned(
-                      bottom: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: () => schoolShop != null ? _tryOpenShop(mapX, mapY) : null,
-                        child: Image.asset(
-                          'images/map/shop.png',
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.contain, // 修改为contain确保完整显示
-                        ),
-                      ),
-                    ),
-
-                  // 玩家显示
-                  if (isPlayerHere)
-                    Center(
-                      child: Transform(
-                        transform: Matrix4.identity()
-                          ..scale(_facingRight ? 1.0 : -1.0, 1.0),
-                        alignment: Alignment.center,
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                          ),
-                          child: Image.asset(
-                            character['image'],
-                            fit: BoxFit.cover,
+                      // 商店显示
+                      if (isShop)
+                        Positioned(
+                          bottom: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: () => schoolShop != null ? _tryOpenShop(mapX, mapY) : null,
+                            child: Image.asset(
+                              'images/map/shop.png',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.contain, // 修改为contain确保完整显示
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
+
+                      // 玩家显示
+                      if (isPlayerHere)
+                        Center(
+                          child: Transform(
+                            transform: Matrix4.identity()
+                              ..scale(_facingRight ? 1.0 : -1.0, 1.0),
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                              ),
+                              child: Image.asset(
+                                character['image'],
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            // 圆形暗边遮罩层
+            IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.5,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.9),
+                    ],
+                    stops: [0.4, 1.0],
+                  ),
+                ),
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
