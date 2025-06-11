@@ -303,6 +303,37 @@ class _BoardPageState extends State<BoardPage> {
       return;
     }
 
+    // 当ATT为负时，有几率无法移动
+    if (character['att'] < 0 && Random().nextDouble() < 0.2) {
+      setState(() {
+        explorationResult = "今天吃的东西肯定有问题。。。";
+        _startMoveCooldown(); // 仍然触发冷却
+      });
+      return;
+    }
+    if (character['att'] < -3 && Random().nextDouble() < 0.4) {
+      setState(() {
+        explorationResult = "我要倒下了。。。";
+        _startMoveCooldown(); // 仍然触发冷却
+      });
+      return;
+    }
+    if (character['att'] < -6 && Random().nextDouble() < 0.6) {
+      setState(() {
+        explorationResult = "救救我。。。";
+        _startMoveCooldown(); // 仍然触发冷却
+      });
+      return;
+    }
+    if (character['att'] < -9 && Random().nextDouble() < 0.8) {
+      setState(() {
+        explorationResult = "让我离开这个学校。。。";
+        _startMoveCooldown(); // 仍然触发冷却
+      });
+      return;
+    }
+
+
     // 仅处理左右移动 (dy=0)
     if (dy == 0 && dx != 0) {
       setState(() {
@@ -327,10 +358,14 @@ class _BoardPageState extends State<BoardPage> {
     }
   }
 
-  // 计算冷却时间 - att越高冷却越短
+// 计算冷却时间 - 支持负值ATT
   double _calculateCooldown() {
-    // 基础冷却1秒，att每增加1点减少0.02秒，最低0.2秒
-    return max(0.2, _moveCooldown - (character['att'] * 0.02));
+    // 基础冷却1秒，att每增加1点减少0.02秒
+    // att为负时，冷却时间增加，无上限限制
+    double cooldown = 1.0 - (character['att'] * 0.02);
+
+    // 最低不低于0.2秒，但允许无上限增加
+    return cooldown.clamp(0.2, double.infinity);
   }
 
   // 开始移动冷却
@@ -338,6 +373,11 @@ class _BoardPageState extends State<BoardPage> {
     setState(() {
       _canMove = false;
       _currentCooldown = _calculateCooldown();
+
+      // 当ATT为负时，有几率移动失败
+      if (character['att'] < 0 && Random().nextDouble() < 0.3) {
+        _currentCooldown *= 1.5; // 增加50%冷却时间
+      }
     });
 
     _moveCooldownTimer = Timer.periodic(Duration(milliseconds: 100), (timer) {
@@ -532,7 +572,12 @@ class _BoardPageState extends State<BoardPage> {
             character['san'] = (character['san'] + value).clamp(0, 100);
             break;
           case 'att':
-            character['att'] = (character['att'] + value).clamp(0, 100);
+          // 移除clamp限制，允许ATT变为负值
+            character['att'] = character['att'] + value;
+            // 更新移动冷却时间
+            if (!_canMove) {
+              _currentCooldown = _calculateCooldown();
+            }
             break;
         }
       });
@@ -1518,21 +1563,42 @@ class _BoardPageState extends State<BoardPage> {
 
   // 构建移动按钮
   Widget _buildMovementButton(IconData icon, VoidCallback onPressed) {
+    final isCoolingDown = !_canMove;
+    final isImpaired = character['att'] < 0;
+
     return Material(
       borderRadius: BorderRadius.circular(10),
-      color: Colors.white.withOpacity(0.7),
-      elevation: 2,
+      color: isCoolingDown
+          ? Colors.grey.withOpacity(0.5)
+          : isImpaired
+          ? Colors.red.withOpacity(0.3)
+          : Colors.white.withOpacity(0.7),
+      elevation: isImpaired ? 0 : 2,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: onPressed,
+        onTap: isCoolingDown ? null : onPressed,
         child: Container(
           width: 56,
           height: 56,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black.withOpacity(0.1)),
+            border: Border.all(
+              color: isImpaired
+                  ? Colors.red.withOpacity(0.5)
+                  : isCoolingDown
+                  ? Colors.grey.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.1),
+            ),
           ),
-          child: Icon(icon, size: 32, color: Colors.white),
+          child: Icon(
+              icon,
+              size: 32,
+              color: isImpaired
+                  ? Colors.red.withOpacity(0.7)
+                  : isCoolingDown
+                  ? Colors.grey
+                  : Colors.white
+          ),
         ),
       ),
     );
