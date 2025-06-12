@@ -198,11 +198,11 @@ class GhostManager {
   // 更新所有鬼的状态
   void updateAll(
       Point<int> playerPosition,
-      List<List<String>> map,
       Function(Map<String, int>) onPlayerAttacked,
+      Function()? onGhostDetect,
       ) {
     for (final ghost in _ghosts) {
-      _updateGhost(ghost, playerPosition, map, onPlayerAttacked);
+      _updateGhost(ghost, playerPosition, onPlayerAttacked, onGhostDetect);
     }
   }
 
@@ -210,25 +210,29 @@ class GhostManager {
   void _updateGhost(
       Ghost ghost,
       Point<int> playerPosition,
-      List<List<String>> map,
       Function(Map<String, int>) onPlayerAttacked,
+      Function()? onGhostDetect,
       ) {
     if (ghost.position == null) return;
 
-    if (ghost.isFleeing) {
-      // 逃跑状态下的移动逻辑
-      _moveGhostToFlee(ghost, map);
-    } else if (!ghost.isInCooldown) {
-      // 原有追逐逻辑
-      final inRange = _isPlayerInDetectionRange(ghost, playerPosition);
-      ghost.isChasing = inRange;
+    final wasChasing = ghost.isChasing;
+    final inRange = _isPlayerInDetectionRange(ghost, playerPosition);
+    ghost.isChasing = inRange;
 
+    if (!wasChasing && inRange && onGhostDetect != null) {
+      onGhostDetect();
+    }
+
+    if (ghost.isFleeing) {
+      _moveGhostToFlee(ghost,map);
+    } else if (!ghost.isInCooldown) {
       if (inRange) {
-        _moveGhostTowardsPlayer(ghost, playerPosition, map, onPlayerAttacked);
+        _moveGhostTowardsPlayer(ghost, playerPosition,map, onPlayerAttacked);
       } else {
-        _moveGhostRandomly(ghost, map);
+        _moveGhostRandomly(ghost,map);
       }
     }
+
   }
 
   // 新增方法：鬼逃跑移动

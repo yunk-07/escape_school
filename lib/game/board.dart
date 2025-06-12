@@ -10,6 +10,8 @@ import 'package:escape_from_school/data/props.dart';
 import '../eff02.dart';
 import '../data/mapEff.dart';
 import 'ghost.dart'; // 地形效果数据
+import 'music.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class BoardPage extends StatefulWidget {
   final Map<String, dynamic> character;
@@ -23,6 +25,8 @@ class BoardPage extends StatefulWidget {
 class _BoardPageState extends State<BoardPage> {
   // 角色数据
   late Map<String, dynamic> character;
+  // 音乐
+  final MusicManager _musicManager = MusicManager();
 
   // 玩家位置
   int playerX = 10;
@@ -67,6 +71,9 @@ class _BoardPageState extends State<BoardPage> {
   // 添加鬼管理器
   late GhostManager ghostManager;
 
+  bool _showGhostAttackEffect = false;
+  Timer? _ghostAttackTimer;
+
   // 地形图片映射
   static const terrainImages = {
     'wall': 'images/map/wall.png',
@@ -92,6 +99,7 @@ class _BoardPageState extends State<BoardPage> {
       _startShopRefreshTimer(); // 启动定时器
       _initGhost(); // 初始化鬼
       _startGhostUpdateTimer(); // 启动鬼更新计时器
+      _initializeMusic();
     });
   }
 
@@ -100,6 +108,7 @@ class _BoardPageState extends State<BoardPage> {
     _shopRefreshTimer?.cancel(); // 组件销毁时取消定时器
     _moveCooldownTimer.cancel(); // 确保计时器被取消
     ghostManager.clearAllGhosts(); // 清理所有鬼
+    _ghostAttackTimer?.cancel();
     super.dispose();
   }
 
@@ -128,16 +137,40 @@ class _BoardPageState extends State<BoardPage> {
       setState(() {
         ghostManager.updateAll(
           Point(playerX, playerY),
-          map, // 传递地图数据
-          _applyGhostAttackEffects,
+          _applyGhostAttackEffects, // 攻击回调
+          _onGhostDetectPlayer,    // 检测回调
         );
       });
     });
   }
+  Future<void> _initializeMusic() async {
+    await _musicManager.initialize();
+    _musicManager.playBgm(MusicManager.bgmGameStart);
+  }
 
+  // 在鬼察觉到玩家时调用
+  void _onGhostDetectPlayer() {
+    _musicManager.playBgm(MusicManager.bgmGhostDetect);
+  }
 
-  // 处理鬼攻击效果
+  // 在鬼攻击玩家时调用
   void _applyGhostAttackEffects(Map<String, int> effects) {
+    _musicManager.playSfx(MusicManager.sfxGhostAttack);
+    // 显示GUI效果
+    setState(() {
+      _showGhostAttackEffect = true;
+    });
+
+    // 1秒后隐藏效果
+    _ghostAttackTimer?.cancel();
+    _ghostAttackTimer = Timer(Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() {
+          _showGhostAttackEffect = false;
+        });
+      }
+    });
+
     setState(() {
       effects.forEach((key, value) {
         if (key == 'gold') {
@@ -150,6 +183,16 @@ class _BoardPageState extends State<BoardPage> {
       explorationResult = '被鬼攻击了！';
       _checkDeath();
     });
+  }
+
+  // 在按钮点击时调用
+  void _onButtonClick() {
+    _musicManager.playSfx(MusicManager.sfxButtonClick);
+  }
+
+  // 在购买商品时调用
+  void _onPurchase() {
+    _musicManager.playSfx(MusicManager.sfxPurchase);
   }
 
   void _startShopRefreshTimer() {
@@ -708,6 +751,18 @@ class _BoardPageState extends State<BoardPage> {
 
               if (showShop && schoolShop != null) _buildShopPanel(),
 
+              // 鬼攻击效果层
+              if (_showGhostAttackEffect)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('images/gui.png'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
 
             ],
           ),
@@ -1449,6 +1504,7 @@ class _BoardPageState extends State<BoardPage> {
       shopItem.stock--;
       playerInventory.add(shopItem.item);
       explorationResult = '购买了: ${shopItem.item.name}';
+      _musicManager.playSfx(MusicManager.sfxPurchase); // 购买音效
     });
   }
 
