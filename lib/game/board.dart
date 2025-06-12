@@ -13,6 +13,8 @@ import 'ghost.dart'; // 地形效果数据
 import 'music.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import 'vision.dart';
+
 class BoardPage extends StatefulWidget {
   final Map<String, dynamic> character;
 
@@ -74,6 +76,9 @@ class _BoardPageState extends State<BoardPage> {
   bool _showGhostAttackEffect = false;
   Timer? _ghostAttackTimer;
 
+  late VisionSystem visionSystem;
+  Set<Point<int>> visibleTiles = {};
+
   // 地形图片映射
   static const terrainImages = {
     'wall': 'images/map/wall.png',
@@ -100,6 +105,7 @@ class _BoardPageState extends State<BoardPage> {
       _initGhost(); // 初始化鬼
       _startGhostUpdateTimer(); // 启动鬼更新计时器
       _initializeMusic();
+      visionSystem = VisionSystem(map: map);
     });
   }
 
@@ -124,6 +130,13 @@ class _BoardPageState extends State<BoardPage> {
     } else {
       print('没有可行走位置生成鬼');
     }
+  }
+
+  // 更新视野
+  void _updateVision() {
+    setState(() {
+      visibleTiles = visionSystem.getVisibleTiles(Point(playerX, playerY));
+    });
   }
 
   // 启动鬼更新计时器
@@ -463,6 +476,7 @@ class _BoardPageState extends State<BoardPage> {
         });
       }
     }
+    _updateVision();
   }
 
   // 计算冷却时间 - 支持负值ATT
@@ -1063,8 +1077,8 @@ class _BoardPageState extends State<BoardPage> {
 
                 final centerX = horizontalTiles ~/ 2;
                 final centerY = verticalTiles ~/ 2;
-                final mapX = playerX - centerX + x;
-                final mapY = playerY - centerY + y;
+                final mapX = playerX - horizontalTiles ~/ 2 + x;
+                final mapY = playerY - verticalTiles ~/ 2 + y;
 
                 final isPlayerHere = x == centerX && y == centerY;
                 final isChest = chestPositions.any(
@@ -1076,19 +1090,22 @@ class _BoardPageState extends State<BoardPage> {
                     mapX == schoolShop!.position.x &&
                     mapY == schoolShop!.position.y;
 
-                // 计算与玩家的欧几里得距离（圆形视野）
-                // final distance = sqrt(pow(x - centerX, 2) + pow(y - centerY, 2));
-                // final maxRadius = min(viewRadiusX, viewRadiusY).toDouble();
-                //
-                // // 计算透明度 - 使用平滑过渡
-                // double opacity;
-                // if (distance <= maxRadius - 1) {
-                // opacity = 1.0; // 完全可见区域
-                // } else if (distance <= maxRadius) {
-                // opacity = 0.7; // 边缘半透明
-                // } else {
-                // opacity = 0.3; // 视野外低透明度
-                // }
+                // 检查是否在地图范围内
+                if (mapX < 0 || mapX >= map[0].length ||
+                    mapY < 0 || mapY >= map.length) {
+                  return Container(color: Colors.black);
+                }
+
+                // 玩家位置和墙体总是可见
+                final isWall = map[mapY][mapX] == 'wall';
+                final isPlayerPos = mapX == playerX && mapY == playerY;
+                final isVisible = visibleTiles.contains(Point(mapX, mapY)) ||
+                    isWall ||
+                    isPlayerPos;
+
+                if (!isVisible && !isPlayerPos) {
+                  return Container(color: Colors.black); // 不可见区域显示黑色
+                }
 
                 return Container(
                   decoration: BoxDecoration(
@@ -1099,25 +1116,6 @@ class _BoardPageState extends State<BoardPage> {
                     children: [
                       // 地形背景
                       Image.asset(terrainImages[terrain]!, fit: BoxFit.fill),
-
-                      // 圆形暗边效果 - 使用径向渐变
-                      // if (opacity < 1.0)
-                      //   Container(
-                      //     decoration: BoxDecoration(
-                      //       gradient: RadialGradient(
-                      //         center: Alignment(0, 0),
-                      //         radius: 1.0,
-                      //         colors: [
-                      //           Colors.transparent,
-                      //           Colors.black.withOpacity(1.0 - opacity),
-                      //         ],
-                      //         stops: [
-                      //           0.7,
-                      //           1.0,
-                      //         ],
-                      //       ),
-                      //     ),
-                      //   ),
 
                       // 宝箱显示
                       if (isChest)

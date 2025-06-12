@@ -50,7 +50,7 @@ class NormalGhost extends Ghost {
     imagePath: 'images/gui.png',
     color: Colors.grey,
     detectionRange: 8,
-    moveSpeed: 1.5,
+    moveSpeed: 1.0,
     cooldownTime: 60,
     maxAttacks: 1,
   ) {
@@ -59,7 +59,7 @@ class NormalGhost extends Ghost {
 
   @override
   Map<String, int> attackEffects() {
-    return {'hp': -5};
+    return {'hp': -50};
   }
 
   @override
@@ -178,7 +178,7 @@ class GhostManager {
     if (availablePositions.isEmpty) return;
 
     final position = availablePositions[_random.nextInt(availablePositions.length)];
-
+    print('${position}');
     Ghost newGhost;
     if (ghostType == NormalGhost) {
       newGhost = NormalGhost(position: position);
