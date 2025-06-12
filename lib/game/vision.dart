@@ -38,6 +38,48 @@ class VisionSystem {
     return true;
   }
 
+  // 新增方法：获取相连的墙体组
+  Set<Point<int>> _getConnectedWalls(Point<int> start, int radius) {
+    Set<Point<int>> walls = {};
+    Set<Point<int>> visited = {};
+    List<Point<int>> queue = [start];
+
+    while (queue.isNotEmpty) {
+      Point<int> current = queue.removeLast();
+      if (visited.contains(current)) continue;
+      visited.add(current);
+
+      // 边界检查 - 确保坐标在地图范围内
+      if (current.x < 0 || current.x >= map[0].length ||
+          current.y < 0 || current.y >= map.length) {
+        continue;
+      }
+
+      // 检查是否在视野半径内
+      final distance = sqrt(pow(current.x - start.x, 2) + pow(current.y - start.y, 2));
+      if (distance > radius) continue;
+
+      // 检查是否是墙体
+      if (map[current.y][current.x] == 'wall') {
+        walls.add(current);
+        // 检查四个方向的相邻格子（带边界检查）
+        final neighbors = [
+          Point(current.x + 1, current.y),
+          Point(current.x - 1, current.y),
+          Point(current.x, current.y + 1),
+          Point(current.x, current.y - 1),
+        ];
+
+        // 过滤掉越界的邻居
+        queue.addAll(neighbors.where((p) =>
+        p.x >= 0 && p.x < map[0].length &&
+            p.y >= 0 && p.y < map.length
+        ));
+      }
+    }
+    return walls;
+  }
+
   // Bresenham直线算法
   List<Point<int>> _getLine(Point<int> from, Point<int> to) {
     List<Point<int>> points = [];
@@ -68,27 +110,49 @@ class VisionSystem {
 
   // 获取可见的格子
   Set<Point<int>> getVisibleTiles(Point<int> playerPos) {
+    // 首先检查玩家位置是否有效
+    if (playerPos.x < 0 || playerPos.x >= map[0].length ||
+        playerPos.y < 0 || playerPos.y >= map.length) {
+      return {};
+    }
+
     Set<Point<int>> visible = {};
     final terrain = map[playerPos.y][playerPos.x];
     final radius = (baseViewRadius * _getTerrainVisionModifier(terrain)).round();
 
-    // 首先添加所有在视野范围内的墙体
+    // 步骤1：收集所有在视野范围内的墙体（带边界检查）
+    Set<Point<int>> potentialWalls = {};
     for (int y = -radius; y <= radius; y++) {
       for (int x = -radius; x <= radius; x++) {
         final tileX = playerPos.x + x;
         final tileY = playerPos.y + y;
 
+        // 边界检查
         if (tileX < 0 || tileX >= map[0].length ||
             tileY < 0 || tileY >= map.length) continue;
 
         if (map[tileY][tileX] == 'wall' &&
             x * x + y * y <= radius * radius) {
-          visible.add(Point(tileX, tileY));
+          potentialWalls.add(Point(tileX, tileY));
         }
       }
     }
 
-    // 然后添加可见的非墙体格子
+    // 步骤2：找出所有相连的墙体组
+    Set<Point<int>> allConnectedWalls = {};
+    for (Point<int> wall in potentialWalls) {
+      if (!allConnectedWalls.contains(wall)) {
+        Set<Point<int>> connectedWalls = _getConnectedWalls(wall, radius);
+        // 只要组内至少有一个墙体在LOS内，就显示整个组
+        bool shouldShow = connectedWalls.any((w) => _hasLineOfSight(playerPos, w));
+        if (shouldShow) {
+          allConnectedWalls.addAll(connectedWalls);
+        }
+      }
+    }
+    visible.addAll(allConnectedWalls);
+
+    // 步骤3：添加可见的非墙体格子
     for (int y = -radius; y <= radius; y++) {
       for (int x = -radius; x <= radius; x++) {
         if (x * x + y * y > radius * radius) continue;

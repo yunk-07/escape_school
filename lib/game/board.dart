@@ -134,8 +134,22 @@ class _BoardPageState extends State<BoardPage> {
 
   // 更新视野
   void _updateVision() {
+    // 确保玩家位置有效
+    if (playerX < 0 || playerX >= map[0].length ||
+        playerY < 0 || playerY >= map.length) {
+      setState(() {
+        visibleTiles = {};
+      });
+      return;
+    }
+
     setState(() {
-      visibleTiles = visionSystem.getVisibleTiles(Point(playerX, playerY));
+      try {
+        visibleTiles = visionSystem.getVisibleTiles(Point(playerX, playerY));
+      } catch (e) {
+        print('视野计算错误: $e');
+        visibleTiles = {};
+      }
     });
   }
 
@@ -463,20 +477,23 @@ class _BoardPageState extends State<BoardPage> {
 
     final newX = playerX + dx;
     final newY = playerY + dy;
-    _checkDeath();
 
-    if (newX >= 0 && newX < map[0].length && newY >= 0 && newY < map.length) {
-      final terrain = map[newY][newX];
-      if (terrain != 'wall' && terrain != 'water') {
-        setState(() {
-          playerX = newX;
-          playerY = newY;
-          _applyTerrainMovementEffect();
-          _startMoveCooldown(); // 开始移动冷却
-        });
-      }
+    // 确保新位置在地图范围内
+    if (newX < 0 || newX >= map[0].length ||
+        newY < 0 || newY >= map.length) {
+      return;
     }
-    _updateVision();
+
+    final terrain = map[newY][newX];
+    if (terrain != 'wall' && terrain != 'water') {
+      setState(() {
+        playerX = newX;
+        playerY = newY;
+        _applyTerrainMovementEffect();
+        _startMoveCooldown();
+        _updateVision(); // 更新视野
+      });
+    }
   }
 
   // 计算冷却时间 - 支持负值ATT
@@ -1100,11 +1117,10 @@ class _BoardPageState extends State<BoardPage> {
                 final isWall = map[mapY][mapX] == 'wall';
                 final isPlayerPos = mapX == playerX && mapY == playerY;
                 final isVisible = visibleTiles.contains(Point(mapX, mapY)) ||
-                    isWall ||
-                    isPlayerPos;
+                isPlayerPos;
 
-                if (!isVisible && !isPlayerPos) {
-                  return Container(color: Colors.black); // 不可见区域显示黑色
+                if (!isVisible) {
+                  return Container(color: Colors.black);
                 }
 
                 return Container(
