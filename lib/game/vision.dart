@@ -14,7 +14,7 @@ class VisionSystem {
   double _getTerrainVisionModifier(String terrain) {
     switch (terrain) {
       case 'woods':
-        return 0.6; // 树林中视野缩小40%
+        return 0.4; // 树林中视野缩小40%
       case 'building':
         return 1.0; // 建筑内视野缩小20%
       default:

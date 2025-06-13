@@ -1,5 +1,108 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
+
+// A*寻路算法中的节点类
+class _AStarNode {
+  final Point<int> position;
+  double g; // 从起点到当前节点的实际距离
+  double h; // 当前节点到终点的估算距离
+  double get f => g + h; // 总距离
+  _AStarNode? parent;
+
+  _AStarNode(this.position, {this.g = 0, this.h = 0, this.parent});
+}
+
+// 实现A*寻路算法
+List<Point<int>>? _findPath(Point<int> start, Point<int> end, List<List<String>> map) {
+  final openList = <_AStarNode>[];
+  final closedList = <_AStarNode>[];
+
+  // 起点节点
+  final startNode = _AStarNode(start, h: _heuristic(start, end));
+  openList.add(startNode);
+
+  while (openList.isNotEmpty) {
+    // 找到f值最小的节点
+    openList.sort((a, b) => a.f.compareTo(b.f));
+    final currentNode = openList.removeAt(0);
+    closedList.add(currentNode);
+
+    // 如果到达终点，回溯路径
+    if (currentNode.position.x == end.x && currentNode.position.y == end.y) {
+      return _reconstructPath(currentNode);
+    }
+
+    // 检查相邻节点
+    for (final neighbor in _getNeighbors(currentNode.position, map)) {
+      // 跳过已经在closedList中的节点
+      if (closedList.any((node) => node.position == neighbor)) continue;
+
+      // 计算g值
+      final gScore = currentNode.g + 1; // 假设每个移动成本为1
+
+      // 检查是否已经在openList中
+      final existingNode = openList.firstWhereOrNull((node) => node.position == neighbor);
+
+      if (existingNode == null || gScore < existingNode.g) {
+        final neighborNode = existingNode ?? _AStarNode(neighbor);
+        neighborNode.g = gScore;
+        neighborNode.h = _heuristic(neighbor, end);
+        neighborNode.parent = currentNode;
+
+        if (existingNode == null) {
+          openList.add(neighborNode);
+        }
+      }
+    }
+  }
+
+  // 没有找到路径
+  return null;
+}
+
+// 估算两点之间的曼哈顿距离
+double _heuristic(Point<int> a, Point<int> b) {
+  return (a.x - b.x).abs() + (a.y - b.y).abs().toDouble();
+}
+
+// 获取可移动的相邻节点
+List<Point<int>> _getNeighbors(Point<int> position, List<List<String>> map) {
+  final neighbors = <Point<int>>[];
+  final directions = [
+    Point(1, 0), Point(-1, 0), Point(0, 1), Point(0, -1)
+  ];
+
+  for (final dir in directions) {
+    final newX = position.x + dir.x;
+    final newY = position.y + dir.y;
+
+    // 检查新位置是否可行走
+    if (newX >= 0 && newX < map[0].length &&
+        newY >= 0 && newY < map.length &&
+        map[newY][newX] != 'wall' &&
+        map[newY][newX] != 'water') {
+      neighbors.add(Point(newX, newY));
+    }
+  }
+
+  return neighbors;
+}
+
+// 从终点节点回溯路径
+List<Point<int>> _reconstructPath(_AStarNode endNode) {
+  final path = <Point<int>>[];
+  var currentNode = endNode;
+
+  while (currentNode.parent != null) {
+    path.insert(0, currentNode.position);
+    currentNode = currentNode.parent!;
+  }
+
+  return path;
+}
+
+
 
 // 鬼的基础类
 abstract class Ghost {
@@ -267,23 +370,25 @@ class GhostManager {
       ) {
     if (ghost.position == null) return;
 
-    // 计算移动方向
-    int dx = 0;
-    int dy = 0;
+    // 如果鬼和玩家在同一位置，直接攻击
+    if (ghost.position!.x == playerPosition.x && ghost.position!.y == playerPosition.y) {
+      _ghostAttackPlayer(ghost, onPlayerAttacked);
+      return;
+    }
 
-    if (ghost.position!.x < playerPosition.x) dx = 1;
-    else if (ghost.position!.x > playerPosition.x) dx = -1;
+    // 使用A*算法寻找路径
+    final path = _findPath(ghost.position!, playerPosition, map);
 
-    if (ghost.position!.y < playerPosition.y) dy = 1;
-    else if (ghost.position!.y > playerPosition.y) dy = -1;
+    if (path != null && path.isNotEmpty) {
+      // 取路径中的第一步作为移动方向
+      final nextStep = path[0];
+      final dx = nextStep.x - ghost.position!.x;
+      final dy = nextStep.y - ghost.position!.y;
 
-    // 随机决定优先移动水平还是垂直方向
-    if (_random.nextBool()) {
-      if (dx != 0) _tryMoveGhost(ghost, dx, 0, map, playerPosition, onPlayerAttacked);
-      else if (dy != 0) _tryMoveGhost(ghost, 0, dy, map, playerPosition, onPlayerAttacked);
+      _tryMoveGhost(ghost, dx, dy, map, playerPosition, onPlayerAttacked);
     } else {
-      if (dy != 0) _tryMoveGhost(ghost, 0, dy, map, playerPosition, onPlayerAttacked);
-      else if (dx != 0) _tryMoveGhost(ghost, dx, 0, map, playerPosition, onPlayerAttacked);
+      // 如果找不到路径，尝试随机移动
+      _moveGhostRandomly(ghost, map);
     }
   }
 

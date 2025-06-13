@@ -212,16 +212,6 @@ class _BoardPageState extends State<BoardPage> {
     });
   }
 
-  // 在按钮点击时调用
-  void _onButtonClick() {
-    _musicManager.playSfx(MusicManager.sfxButtonClick);
-  }
-
-  // 在购买商品时调用
-  void _onPurchase() {
-    _musicManager.playSfx(MusicManager.sfxPurchase);
-  }
-
   void _startShopRefreshTimer() {
     // 取消现有定时器（如果有）
     _shopRefreshTimer?.cancel();
@@ -439,16 +429,9 @@ class _BoardPageState extends State<BoardPage> {
     }
 
     // 当ATT为负时，有几率无法移动
-    if (character['att'] < 0 && Random().nextDouble() < 0.2) {
+    if (character['att'] < -9 && Random().nextDouble() < 0.8) {
       setState(() {
-        explorationResult = "今天吃的东西肯定有问题。。。";
-        _startMoveCooldown(); // 仍然触发冷却
-      });
-      return;
-    }
-    if (character['att'] < -3 && Random().nextDouble() < 0.4) {
-      setState(() {
-        explorationResult = "我要倒下了。。。";
+        explorationResult = "让我离开这个学校。。。";
         _startMoveCooldown(); // 仍然触发冷却
       });
       return;
@@ -460,9 +443,16 @@ class _BoardPageState extends State<BoardPage> {
       });
       return;
     }
-    if (character['att'] < -9 && Random().nextDouble() < 0.8) {
+    if (character['att'] < -3 && Random().nextDouble() < 0.4) {
       setState(() {
-        explorationResult = "让我离开这个学校。。。";
+        explorationResult = "我要倒下了。。。";
+        _startMoveCooldown(); // 仍然触发冷却
+      });
+      return;
+    }
+    if (character['att'] < 0 && Random().nextDouble() < 0.2) {
+      setState(() {
+        explorationResult = "今天吃的东西肯定有问题。。。";
         _startMoveCooldown(); // 仍然触发冷却
       });
       return;
@@ -1080,95 +1070,99 @@ class _BoardPageState extends State<BoardPage> {
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
         child: Stack(
           children: [
-            GridView.builder(
-              physics: NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: horizontalTiles,
-              ),
-              itemCount: horizontalTiles * verticalTiles,
-              itemBuilder: (context, index) {
-                final x = index % horizontalTiles;
-                final y = index ~/ horizontalTiles;
-                final visibleRow = visibleMap[y];
-                final terrain = visibleRow[x];
+            RepaintBoundary(
+              child: GridView.builder(
+                cacheExtent: 1000, // 预渲染区域
+                addAutomaticKeepAlives: true, // 自动缓存
+                addRepaintBoundaries: true, // 添加重绘边界
+                physics: NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: horizontalTiles,
+                ),
+                itemCount: horizontalTiles * verticalTiles,
+                itemBuilder: (context, index) {
+                  final x = index % horizontalTiles;
+                  final y = index ~/ horizontalTiles;
+                  final visibleRow = visibleMap[y];
+                  final terrain = visibleRow[x];
 
-                final centerX = horizontalTiles ~/ 2;
-                final centerY = verticalTiles ~/ 2;
-                final mapX = playerX - horizontalTiles ~/ 2 + x;
-                final mapY = playerY - verticalTiles ~/ 2 + y;
+                  final centerX = horizontalTiles ~/ 2;
+                  final centerY = verticalTiles ~/ 2;
+                  final mapX = playerX - horizontalTiles ~/ 2 + x;
+                  final mapY = playerY - verticalTiles ~/ 2 + y;
 
-                final isPlayerHere = x == centerX && y == centerY;
-                final isChest = chestPositions.any(
-                  (p) => p.x == mapX && p.y == mapY,
-                );
+                  final isPlayerHere = x == centerX && y == centerY;
+                  final isChest = chestPositions.any(
+                    (p) => p.x == mapX && p.y == mapY,
+                  );
 
-                final isShop =
-                    schoolShop != null &&
-                    mapX == schoolShop!.position.x &&
-                    mapY == schoolShop!.position.y;
+                  final isShop =
+                      schoolShop != null &&
+                      mapX == schoolShop!.position.x &&
+                      mapY == schoolShop!.position.y;
 
-                // 检查是否在地图范围内
-                if (mapX < 0 || mapX >= map[0].length ||
-                    mapY < 0 || mapY >= map.length) {
-                  return Container(color: Colors.black);
-                }
+                  // 检查是否在地图范围内
+                  if (mapX < 0 || mapX >= map[0].length ||
+                      mapY < 0 || mapY >= map.length) {
+                    return Container(color: Colors.black);
+                  }
 
-                // 玩家位置和墙体总是可见
-                final isWall = map[mapY][mapX] == 'wall';
-                final isPlayerPos = mapX == playerX && mapY == playerY;
-                final isVisible = visibleTiles.contains(Point(mapX, mapY)) ||
-                isPlayerPos;
+                  // 玩家位置和墙体总是可见
+                  final isWall = map[mapY][mapX] == 'wall';
+                  final isPlayerPos = mapX == playerX && mapY == playerY;
+                  final isVisible = visibleTiles.contains(Point(mapX, mapY)) ||
+                  isPlayerPos;
 
-                if (!isVisible) {
-                  return Container(color: Colors.black);
-                }
+                  if (!isVisible) {
+                    return Container(color: Colors.black);
+                  }
 
-                return Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black.withOpacity(0.2)),
-                  ),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // 地形背景
-                      Image.asset(terrainImages[terrain]!, fit: BoxFit.fill),
+                  return Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black.withOpacity(0.2)),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // 地形背景
+                        Image.asset(terrainImages[terrain]!, fit: BoxFit.fill),
 
-                      // 宝箱显示
-                      if (isChest)
-                        Positioned(
-                          bottom: 0,
-                          left: 20,
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: () => _openChest(mapX, mapY),
-                              child: Image.asset(
-                                'images/map/chest.png',
-                                width: 30,
-                                height: 30,
+                        // 宝箱显示
+                        if (isChest)
+                          Positioned(
+                            bottom: 0,
+                            left: 20,
+                            child: Center(
+                              child: GestureDetector(
+                                onTap: () => _openChest(mapX, mapY),
+                                child: Image.asset(
+                                  'images/map/chest.png',
+                                  width: 30,
+                                  height: 30,
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                      // 商店显示
-                      if (isShop)
-                        Positioned(
-                          bottom: 4,
-                          right: 4,
-                          child: GestureDetector(
-                            onTap:
-                                () =>
-                                    schoolShop != null
-                                        ? _tryOpenShop(mapX, mapY)
-                                        : null,
-                            child: Image.asset(
-                              'images/map/shop.png',
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.contain, // 修改为contain确保完整显示
+                        // 商店显示
+                        if (isShop)
+                          Positioned(
+                            bottom: 4,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap:
+                                  () =>
+                                      schoolShop != null
+                                          ? _tryOpenShop(mapX, mapY)
+                                          : null,
+                              child: Image.asset(
+                                'images/map/shop.png',
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.contain, // 修改为contain确保完整显示
+                              ),
                             ),
                           ),
-                        ),
 
                       // 玩家显示
                       if (isPlayerHere)
@@ -1190,39 +1184,40 @@ class _BoardPageState extends State<BoardPage> {
                           ),
                         ),
 
-                      for (final ghost in ghostManager.ghosts)
-                        if (ghost.position != null &&
-                            mapX == ghost.position!.x &&
-                            mapY == ghost.position!.y)
-                          Positioned(
-                            top: 10,
-                            left: 20,
-                            child: Opacity(
-                              opacity: ghost.isInCooldown ? 0.5 : 1.0,
-                              child: ColorFiltered(
-                                colorFilter:
-                                ghost.isChasing
-                                    ? ColorFilter.mode(
-                                  Colors.red,
-                                  BlendMode.modulate,
-                                )
-                                    : ColorFilter.mode(
-                                  Colors.transparent,
-                                  BlendMode.multiply,
-                                ),
-                                child: Image.asset(
-                                  ghost.imagePath,
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
+                        for (final ghost in ghostManager.ghosts)
+                          if (ghost.position != null &&
+                              mapX == ghost.position!.x &&
+                              mapY == ghost.position!.y)
+                            Positioned(
+                              top: 10,
+                              left: 20,
+                              child: Opacity(
+                                opacity: ghost.isInCooldown ? 0.5 : 1.0,
+                                child: ColorFiltered(
+                                  colorFilter:
+                                  ghost.isChasing
+                                      ? ColorFilter.mode(
+                                    Colors.red,
+                                    BlendMode.modulate,
+                                  )
+                                      : ColorFilter.mode(
+                                    Colors.transparent,
+                                    BlendMode.multiply,
+                                  ),
+                                  child: Image.asset(
+                                    ghost.imagePath,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                    ],
-                  ),
-                );
-              },
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
             // 圆形暗边遮罩层
             IgnorePointer(
@@ -1388,12 +1383,6 @@ class _BoardPageState extends State<BoardPage> {
         ),
       ),
     );
-  }
-
-  String _formatTimeRemaining(DateTime refreshTime) {
-    final remaining = refreshTime.difference(DateTime.now());
-    if (remaining.isNegative) return '即将刷新';
-    return '${remaining.inMinutes}分${remaining.inSeconds.remainder(60)}秒';
   }
 
   // 计算总商品数量（考虑库存）
@@ -1656,7 +1645,10 @@ class _BoardPageState extends State<BoardPage> {
       top: 40,
       left: 240,
       child: ElevatedButton(
-        onPressed: () => setState(() => _showInventory = true),
+        onPressed: () {
+          setState(() => _showInventory = true);
+          _musicManager.playSfx(MusicManager.sfxButtonClick);
+        },
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
           child: Image(
