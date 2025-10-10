@@ -1,10 +1,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'data/manData.dart';
+import 'data/character_config.dart';
 import 'eff.dart';
 import 'eff02.dart';
-import 'game/board.dart';
+import 'game/optimized_board.dart';
 
 class ChooseCharacterPage extends StatefulWidget {
   const ChooseCharacterPage({super.key});
@@ -46,13 +46,13 @@ class _ChooseCharacterPageState extends State<ChooseCharacterPage> {
               height: 300,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: manData.length,
+                itemCount: CharacterConfigs.allCharacters.length,
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 60),
                 itemBuilder: (context, index) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: TiltCard(character: manData[index]),
+                    child: TiltCard(character: CharacterConfigs.allCharacters[index]),
                   );
                 },
               ),
@@ -80,7 +80,7 @@ class GlobalState {
 }
 
 class TiltCard extends StatefulWidget {
-  final Map<String, dynamic> character;
+  final CharacterConfig character;
 
   const TiltCard({super.key, required this.character});
 
@@ -193,7 +193,20 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BoardPage(character: widget.character),
+        builder: (context) => OptimizedBoardPage(
+          characterStats: {
+            'id': widget.character.id,
+            'name': widget.character.name,
+            'hp': widget.character.maxHp,
+            'maxHp': widget.character.maxHp,
+            'san': widget.character.maxSan,
+            'maxSan': widget.character.maxSan,
+            'att': widget.character.attack,
+            'gold': widget.character.initialGold,
+            'food': widget.character.initialFood,
+          },
+          characterImage: widget.character.imagePath,
+        ),
       ),
     );
   }
@@ -260,9 +273,14 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                             padding: const EdgeInsets.all(12),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                widget.character['image'],
-                                fit: BoxFit.cover,
+                              child: Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: Colors.grey[800],
+                                child: Image.asset(
+                                  widget.character.imagePath,
+                                  fit: BoxFit.contain,
+                                ),
                               ),
                             ),
                           ),
@@ -278,7 +296,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                               children: [
                                 // 角色名称
                                 Text(
-                                  widget.character['name'],
+                                  widget.character.name,
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontFamily: 'MicC',
@@ -291,7 +309,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
 
                                 // 角色描述
                                 Text(
-                                  widget.character['description'],
+                                  widget.character.description,
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontFamily: 'MicC',
@@ -307,11 +325,11 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildStatItem('金币', widget.character['gold']),
-                                    _buildStatItem('生命', widget.character['hp']),
-                                    _buildStatItem('精神', widget.character['san']),
-                                    _buildStatItem('攻击', widget.character['att']),
-                                    _buildStatItem('饱食', widget.character['food']),
+                                    _buildStatItem('金币', widget.character.initialGold),
+                                    _buildStatItem('生命', widget.character.maxHp),
+                                    _buildStatItem('精神', widget.character.maxSan),
+                                    _buildStatItem('攻击', widget.character.attack),
+                                    _buildStatItem('饱食', widget.character.initialFood),
                                   ],
                                 ),
                               ],

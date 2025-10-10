@@ -22,23 +22,28 @@ environment:
   sdk: ^3.7.2
 
 # Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  # UI and Animation
   cupertino_icons: ^1.0.8
-  flutter_animate:
-  vector_math:
-  path_provider:
-  shared_preferences:
-  audioplayers:
+  flutter_animate: ^4.5.0
+  
+  # Math and Utilities
+  vector_math: ^2.1.4
+  
+  # Storage and Preferences
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+  
+  # Audio
+  audioplayers: ^6.1.0
+  
+  # State Management (新增现代状态管理)
+  provider: ^6.1.2
+  riverpod: ^2.5.1
+  flutter_riverpod: ^2.5.1
 
 dev_dependencies:
   flutter_test:
