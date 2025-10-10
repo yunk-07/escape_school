@@ -13,6 +13,14 @@ import 'package:escape_from_school/data/character_config.dart';
 import 'package:escape_from_school/game/vision.dart';
 import 'package:escape_from_school/game/ghost.dart';
 
+/// 游戏页面类型枚举
+enum GamePage {
+  game,      // 主游戏页面
+  inventory, // 背包页面
+  shop,      // 商店页面
+  character, // 角色信息页面
+}
+
 /// 优化的玩家位置类
 @immutable
 class OptimizedPlayerPosition {
@@ -130,6 +138,7 @@ class OptimizedGameState {
   final GhostManager ghostManager;
   final bool isGameOver;
   final String deathReason;
+  final GamePage currentPage;
 
   const OptimizedGameState({
     required this.characterConfig,
@@ -149,6 +158,7 @@ class OptimizedGameState {
     this.schoolShop,
     this.isGameOver = false,
     this.deathReason = '',
+    this.currentPage = GamePage.game,
   });
 
   OptimizedGameState copyWith({
@@ -169,6 +179,7 @@ class OptimizedGameState {
     Shop? schoolShop,
     bool? isGameOver,
     String? deathReason,
+    GamePage? currentPage,
   }) {
     return OptimizedGameState(
       characterConfig: characterConfig ?? this.characterConfig,
@@ -188,6 +199,7 @@ class OptimizedGameState {
       schoolShop: schoolShop ?? this.schoolShop,
       isGameOver: isGameOver ?? this.isGameOver,
       deathReason: deathReason ?? this.deathReason,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 }
@@ -304,61 +316,145 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return walkablePositions;
   }
 
-  /// 设置玩家随机出生位置，确保距离鬼超过60格
-  void _setRandomPlayerSpawn() {
-    final walkablePositions = _getWalkablePositions();
-    if (walkablePositions.isEmpty) return;
+  /// 定义地图中的出生区域
+  /// 每个区域包含一个矩形范围和优先级
+  static const List<Map<String, dynamic>> _spawnZones = [
+    // 左上角草地区域
+    {
+      'name': '北部草原',
+      'minX': 2,
+      'maxX': 12,
+      'minY': 1,
+      'maxY': 10,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 1,
+    },
+    // 右上角区域
+    {
+      'name': '东北部',
+      'minX': 80,
+      'maxX': 100,
+      'minY': 1,
+      'maxY': 15,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 1,
+    },
+    // 中部大草原
+    {
+      'name': '中央平原',
+      'minX': 35,
+      'maxX': 65,
+      'minY': 35,
+      'maxY': 50,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 2,
+    },
+    // 左下角区域
+    {
+      'name': '西南部',
+      'minX': 2,
+      'maxX': 20,
+      'minY': 70,
+      'maxY': 85,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 1,
+    },
+    // 右下角区域
+    {
+      'name': '东南部',
+      'minX': 80,
+      'maxX': 100,
+      'minY': 70,
+      'maxY': 85,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 1,
+    },
+    // 中下部区域
+    {
+      'name': '南部平原',
+      'minX': 30,
+      'maxX': 70,
+      'minY': 75,
+      'maxY': 85,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 2,
+    },
+    // 左中部区域
+    {
+      'name': '西部区域',
+      'minX': 2,
+      'maxX': 15,
+      'minY': 40,
+      'maxY': 60,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 2,
+    },
+    // 右中部区域
+    {
+      'name': '东部区域',
+      'minX': 85,
+      'maxX': 100,
+      'minY': 40,
+      'maxY': 60,
+      'preferredTerrain': ['grass', 'path'],
+      'priority': 2,
+    },
+  ];
 
+  /// 设置玩家随机出生位置，在整个地图的不同区域随机选择
+  void _setRandomPlayerSpawn() {
     final random = Random();
     Point<int>? validSpawnPoint;
     int attempts = 0;
-    const maxAttempts = 100;
-    const minDistanceFromGhost = 60;
+    const maxAttempts = 200; // 增加尝试次数
+    const minDistanceFromGhost = 30.0; // 减少最小距离，让出生点更分散
+     const maxDistanceFromGhost = 80.0; // 添加最大距离限制，避免过于远离
 
-    while (validSpawnPoint == null && attempts < maxAttempts) {
-      final candidatePosition = walkablePositions[random.nextInt(walkablePositions.length)];
-      
-      // 检查是否距离所有鬼都超过60格
-      bool isValidPosition = true;
-      for (final ghost in state.ghostManager.ghosts) {
-        if (ghost.position != null) {
-          final distance = _calculateDistance(candidatePosition, ghost.position!);
-          if (distance < minDistanceFromGhost) {
-            isValidPosition = false;
-            break;
-          }
+    // 首先尝试从预定义的出生区域中选择
+    final shuffledZones = List.from(_spawnZones)..shuffle(random);
+    
+    for (final zone in shuffledZones) {
+      final zonePositions = _getPositionsInZone(zone);
+      if (zonePositions.isEmpty) continue;
+
+      // 在当前区域中尝试找到合适的出生点
+      for (int zoneAttempts = 0; zoneAttempts < 50 && validSpawnPoint == null; zoneAttempts++) {
+        final candidatePosition = zonePositions[random.nextInt(zonePositions.length)];
+        
+        if (_isValidSpawnPosition(candidatePosition, minDistanceFromGhost, maxDistanceFromGhost)) {
+          validSpawnPoint = candidatePosition;
+          print('玩家出生在: ${zone['name']} (${candidatePosition.x}, ${candidatePosition.y})');
+          break;
         }
       }
       
-      if (isValidPosition) {
-        validSpawnPoint = candidatePosition;
-      }
-      
-      attempts++;
+      if (validSpawnPoint != null) break;
     }
 
-    // 如果找不到合适的位置，使用默认位置或最远的位置
+    // 如果预定义区域都不合适，回退到全地图随机搜索
     if (validSpawnPoint == null) {
-      // 找到距离所有鬼最远的位置
-      double maxMinDistance = 0;
-      for (final position in walkablePositions) {
-        double minDistanceToGhost = double.infinity;
-        for (final ghost in state.ghostManager.ghosts) {
-          if (ghost.position != null) {
-            final distance = _calculateDistance(position, ghost.position!);
-            if (distance < minDistanceToGhost) {
-              minDistanceToGhost = distance;
-            }
-          }
+      print('预定义区域不合适，使用全地图搜索...');
+      final walkablePositions = _getWalkablePositions();
+      
+      while (validSpawnPoint == null && attempts < maxAttempts) {
+        final candidatePosition = walkablePositions[random.nextInt(walkablePositions.length)];
+        
+        if (_isValidSpawnPosition(candidatePosition, minDistanceFromGhost, maxDistanceFromGhost)) {
+          validSpawnPoint = candidatePosition;
+          print('玩家出生在: 随机位置 (${candidatePosition.x}, ${candidatePosition.y})');
         }
-        if (minDistanceToGhost > maxMinDistance) {
-          maxMinDistance = minDistanceToGhost;
-          validSpawnPoint = position;
-        }
+        
+        attempts++;
       }
     }
 
-    // 如果还是没有找到，使用默认位置
+    // 如果还是找不到合适的位置，找一个距离鬼适中的位置
+    if (validSpawnPoint == null) {
+      print('寻找距离鬼适中的位置...');
+      validSpawnPoint = _findBalancedSpawnPosition();
+    }
+
+    // 最后的后备方案
     validSpawnPoint ??= Point(10, 10);
 
     // 更新玩家位置
@@ -369,6 +465,87 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         facingRight: true,
       ),
     );
+    
+    print('最终出生位置: (${validSpawnPoint.x}, ${validSpawnPoint.y})');
+  }
+
+  /// 获取指定区域内的所有可行走位置
+  List<Point<int>> _getPositionsInZone(Map<String, dynamic> zone) {
+    final positions = <Point<int>>[];
+    final map = state.map;
+    final preferredTerrain = List<String>.from(zone['preferredTerrain']);
+    
+    final minX = (zone['minX'] as int).clamp(0, map[0].length - 1);
+    final maxX = (zone['maxX'] as int).clamp(0, map[0].length - 1);
+    final minY = (zone['minY'] as int).clamp(0, map.length - 1);
+    final maxY = (zone['maxY'] as int).clamp(0, map.length - 1);
+    
+    for (int y = minY; y <= maxY; y++) {
+      for (int x = minX; x <= maxX; x++) {
+        final terrain = map[y][x];
+        // 优先选择偏好地形，但也接受其他可行走地形
+        if (preferredTerrain.contains(terrain) || 
+            (terrain != 'wall' && terrain != 'water' && terrain != 'building')) {
+          positions.add(Point(x, y));
+        }
+      }
+    }
+    
+    return positions;
+  }
+
+  /// 检查位置是否适合作为出生点
+  bool _isValidSpawnPosition(Point<int> position, double minDistance, double maxDistance) {
+    // 检查地形是否可行走
+    final terrain = state.map[position.y][position.x];
+    if (terrain == 'wall' || terrain == 'water') {
+      return false;
+    }
+
+    // 检查与鬼的距离
+    for (final ghost in state.ghostManager.ghosts) {
+      if (ghost.position != null) {
+        final distance = _calculateDistance(position, ghost.position!);
+        if (distance < minDistance || distance > maxDistance) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /// 寻找一个距离鬼适中的位置
+  Point<int> _findBalancedSpawnPosition() {
+    final walkablePositions = _getWalkablePositions();
+    Point<int>? bestPosition;
+    double bestScore = -1;
+
+    for (final position in walkablePositions) {
+      double totalDistance = 0;
+      int ghostCount = 0;
+
+      for (final ghost in state.ghostManager.ghosts) {
+        if (ghost.position != null) {
+          totalDistance += _calculateDistance(position, ghost.position!);
+          ghostCount++;
+        }
+      }
+
+      if (ghostCount > 0) {
+        final averageDistance = totalDistance / ghostCount;
+        // 寻找平均距离在30-60之间的位置
+        if (averageDistance >= 30 && averageDistance <= 60) {
+          final score = 60 - (averageDistance - 45).abs(); // 45是理想距离
+          if (score > bestScore) {
+            bestScore = score;
+            bestPosition = position;
+          }
+        }
+      }
+    }
+
+    return bestPosition ?? walkablePositions.first;
   }
 
   /// 计算两点之间的距离
@@ -617,6 +794,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 摇杆移动
   void onJoystickMove(double x, double y, double intensity) {
+    print('摇杆移动: x=$x, y=$y, intensity=$intensity');
     final movement = state.movementState;
     final position = state.playerPosition;
     
@@ -656,13 +834,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
   }
 
-  /// 切换背包显示（同时切换角色信息面板）
+  /// 切换到背包页面
   void toggleInventory() {
-    final newShowInventory = !state.showInventory;
-    state = state.copyWith(
-      showInventory: newShowInventory,
-      showCharacterInfo: newShowInventory, // 同时切换角色信息面板
-    );
+    if (state.currentPage == GamePage.inventory) {
+      // 如果当前在背包页面，返回游戏页面
+      state = state.copyWith(currentPage: GamePage.game);
+    } else {
+      // 否则切换到背包页面
+      state = state.copyWith(currentPage: GamePage.inventory);
+    }
   }
 
   /// 切换角色信息面板显示
@@ -864,6 +1044,45 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final tile = state.map[y][x];
     // 空地包括：草地、门、商店等可通行区域
     return tile == 'grass' || tile == 'door' || tile == 'shop' || tile == 'chest';
+  }
+
+  /// 重置游戏状态
+  void resetGame() {
+    // 检查是否已经被 dispose，如果是则直接返回
+    if (!mounted) {
+      return;
+    }
+    
+    // 停止所有计时器
+    _movementTimer?.cancel();
+    _visionUpdateTimer?.cancel();
+    
+    // 重置状态到初始值
+    final characterConfig = state.characterConfig;
+    state = OptimizedGameState(
+      characterConfig: characterConfig,
+      characterStats: _createInitialCharacterStats(characterConfig),
+      playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
+      movementState: const OptimizedMovementState(),
+      map: MapData.testMap,
+      chestPositions: [],
+      playerInventory: [],
+      visibleTiles: {},
+      visibleMap: List.generate(
+        MapData.testMap.length,
+        (y) => List.generate(MapData.testMap[0].length, (x) => false),
+      ),
+      ghostManager: GhostManager(map: MapData.testMap),
+      explorationResult: '',
+      showInventory: false,
+      showCharacterInfo: false,
+      showShop: false,
+      isGameOver: false,
+      deathReason: '',
+    );
+    
+    // 重新初始化游戏
+    _initializeGame();
   }
 
   @override

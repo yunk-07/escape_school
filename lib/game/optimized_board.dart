@@ -4,12 +4,14 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:escape_from_school/game/optimized_game_state.dart';
 import 'package:escape_from_school/game/gameOver.dart';
+import 'package:escape_from_school/game/inventory_page.dart';
 import 'package:escape_from_school/game/joystick.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
@@ -76,8 +78,14 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
         ],
         child: Material(
           color: Colors.black,
-          child: Consumer(
-            builder: (context, ref, child) {
+          child: Focus(
+            autofocus: true,
+            onKeyEvent: (node, event) {
+              print('Focus收到键盘事件: ${event.runtimeType} - ${event.logicalKey}');
+              return _handleKeyEvent(event);
+            },
+            child: Consumer(
+              builder: (context, ref, child) {
               final gameState = ref.watch(optimizedGameStateProvider);
             
               // 检查游戏结束状态
@@ -94,178 +102,75 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                   );
                 });
               }
-            
-              return SizedBox.expand(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // 主游戏区域
-                    _buildGameArea(gameState),
-                    
-                    // 精神值环形图（左上角）
-                    _buildSanityCircle(gameState),
-                    
-                    // 生命值和饱食度条（下方居中）
-                    _buildBottomStatusBars(gameState),
-                    
-                    // 设置按钮（右上角）
-                    _buildSettingsButton(),
-                    
-                    // 探索结果显示
-                    if (gameState.explorationResult.isNotEmpty)
-                      _buildExplorationResult(gameState),
-                    
-                    // 移动控制
-                    _buildMovementControls(),
-                    
-                    // 功能按钮
-                    _buildActionButtons(gameState),
-                    
-                    // 角色信息面板（左侧）
-                    _buildCharacterInfoView(gameState),
-                    
-                    // 背包界面（右侧）
-                    _buildInventoryView(gameState),
-                    
-                    // 商店界面
-                    if (gameState.showShop && gameState.schoolShop != null)
-                      _buildShopView(gameState),
-                  ],
-                ),
-              );
+              
+              // 根据当前页面状态显示不同内容
+              if (gameState.currentPage == GamePage.inventory) {
+                return const InventoryPage();
+              }
+              
+              // 默认显示游戏页面
+              return _buildGamePage(gameState);
             },
+            ),
           ),
         ),
       ),
     );
   }
 
-  // 构建空背包界面
-  Widget _buildEmptyInventory() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 80,
-            color: Colors.white30,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            '背包是空的',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '探索世界来收集物品吧！',
-            style: TextStyle(
-              color: Colors.white38,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
+  // 处理键盘事件
+  KeyEventResult _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+      
+      // 检查按键并模拟摇杆输入
+      double x = 0.0;
+      double y = 0.0;
+      bool hasInput = false;
+      
+      if (event.logicalKey == LogicalKeyboardKey.keyW || event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        y = -1.0;
+        hasInput = true;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyS || event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        y = 1.0;
+        hasInput = true;
+      }
+      
+      if (event.logicalKey == LogicalKeyboardKey.keyA || event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        x = -1.0;
+        hasInput = true;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyD || event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        x = 1.0;
+        hasInput = true;
+      }
+      
+      if (hasInput) {
+        print('键盘输入: x=$x, y=$y');
+        notifier.onJoystickMove(x, y, 1.0);
+        return KeyEventResult.handled;
+      }
+    } else if (event is KeyUpEvent) {
+      // 键盘释放时停止移动
+      final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+      
+      if (event.logicalKey == LogicalKeyboardKey.keyW || 
+          event.logicalKey == LogicalKeyboardKey.keyS ||
+          event.logicalKey == LogicalKeyboardKey.keyA ||
+          event.logicalKey == LogicalKeyboardKey.keyD ||
+          event.logicalKey == LogicalKeyboardKey.arrowUp ||
+          event.logicalKey == LogicalKeyboardKey.arrowDown ||
+          event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+          event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        print('键盘释放，停止移动');
+        notifier.onJoystickStop();
+        return KeyEventResult.handled;
+      }
+    }
+    
+    return KeyEventResult.ignored;
   }
 
-  // 构建背包槽位
-  Widget _buildInventorySlot(dynamic item, bool hasItem) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: hasItem
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.brown.shade700.withOpacity(0.8),
-                  Colors.brown.shade600.withOpacity(0.6),
-                ],
-              )
-            : LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.grey.shade800.withOpacity(0.5),
-                  Colors.grey.shade700.withOpacity(0.3),
-                ],
-              ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: hasItem ? Colors.brown.shade400.withOpacity(0.6) : Colors.white12,
-          width: hasItem ? 2 : 1,
-        ),
-        boxShadow: hasItem
-            ? [
-                BoxShadow(
-                  color: Colors.brown.shade900.withOpacity(0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
-      child: hasItem
-          ? Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Image.asset(
-                          item.image,
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.image_not_supported,
-                              color: Colors.white54,
-                              size: 24,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      item.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : Center(
-              child: Icon(
-                Icons.add,
-                color: Colors.white24,
-                size: 24,
-              ),
-            ),
-    );
-  }
+
 
   // 显示退出确认对话框
   void _showExitConfirmDialog(BuildContext context) {
@@ -292,8 +197,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop(); // 退出到主菜单
+                Navigator.of(context).pop(); // 关闭对话框
+                _exitToMainMenu(context);
               },
               child: const Text(
                 '退出',
@@ -407,12 +312,32 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     );
   }
 
+  // 退出到主菜单
+  void _exitToMainMenu(BuildContext context) {
+    // 直接导航到主页面，清除所有之前的页面
+    // 不需要手动重置游戏状态，因为新的游戏实例会自动创建
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/',
+      (Route<dynamic> route) => false,
+    );
+  }
+
   // 显示详细状态面板
 
 
   @override
   void dispose() {
-    gameStateNotifier.dispose();
+    // 安全地 dispose gameStateNotifier
+    try {
+      if (gameStateNotifier.mounted) {
+        gameStateNotifier.dispose();
+      }
+    } catch (e) {
+      // 忽略 dispose 时的异常
+      if (kDebugMode) {
+        print('Dispose gameStateNotifier 时出现异常: $e');
+      }
+    }
     super.dispose();
   }
 
@@ -1168,164 +1093,41 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     );
   }
 
-  // 构建背包界面
-  Widget _buildInventoryView(OptimizedGameState gameState) {
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      right: gameState.showInventory ? 0 : -MediaQuery.of(context).size.width,
-      top: 0,
-      bottom: 0,
-      child: Container(
-        width: MediaQuery.of(context).size.width,
-        color: Colors.black.withOpacity(0.85),
-        child: Center(
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.85,
-            height: MediaQuery.of(context).size.height * 0.75,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.grey.shade900,
-                  Colors.grey.shade800,
-                  Colors.grey.shade900,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white30, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.7),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // 背包标题栏
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.brown.shade800,
-                        Colors.brown.shade700,
-                      ],
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      topRight: Radius.circular(16),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.inventory, color: Colors.white, size: 24),
-                          const SizedBox(width: 12),
-                          const Text(
-                            '背包',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.red.withOpacity(0.5)),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white, size: 20),
-                          onPressed: () {
-                            final ref = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-                            ref.toggleInventory();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // 背包统计信息
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    border: Border(
-                      bottom: BorderSide(color: Colors.white24, width: 1),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '物品数量: ${gameState.playerInventory.length}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        '容量: ${gameState.playerInventory.length}/20',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // 背包内容
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: gameState.playerInventory.isEmpty
-                        ? _buildEmptyInventory()
-                        : GridView.builder(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 5,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 0.85,
-                            ),
-                            itemCount: 20, // 固定20个槽位
-                            itemBuilder: (context, index) {
-                              if (index < gameState.playerInventory.length) {
-                                final item = gameState.playerInventory[index];
-                                return _buildInventorySlot(item, true);
-                              } else {
-                                return _buildInventorySlot(null, false);
-                              }
-                            },
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+  // 构建游戏页面
+  Widget _buildGamePage(OptimizedGameState gameState) {
+    return SizedBox.expand(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 主游戏区域
+          _buildGameArea(gameState),
+          
+          // 精神值环形图（左上角）
+          _buildSanityCircle(gameState),
+          
+          // 生命值和饱食度条（下方居中）
+          _buildBottomStatusBars(gameState),
+          
+          // 设置按钮（右上角）
+          _buildSettingsButton(),
+          
+          // 探索结果显示
+          if (gameState.explorationResult.isNotEmpty)
+            _buildExplorationResult(gameState),
+          
+          // 移动控制
+          _buildMovementControls(),
+          
+          // 功能按钮
+          _buildActionButtons(gameState),
+          
+          // 角色信息面板（左侧）
+          _buildCharacterInfoView(gameState),
+          
+          // 商店界面
+          if (gameState.showShop && gameState.schoolShop != null)
+            _buildShopView(gameState),
+        ],
       ),
     );
   }

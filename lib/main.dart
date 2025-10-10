@@ -163,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                               width: 220,
                               height: 15,
                               decoration: BoxDecoration(
-                                color: Colors.redAccent.withOpacity(0.5),
+                                color: Colors.redAccent.withValues(alpha: 0.5),
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(15),
                                   topRight: Radius.circular(15),

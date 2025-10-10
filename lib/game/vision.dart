@@ -1,9 +1,7 @@
 import 'dart:math';
-import '../data/mapData.dart';
 
 class VisionSystem {
   final List<List<String>> map;
-  final Random _random = Random();
 
   VisionSystem({required this.map});
 

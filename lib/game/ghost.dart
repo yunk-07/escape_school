@@ -281,7 +281,6 @@ class GhostManager {
     if (availablePositions.isEmpty) return;
 
     final position = availablePositions[_random.nextInt(availablePositions.length)];
-    print('${position}');
     Ghost newGhost;
     if (ghostType == NormalGhost) {
       newGhost = NormalGhost(position: position);
