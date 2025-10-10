@@ -139,6 +139,11 @@ class OptimizedGameState {
   final bool isGameOver;
   final String deathReason;
   final GamePage currentPage;
+  
+  // 脱离卡死相关状态
+  final bool isNoClipMode;              // 是否处于无视地形模式
+  final DateTime? noClipEndTime;        // 无视地形模式结束时间
+  final DateTime? unstuckCooldownEnd;   // 脱离卡死冷却结束时间
 
   const OptimizedGameState({
     required this.characterConfig,
@@ -159,6 +164,9 @@ class OptimizedGameState {
     this.isGameOver = false,
     this.deathReason = '',
     this.currentPage = GamePage.game,
+    this.isNoClipMode = false,
+    this.noClipEndTime,
+    this.unstuckCooldownEnd,
   });
 
   OptimizedGameState copyWith({
@@ -180,6 +188,9 @@ class OptimizedGameState {
     bool? isGameOver,
     String? deathReason,
     GamePage? currentPage,
+    bool? isNoClipMode,
+    DateTime? noClipEndTime,
+    DateTime? unstuckCooldownEnd,
   }) {
     return OptimizedGameState(
       characterConfig: characterConfig ?? this.characterConfig,
@@ -200,6 +211,9 @@ class OptimizedGameState {
       isGameOver: isGameOver ?? this.isGameOver,
       deathReason: deathReason ?? this.deathReason,
       currentPage: currentPage ?? this.currentPage,
+      isNoClipMode: isNoClipMode ?? this.isNoClipMode,
+      noClipEndTime: noClipEndTime ?? this.noClipEndTime,
+      unstuckCooldownEnd: unstuckCooldownEnd ?? this.unstuckCooldownEnd,
     );
   }
 }
@@ -223,6 +237,7 @@ Map<String, dynamic> _createInitialCharacterStats(CharacterConfig config) {
 class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _movementTimer;
   Timer? _visionUpdateTimer;
+  Timer? _unstuckTimer;
   late VisionSystem _visionSystem;
   
   // 性能优化参数
@@ -269,6 +284,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _setRandomPlayerSpawn();
     _startMovementTimer();
     _startVisionUpdateTimer();
+    _startUnstuckTimer();
     _updateVision();
   }
 
@@ -595,6 +611,39 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 启动脱离卡死状态更新定时器
+  void _startUnstuckTimer() {
+    _unstuckTimer = Timer.periodic(
+      const Duration(milliseconds: 100), // 每100ms检查一次
+      (timer) {
+        _updateUnstuckState();
+      }
+    );
+  }
+
+  /// 更新脱离卡死状态
+  void _updateUnstuckState() {
+    final now = DateTime.now();
+    bool needsUpdate = false;
+    
+    // 检查无视地形模式是否应该结束
+    if (state.isNoClipMode && 
+        state.noClipEndTime != null && 
+        now.isAfter(state.noClipEndTime!)) {
+      state = state.copyWith(
+        isNoClipMode: false,
+        noClipEndTime: null,
+      );
+      needsUpdate = true;
+      print('无视地形模式已结束');
+    }
+    
+    // 如果有更新，触发UI刷新
+    if (needsUpdate) {
+      // 状态已经更新，StateNotifier会自动通知监听者
+    }
+  }
+
   /// 优化的移动更新
   void _updateMovement() {
     final movement = state.movementState;
@@ -749,6 +798,26 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 精确的碰撞检测 - 优化贴墙移动体验
   bool _canMoveToPosition(double x, double y) {
+    // 检查是否处于无视地形模式
+    if (state.isNoClipMode) {
+      final now = DateTime.now();
+      // 检查无视地形模式是否已过期
+      if (state.noClipEndTime != null && now.isAfter(state.noClipEndTime!)) {
+        // 无视地形模式已过期，关闭该模式
+        state = state.copyWith(
+          isNoClipMode: false,
+          noClipEndTime: null,
+        );
+        print('无视地形模式已结束');
+      } else {
+        // 仍在无视地形模式中，只检查地图边界
+        final gridX = x.floor();
+        final gridY = y.floor();
+        return gridX >= 0 && gridX < state.map[0].length &&
+               gridY >= 0 && gridY < state.map.length;
+      }
+    }
+    
     // 计算角色的碰撞半径
     // sizeScale = 0.6, collisionScale = 0.8
     // 实际碰撞半径 = 0.6 * 0.8 * 0.5 = 0.24 瓦片单位
@@ -930,53 +999,51 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
   }
 
-  /// 脱离卡死功能 - 将角色传送到最近的空地
+  /// 脱离卡死功能 - 激活1秒无视地形移动模式
   void unstuckPlayer() {
-    final currentPosition = state.playerPosition;
-    final currentX = currentPosition.x.round();
-    final currentY = currentPosition.y.round();
-    
-    print('脱离卡死: 当前位置 ($currentX, $currentY)');
-    
-    // 搜索最近的空地
-    Point<int>? nearestEmptySpace = _findNearestEmptySpace(currentX, currentY);
-    
-    if (nearestEmptySpace != null) {
-      print('找到安全位置: (${nearestEmptySpace.x}, ${nearestEmptySpace.y})');
-      
-      // 传送到最近的空地
-      final newPosition = state.playerPosition.copyWith(
-        x: nearestEmptySpace.x.toDouble(),
-        y: nearestEmptySpace.y.toDouble(),
-      );
-      
-      // 停止当前移动
-      final newMovement = state.movementState.copyWith(
-        velocityX: 0.0,
-        velocityY: 0.0,
-        isMoving: false,
-      );
-      
-      state = state.copyWith(
-        playerPosition: newPosition,
-        movementState: newMovement,
-      );
-      
-      // 更新视野
-      _updateVision();
-      
-      print('脱离卡死成功: 传送到 (${nearestEmptySpace.x}, ${nearestEmptySpace.y})');
-    } else {
-      print('脱离卡死失败: 未找到安全位置');
+    // 检查是否已经被 dispose
+    if (!mounted) {
+      print('unstuckPlayer: OptimizedGameStateNotifier 已被 dispose，跳过执行');
+      return;
     }
+    
+    final now = DateTime.now();
+    
+    // 检查是否在冷却期间
+    if (state.unstuckCooldownEnd != null && now.isBefore(state.unstuckCooldownEnd!)) {
+      final remainingSeconds = state.unstuckCooldownEnd!.difference(now).inSeconds;
+      print('脱离卡死功能冷却中，剩余时间: ${remainingSeconds}秒');
+      return;
+    }
+    
+    print('激活脱离卡死模式: 1秒无视地形移动');
+    
+    // 激活无视地形模式，持续1秒
+    final noClipEndTime = now.add(const Duration(seconds: 1));
+    // 设置60秒冷却时间
+    final cooldownEndTime = now.add(const Duration(seconds: 60));
+    
+    state = state.copyWith(
+      isNoClipMode: true,
+      noClipEndTime: noClipEndTime,
+      unstuckCooldownEnd: cooldownEndTime,
+    );
+    
+    print('脱离卡死激活成功: 无视地形移动1秒，冷却60秒');
   }
 
-  /// 寻找最近的空地
+  /// 寻找最近的可移动空地
   Point<int>? _findNearestEmptySpace(int startX, int startY) {
     final mapHeight = state.map.length;
     final mapWidth = state.map[0].length;
     
-    print('搜索安全位置: 地图大小 ${mapWidth}x${mapHeight}');
+    print('搜索安全位置: 地图大小 ${mapWidth}x${mapHeight}, 起始位置: ($startX, $startY)');
+    
+    // 首先检查当前位置是否已经是可移动的
+    if (_isEmptySpace(startX, startY)) {
+      print('当前位置已经是安全位置: ($startX, $startY)');
+      return Point(startX, startY);
+    }
     
     // 使用广度优先搜索找到最近的空地
     final visited = <Point<int>>{};
@@ -988,18 +1055,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     while (queue.isNotEmpty) {
       final current = queue.removeAt(0);
       
-      // 检查当前位置是否是空地
-      if (_isEmptySpace(current.x, current.y)) {
-        print('找到空地: (${current.x}, ${current.y})');
-        return current;
-      }
-      
-      // 检查四个方向的相邻位置
+      // 检查8个方向的相邻位置（包括对角线）
       final directions = [
-        Point(0, -1), // 上
-        Point(0, 1),  // 下
-        Point(-1, 0), // 左
-        Point(1, 0),  // 右
+        Point(0, -1),  // 上
+        Point(0, 1),   // 下
+        Point(-1, 0),  // 左
+        Point(1, 0),   // 右
+        Point(-1, -1), // 左上
+        Point(1, -1),  // 右上
+        Point(-1, 1),  // 左下
+        Point(1, 1),   // 右下
       ];
       
       for (final direction in directions) {
@@ -1011,7 +1076,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         if (newX >= 0 && newX < mapWidth &&
             newY >= 0 && newY < mapHeight &&
             !visited.contains(newPoint)) {
+          
           visited.add(newPoint);
+          
+          // 检查这个位置是否是可移动的空地
+          if (_isEmptySpace(newX, newY)) {
+            final distance = (newX - startX).abs() + (newY - startY).abs();
+            print('找到安全位置: ($newX, $newY), 距离: $distance');
+            return newPoint;
+          }
+          
+          // 如果不是空地，加入队列继续搜索
           queue.add(newPoint);
         }
       }
@@ -1035,15 +1110,20 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return Point(centerX, centerY);
   }
 
-  /// 检查指定位置是否是空地
+  /// 检查指定位置是否是可移动的空地
   bool _isEmptySpace(int x, int y) {
     if (x < 0 || x >= state.map[0].length || y < 0 || y >= state.map.length) {
       return false;
     }
     
     final tile = state.map[y][x];
-    // 空地包括：草地、门、商店等可通行区域
-    return tile == 'grass' || tile == 'door' || tile == 'shop' || tile == 'chest';
+    
+    // 不可通行的地块类型
+    final impassableTiles = {'wall', 'water', 'building'};
+    
+    // 如果不是不可通行的地块，则认为是可移动的
+    // 这包括：grass, path, woods, exit, door, shop, chest 等
+    return !impassableTiles.contains(tile);
   }
 
   /// 重置游戏状态
@@ -1089,6 +1169,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void dispose() {
     _movementTimer?.cancel();
     _visionUpdateTimer?.cancel();
+    _unstuckTimer?.cancel();
     super.dispose();
   }
 }

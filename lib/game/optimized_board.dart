@@ -1,6 +1,7 @@
 // game/optimized_board.dart
 // 性能优化的游戏界面
 
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
@@ -246,53 +247,194 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   void _showSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey.shade900,
-          title: const Text(
-            '游戏设置',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.exit_to_app, color: Colors.red),
-                title: const Text(
-                  '退出游戏',
-                  style: TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showExitConfirmDialog(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.refresh, color: Colors.orange),
-                title: const Text(
-                  '脱离卡死',
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  '将角色传送到最近的安全位置',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _unstuckPlayer();
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                '关闭',
-                style: TextStyle(color: Colors.grey),
-              ),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.85,
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
             ),
-          ],
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.grey.shade900,
+                  Colors.grey.shade800,
+                  Colors.grey.shade900,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.1),
+                  blurRadius: 1,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 标题栏
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.blue.shade800.withOpacity(0.3),
+                        Colors.purple.shade800.withOpacity(0.3),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.settings,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Text(
+                          '游戏设置',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // 设置内容
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 按钮行
+                        Row(
+                          children: [
+                            // 退出游戏按钮
+                            Expanded(
+                              child: Container(
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.red.shade800.withOpacity(0.3),
+                                      Colors.red.shade600.withOpacity(0.2),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.4),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      _showExitConfirmDialog(context);
+                                    },
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.exit_to_app,
+                                          color: Colors.red.shade300,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '退出游戏',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // 脱离卡死按钮
+                            Expanded(
+                              child: _UnstuckButton(onPressed: () {
+                                Navigator.of(context).pop();
+                                _unstuckPlayer();
+                              }),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -300,16 +442,18 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   // 脱离卡死功能
   void _unstuckPlayer() {
-    final ref = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-    ref.unstuckPlayer();
-    
-    // 显示提示信息
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已将角色传送到安全位置'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    try {
+      // 直接使用类成员变量 gameStateNotifier
+      gameStateNotifier.unstuckPlayer();
+      
+      // 提示信息已移除，功能静默执行
+      
+      print('脱离卡死功能已执行');
+    } catch (e) {
+      print('脱离卡死功能执行失败: $e');
+      
+      // 错误信息已移除，仅在控制台输出
+    }
   }
 
   // 退出到主菜单
@@ -689,13 +833,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           // 探索按钮
           GestureDetector(
             onTap: () {
-              // 探索功能暂未实现
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('探索功能开发中...'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
+              // 探索功能暂未实现，静默处理
+              print('探索功能开发中...');
             },
             child: Container(
               width: 50,
@@ -1458,3 +1597,222 @@ class _GameAreaPainter extends CustomPainter {
     return true;
   }
 }
+
+// 脱离卡死按钮 - 带实时更新的StatefulWidget
+class _UnstuckButton extends ConsumerStatefulWidget {
+  final VoidCallback onPressed;
+  
+  const _UnstuckButton({required this.onPressed});
+
+  @override
+  ConsumerState<_UnstuckButton> createState() => _UnstuckButtonState();
+}
+
+class _UnstuckButtonState extends ConsumerState<_UnstuckButton> {
+  Timer? _updateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // 启动定时器，每秒更新一次UI
+    _updateTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          // 强制重建UI以更新冷却状态
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gameState = ref.watch(optimizedGameStateProvider);
+    final now = DateTime.now();
+    
+    // 检查是否在冷却期间
+    bool isOnCooldown = gameState.unstuckCooldownEnd != null && 
+                       now.isBefore(gameState.unstuckCooldownEnd!);
+    
+    int remainingSeconds = 0;
+    double cooldownProgress = 0.0;
+    if (isOnCooldown) {
+      final totalCooldown = const Duration(seconds: 60);
+      final elapsed = now.difference(gameState.unstuckCooldownEnd!.subtract(totalCooldown));
+      cooldownProgress = elapsed.inMilliseconds / totalCooldown.inMilliseconds;
+      cooldownProgress = cooldownProgress.clamp(0.0, 1.0);
+      remainingSeconds = gameState.unstuckCooldownEnd!.difference(now).inSeconds;
+    }
+    
+    // 检查是否处于无视地形模式
+    bool isNoClipActive = gameState.isNoClipMode && 
+                          gameState.noClipEndTime != null && 
+                          now.isBefore(gameState.noClipEndTime!);
+    
+    String buttonText = '脱离卡死';
+    Color iconColor = Colors.orange;
+    
+    if (isNoClipActive) {
+      buttonText = '激活中';
+      iconColor = Colors.green;
+    } else if (isOnCooldown) {
+      buttonText = '冷却中';
+      iconColor = Colors.grey.shade400;
+    }
+    
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isNoClipActive
+              ? [
+                  Colors.green.shade800.withOpacity(0.3),
+                  Colors.green.shade600.withOpacity(0.2),
+                ]
+              : isOnCooldown
+                  ? [
+                      Colors.grey.shade800.withOpacity(0.2),
+                      Colors.grey.shade700.withOpacity(0.15),
+                    ]
+                  : [
+                      Colors.orange.shade800.withOpacity(0.3),
+                      Colors.orange.shade600.withOpacity(0.2),
+                    ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isNoClipActive
+              ? Colors.green.withOpacity(0.4)
+              : isOnCooldown
+                  ? Colors.grey.withOpacity(0.3)
+                  : Colors.orange.withOpacity(0.4),
+          width: 1,
+        ),
+      ),
+      child: Stack(
+        children: [
+          // 冷却进度条背景（覆盖整个按钮）
+          if (isOnCooldown)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: LinearProgressIndicator(
+                  value: cooldownProgress,
+                  backgroundColor: Colors.transparent,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.orange.withOpacity(0.3),
+                  ),
+                  minHeight: 80,
+                ),
+              ),
+            ),
+          
+          // 冷却时的暗化遮罩
+          if (isOnCooldown)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.black.withOpacity(0.4),
+                ),
+              ),
+            ),
+          
+          // 基础按钮内容
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isOnCooldown ? null : widget.onPressed,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 图标和倒计时数字
+                     if (isOnCooldown) ...[
+                       // 圆形进度指示器和倒计时数字
+                       Stack(
+                         alignment: Alignment.center,
+                         children: [
+                           // 圆形进度指示器
+                           SizedBox(
+                             width: 50,
+                             height: 50,
+                             child: CircularProgressIndicator(
+                               value: 1.0 - cooldownProgress, // 倒计时进度
+                               strokeWidth: 3,
+                               backgroundColor: Colors.grey.shade600.withOpacity(0.3),
+                               valueColor: AlwaysStoppedAnimation<Color>(
+                                 Colors.orange.shade300,
+                               ),
+                             ),
+                           ),
+                           // 倒计时数字
+                           Text(
+                             '$remainingSeconds',
+                             style: TextStyle(
+                               color: Colors.white,
+                               fontSize: 18,
+                               fontWeight: FontWeight.bold,
+                               shadows: [
+                                 Shadow(
+                                   offset: Offset(1, 1),
+                                   blurRadius: 2,
+                                   color: Colors.black.withOpacity(0.8),
+                                 ),
+                               ],
+                             ),
+                           ),
+                         ],
+                       ),
+                     ] else ...[
+                      // 正常状态的图标和文字
+                      Icon(
+                        isNoClipActive ? Icons.flash_on : Icons.refresh,
+                        color: iconColor,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        buttonText,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // 提示文字
+                       Text(
+                         isNoClipActive 
+                             ? '无视地形模式'
+                             : '点击自行移动脱离卡死（60s冷却）',
+                         style: TextStyle(
+                           color: isNoClipActive
+                               ? Colors.green.shade300
+                               : Colors.grey.shade400,
+                           fontSize: 10,
+                           fontWeight: FontWeight.w400,
+                         ),
+                         textAlign: TextAlign.center,
+                       ),
+                     ],
+                   ],
+                 ),
+               ),
+             ),
+           ),
+         ],
+       ),
+     );
+   }
+ }
