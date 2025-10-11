@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:escape_from_school/data/mapData.dart';
 import 'package:escape_from_school/data/props.dart';
 import 'package:escape_from_school/data/shop.dart';
-import 'package:escape_from_school/data/character_config.dart';
+import 'package:escape_from_school/data/manData.dart';
 import 'package:escape_from_school/game/vision.dart';
 import 'package:escape_from_school/game/ghost.dart';
 
@@ -121,7 +121,6 @@ class OptimizedMovementState {
 /// 优化的游戏状态类
 @immutable
 class OptimizedGameState {
-  final CharacterConfig characterConfig;     // 角色配置
   final Map<String, dynamic> characterStats; // 当前角色状态（HP、理智值等）
   final OptimizedPlayerPosition playerPosition;
   final OptimizedMovementState movementState;
@@ -155,7 +154,6 @@ class OptimizedGameState {
   final double lastDamageAmount;                // 最后一次的伤害量
 
   const OptimizedGameState({
-    required this.characterConfig,
     required this.characterStats,
     required this.playerPosition,
     required this.movementState,
@@ -184,7 +182,6 @@ class OptimizedGameState {
   });
 
   OptimizedGameState copyWith({
-    CharacterConfig? characterConfig,
     Map<String, dynamic>? characterStats,
     OptimizedPlayerPosition? playerPosition,
     OptimizedMovementState? movementState,
@@ -212,7 +209,6 @@ class OptimizedGameState {
     double? lastDamageAmount,
   }) {
     return OptimizedGameState(
-      characterConfig: characterConfig ?? this.characterConfig,
       characterStats: characterStats ?? this.characterStats,
       playerPosition: playerPosition ?? this.playerPosition,
       movementState: movementState ?? this.movementState,
@@ -243,17 +239,17 @@ class OptimizedGameState {
 }
 
 /// 创建初始角色状态的辅助方法
-Map<String, dynamic> _createInitialCharacterStats(CharacterConfig config) {
+Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> characterData) {
   return {
-    'name': config.name,
-    'hp': config.maxHp.toDouble(),
-    'maxHp': config.maxHp.toDouble(),
-    'san': config.maxSan.toDouble(),
-    'maxSan': config.maxSan.toDouble(),
-    'food': config.initialFood.toDouble(),
-    'att': config.attack.toDouble(),
-    'gold': config.initialGold.toDouble(), // 修正字段名为英文
-    'image': config.imagePath,
+    'name': characterData['name'],
+    'hp': (characterData['hp'] as num).toDouble(),
+    'maxHp': (characterData['hp'] as num).toDouble(),
+    'san': (characterData['san'] as num).toDouble(),
+    'maxSan': (characterData['san'] as num).toDouble(),
+    'food': (characterData['food'] as num).toDouble(),
+    'moveSpeed': characterData['moveSpeed'],
+    'gold': (characterData['gold'] as num).toDouble(),
+    'image': characterData['image'],
   };
 }
 
@@ -276,10 +272,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Point<int>? _lastPlayerGridPosition;
   Set<Point<int>>? _cachedVisibleTiles;
 
-  OptimizedGameStateNotifier(String characterId) : super(
+  OptimizedGameStateNotifier(Map<String, dynamic> characterData) : super(
     OptimizedGameState(
-      characterConfig: CharacterConfigs.getCharacterById(characterId) ?? CharacterConfigs.allCharacters.first,
-      characterStats: _createInitialCharacterStats(CharacterConfigs.getCharacterById(characterId) ?? CharacterConfigs.allCharacters.first),
+      characterStats: _createInitialCharacterStats(characterData),
       playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
       movementState: const OptimizedMovementState(),
       map: MapData.testMap,
@@ -735,9 +730,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       return;
     }
     
-    // 计算基于玩家数值的最大速度（缓存计算结果）
-    final attBonus = state.characterStats['att'] * 0.1;
-    final currentMaxSpeed = (_maxSpeed + attBonus).clamp(0.5, 8.0);
+    // 计算基于玩家移动速度的最大速度（缓存计算结果）
+    final baseSpeed = state.characterStats['moveSpeed'] ?? 100.0;
+    final currentMaxSpeed = (baseSpeed / 20.0).clamp(0.5, 8.0); // 将像素/秒转换为游戏内速度单位
     
     // 计算目标速度
     final targetVelocityX = movement.joystickX * currentMaxSpeed * movement.joystickIntensity;
@@ -932,7 +927,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 计算角色的碰撞半径
     // sizeScale = 0.6, collisionScale = 0.8
     // 实际碰撞半径 = 0.6 * 0.8 * 0.5 = 0.24 瓦片单位
-    final characterHalfSize = state.characterConfig.sizeScale * state.characterConfig.collisionScale * 0.5;
+    const sizeScale = 0.6;
+    const collisionScale = 0.8;
+    final characterHalfSize = sizeScale * collisionScale * 0.5;
     
     // 添加水平偏移量，让角色更容易贴墙移动
     // 左边判定向左偏移，右边判定也向左偏移
@@ -1341,10 +1338,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _visionUpdateTimer?.cancel();
     
     // 重置状态到初始值
-    final characterConfig = state.characterConfig;
+    final currentCharacterStats = state.characterStats;
     state = OptimizedGameState(
-      characterConfig: characterConfig,
-      characterStats: _createInitialCharacterStats(characterConfig),
+      characterStats: _createInitialCharacterStats(currentCharacterStats),
       playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
       movementState: const OptimizedMovementState(),
       map: MapData.testMap,
@@ -1389,7 +1385,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 /// 优化的游戏状态提供者
 final optimizedGameStateProvider = StateNotifierProvider<OptimizedGameStateNotifier, OptimizedGameState>((ref) {
   // 使用厨师角色作为默认角色
-  return OptimizedGameStateNotifier('cook');
+  return OptimizedGameStateNotifier(manData[0]); // 使用manData中的第一个角色（厨师）
 });
 
 /// 优化的玩家位置提供者

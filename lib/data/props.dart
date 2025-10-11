@@ -39,7 +39,7 @@ final List<Item> allItems = [
     name: '半生不熟鱼',
     image: 'images/items/fish01.png',
     description: '苦心钻研匠心制造还没煮熟的鱼',
-    effects: {'hp': -5,'food':10,'san':-5,'att':-1},
+    effects: {'hp': -5,'food':10,'san':-5,'moveSpeed':-5}, // 移动速度减少5
     type: 'potion',
     availableInShop: true,
     basePrice: 8
@@ -59,7 +59,7 @@ final List<Item> allItems = [
     name: '尘封已久的鱼',
     image: 'images/items/fish03.png',
     description: '这样吃了没事吧？反正举报也没用管他的',
-    effects: {'hp': -10,'food':5,'san':-15,'att':-1},
+    effects: {'hp': -10,'food':5,'san':-15,'moveSpeed':-5}, // 移动速度减少5
     type: 'potion',
     availableInShop: true,
     basePrice: 8
@@ -69,7 +69,7 @@ final List<Item> allItems = [
       name: '学生守则',
       image: 'images/items/book.png',
       description: '三百多页？不管了看一下吧说不定有好处',
-      effects: {'san':-25,'att': 2},
+      effects: {'san':-25,'moveSpeed': 10}, // 移动速度增加10
       type: 'potion',
       availableInShop: true,
       basePrice: 0

@@ -39,9 +39,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   void initState() {
     super.initState();
     
-    // 初始化游戏状态管理器 - 使用角色ID而不是统计数据
-    final characterId = widget.characterStats['id'] ?? 'cook';
-    gameStateNotifier = OptimizedGameStateNotifier(characterId);
+    // 初始化游戏状态管理器 - 使用完整的角色数据
+    gameStateNotifier = OptimizedGameStateNotifier(widget.characterStats);
 
     // 预加载地形图片
     _preloadTerrainImages();
@@ -1054,7 +1053,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           
           // 角色描述
           Text(
-            gameState.characterConfig.description,
+            gameState.characterStats['description'] ?? '无描述',
             style: TextStyle(
               color: Colors.blue.shade200,
               fontSize: 14,
@@ -1098,9 +1097,9 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           _buildStatRow('理智值', '${stats['san']}/${stats['maxSan']}', 
                        Icons.psychology, Colors.blue, stats['san'] / stats['maxSan']),
           
-          // 攻击力
-          _buildStatRow('攻击力', '${stats['att']}', 
-                       Icons.flash_on, Colors.orange, 1.0),
+          // 移动速度
+          _buildStatRow('移动速度', '${stats['moveSpeed']?.toInt() ?? 100}', 
+                       Icons.directions_run, Colors.orange, 1.0),
           
           // 饱食度
           _buildStatRow('饱食度', '${stats['food']}', 
@@ -1111,7 +1110,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                        Icons.monetization_on, Colors.yellow, 1.0),
           
           // 移动速度
-          _buildStatRow('移动速度', '${gameState.characterConfig.moveSpeed.toInt()}', 
+          _buildStatRow('移动速度', '${(gameState.characterStats['moveSpeed'] ?? 5.0).toInt()}', 
                        Icons.directions_run, Colors.cyan, 1.0),
           
           // 调试信息：饥饿扣血监控
@@ -1205,7 +1204,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   // 构建角色能力信息
   Widget _buildCharacterAbilities(OptimizedGameState gameState) {
-    final abilities = gameState.characterConfig.specialAbilities;
+    final abilities = gameState.characterStats['specialAbilities'] as List<String>? ?? [];
     
     if (abilities.isEmpty) {
       return Container(
@@ -1247,7 +1246,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           ),
           const SizedBox(height: 12),
           
-          ...abilities.entries.map((entry) => Padding(
+          ...abilities.map((ability) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
@@ -1255,7 +1254,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${entry.key}: ${entry.value}',
+                    ability,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 13,
