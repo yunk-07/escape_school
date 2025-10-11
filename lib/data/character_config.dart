@@ -115,7 +115,7 @@ class CharacterConfigs {
       maxSan: 50,
       attack: 10,
       initialGold: 66,
-      initialFood: 10,
+      initialFood: 0, // 临时设为0以测试饥饿扣血功能
       sizeScale: 0.6,
       moveSpeed: 90.0,  // 稍慢，但攻击力高
       collisionScale: 0.8,

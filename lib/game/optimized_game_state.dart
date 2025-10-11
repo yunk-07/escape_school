@@ -144,6 +144,15 @@ class OptimizedGameState {
   final bool isNoClipMode;              // 是否处于无视地形模式
   final DateTime? noClipEndTime;        // 无视地形模式结束时间
   final DateTime? unstuckCooldownEnd;   // 脱离卡死冷却结束时间
+  
+  // 移动距离计算相关状态
+  final OptimizedPlayerPosition? lastPosition;  // 上一次位置，用于计算移动距离
+  final double accumulatedDistance;             // 累积移动距离
+  
+  // 生命值变化检测相关状态
+  final double? lastHp;                         // 上一次的生命值，用于检测变化
+  final bool shouldShowDamageEffect;            // 是否应该显示伤害效果
+  final double lastDamageAmount;                // 最后一次的伤害量
 
   const OptimizedGameState({
     required this.characterConfig,
@@ -167,6 +176,11 @@ class OptimizedGameState {
     this.isNoClipMode = false,
     this.noClipEndTime,
     this.unstuckCooldownEnd,
+    this.lastPosition,
+    this.accumulatedDistance = 0.0,
+    this.lastHp,
+    this.shouldShowDamageEffect = false,
+    this.lastDamageAmount = 0.0,
   });
 
   OptimizedGameState copyWith({
@@ -191,6 +205,11 @@ class OptimizedGameState {
     bool? isNoClipMode,
     DateTime? noClipEndTime,
     DateTime? unstuckCooldownEnd,
+    OptimizedPlayerPosition? lastPosition,
+    double? accumulatedDistance,
+    double? lastHp,
+    bool? shouldShowDamageEffect,
+    double? lastDamageAmount,
   }) {
     return OptimizedGameState(
       characterConfig: characterConfig ?? this.characterConfig,
@@ -214,6 +233,11 @@ class OptimizedGameState {
       isNoClipMode: isNoClipMode ?? this.isNoClipMode,
       noClipEndTime: noClipEndTime ?? this.noClipEndTime,
       unstuckCooldownEnd: unstuckCooldownEnd ?? this.unstuckCooldownEnd,
+      lastPosition: lastPosition ?? this.lastPosition,
+      accumulatedDistance: accumulatedDistance ?? this.accumulatedDistance,
+      lastHp: lastHp ?? this.lastHp,
+      shouldShowDamageEffect: shouldShowDamageEffect ?? this.shouldShowDamageEffect,
+      lastDamageAmount: lastDamageAmount ?? this.lastDamageAmount,
     );
   }
 }
@@ -222,13 +246,13 @@ class OptimizedGameState {
 Map<String, dynamic> _createInitialCharacterStats(CharacterConfig config) {
   return {
     'name': config.name,
-    'hp': config.maxHp,
-    'maxHp': config.maxHp,
-    'san': config.maxSan,
-    'maxSan': config.maxSan,
-    'food': config.initialFood,
-    'att': config.attack,
-    '金币': config.initialGold,
+    'hp': config.maxHp.toDouble(),
+    'maxHp': config.maxHp.toDouble(),
+    'san': config.maxSan.toDouble(),
+    'maxSan': config.maxSan.toDouble(),
+    'food': config.initialFood.toDouble(),
+    'att': config.attack.toDouble(),
+    'gold': config.initialGold.toDouble(), // 修正字段名为英文
     'image': config.imagePath,
   };
 }
@@ -238,6 +262,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _movementTimer;
   Timer? _visionUpdateTimer;
   Timer? _unstuckTimer;
+  Timer? _hungerTimer;
   late VisionSystem _visionSystem;
   
   // 性能优化参数
@@ -285,6 +310,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startMovementTimer();
     _startVisionUpdateTimer();
     _startUnstuckTimer();
+    _startHungerTimer();
     _updateVision();
   }
 
@@ -621,6 +647,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 启动饥饿扣血定时器
+  void _startHungerTimer() {
+    _hungerTimer = Timer.periodic(
+      const Duration(seconds: 1), // 每秒检查一次
+      (timer) {
+        _updateHungerDamage();
+      }
+    );
+  }
+
   /// 更新脱离卡死状态
   void _updateUnstuckState() {
     final now = DateTime.now();
@@ -641,6 +677,44 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 如果有更新，触发UI刷新
     if (needsUpdate) {
       // 状态已经更新，StateNotifier会自动通知监听者
+    }
+  }
+
+  /// 更新饥饿扣血逻辑
+  void _updateHungerDamage() {
+    final currentFood = state.characterStats['food'] ?? 0;
+    final currentHp = state.characterStats['hp'] ?? 0;
+    
+    // 当饱食度为0且生命值大于0时，每秒扣1生命值
+    if (currentFood <= 0 && currentHp > 0) {
+      final damageAmount = 1.0; // 饥饿扣血量
+      final newHp = (currentHp - damageAmount).clamp(0, state.characterStats['maxHp'] ?? 100);
+      
+      // 更新生命值 - 只复制数值类型的字段
+      final newStats = Map<String, dynamic>.from(state.characterStats);
+      newStats['hp'] = newHp.toDouble();
+      
+      // 检测生命值变化并触发伤害效果
+      final hpChanged = currentHp != newHp;
+      
+      state = state.copyWith(
+        characterStats: newStats,
+        lastHp: currentHp.toDouble(),
+        shouldShowDamageEffect: hpChanged, // 每次有伤害都触发效果
+        lastDamageAmount: hpChanged ? damageAmount : 0.0,
+      );
+      
+      // 调试信息
+      if (hpChanged) {
+        print('饥饿扣血: 饱食度为0，生命值从 ${currentHp.toStringAsFixed(1)} 减少到 ${newHp.toStringAsFixed(1)}');
+        print('伤害效果触发: $hpChanged');
+      }
+      
+      // 检查是否死亡
+      if (newHp <= 0) {
+        print('角色因饥饿死亡！');
+        // 这里可以触发游戏结束逻辑
+      }
     }
   }
 
@@ -726,19 +800,56 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       }
     }
     
-    // 更新位置和速度
+    // 创建新位置对象
     final newPosition = position.copyWith(x: finalX, y: finalY);
     final newMovement = movement.copyWith(
       velocityX: finalVelocityX,
       velocityY: finalVelocityY,
     );
     
-    // 只有位置或速度真正改变时才更新状态
+    // 只有位置真正改变时才更新状态和应用地形效果
     if (newPosition != position || newMovement != movement) {
-      state = state.copyWith(
-        playerPosition: newPosition,
-        movementState: newMovement,
-      );
+      // 计算移动距离
+      double movementDistance = 0.0;
+      if (newPosition != position) {
+        movementDistance = _calculateMovementDistance(position, newPosition);
+        
+        // 累积移动距离
+        final newAccumulatedDistance = state.accumulatedDistance + movementDistance;
+        
+        // 当累积距离达到1格时，应用地形效果
+        if (newAccumulatedDistance >= 1.0) {
+          final currentTerrain = _getCurrentTerrain();
+          final gridsToProcess = newAccumulatedDistance.floor();
+          
+          // 应用地形效果
+          _applyTerrainEffects(currentTerrain, gridsToProcess.toDouble());
+          
+          // 重置累积距离，保留小数部分
+          final remainingDistance = newAccumulatedDistance - gridsToProcess;
+          
+          // 更新状态，包括新的累积距离
+          state = state.copyWith(
+            playerPosition: newPosition,
+            movementState: newMovement,
+            lastPosition: position,
+            accumulatedDistance: remainingDistance,
+          );
+        } else {
+          // 距离不足1格，只更新位置和累积距离
+          state = state.copyWith(
+            playerPosition: newPosition,
+            movementState: newMovement,
+            lastPosition: position,
+            accumulatedDistance: newAccumulatedDistance,
+          );
+        }
+      } else {
+        // 位置没变，只更新移动状态
+        state = state.copyWith(
+          movementState: newMovement,
+        );
+      }
     }
     
     // 检查游戏结束条件
@@ -927,7 +1038,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 购买商品
   bool buyItem(ShopItem shopItem) {
     final character = state.characterStats;
-    final currentMoney = character['金币'] ?? 0;
+    final currentMoney = character['gold'] ?? 0;
     
     // 检查是否有足够的金币和库存
     if (currentMoney < shopItem.currentPrice || shopItem.stock <= 0) {
@@ -936,7 +1047,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 扣除金币
     final updatedCharacter = Map<String, dynamic>.from(character);
-    updatedCharacter['金币'] = currentMoney - shopItem.currentPrice;
+    updatedCharacter['gold'] = currentMoney - shopItem.currentPrice;
     
     // 添加物品到背包
     final newInventory = List<Item>.from(state.playerInventory);
@@ -966,8 +1077,100 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _visionUpdateTimer?.cancel();
   }
 
+  /// 根据地形类型扣除角色状态
+  void _applyTerrainEffects(String terrainType, double distance) {
+    if (distance <= 0) return;
+    
+    final currentStats = Map<String, dynamic>.from(state.characterStats);
+    final random = Random();
+    
+    // 计算移动格数（每格约为1个单位距离）
+    final gridsMoved = distance;
+    
+    switch (terrainType) {
+      case 'grass': // 草地
+        for (int i = 0; i < gridsMoved.ceil(); i++) {
+          // 随机扣除0.5-1饱食度
+          final foodDeduction = 0.5 + random.nextDouble() * 0.5;
+          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+          
+          // 随机扣除0-1精神值
+          final sanDeduction = random.nextDouble();
+          currentStats['san'] = ((currentStats['san'] ?? 0) - sanDeduction).clamp(0, currentStats['maxSan'] ?? 100);
+        }
+        break;
+        
+      case 'building': // 建筑里
+        for (int i = 0; i < gridsMoved.ceil(); i++) {
+          // 随机扣除0.2-1饱食度
+          final foodDeduction = 0.2 + random.nextDouble() * 0.8;
+          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+          
+          // 随机扣除0.8-2精神值
+          final sanDeduction = 0.8 + random.nextDouble() * 1.2;
+          currentStats['san'] = ((currentStats['san'] ?? 0) - sanDeduction).clamp(0, currentStats['maxSan'] ?? 100);
+        }
+        break;
+        
+      case 'woods': // 树林里
+        for (int i = 0; i < gridsMoved.ceil(); i++) {
+          // 随机扣除0.5-1饱食度
+          final foodDeduction = 0.5 + random.nextDouble() * 0.5;
+          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+          
+          // 随机扣除0-1精神值
+          final sanDeduction = random.nextDouble();
+          currentStats['san'] = ((currentStats['san'] ?? 0) - sanDeduction).clamp(0, currentStats['maxSan'] ?? 100);
+          
+          // 随机扣除0-0.5生命值
+          final hpDeduction = random.nextDouble() * 0.5;
+          currentStats['hp'] = ((currentStats['hp'] ?? 0) - hpDeduction).clamp(0, currentStats['maxHp'] ?? 100);
+        }
+        break;
+        
+      case 'path': // 路上
+        for (int i = 0; i < gridsMoved.ceil(); i++) {
+          // 随机扣除0.2-0.5饱食度
+          final foodDeduction = 0.2 + random.nextDouble() * 0.3;
+          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+          
+          // 随机恢复0-0.5精神值
+          final sanRecovery = random.nextDouble() * 0.5;
+          currentStats['san'] = ((currentStats['san'] ?? 0) + sanRecovery).clamp(0, currentStats['maxSan'] ?? 100);
+        }
+        break;
+        
+      default:
+        // 其他地形类型暂时不扣除状态
+        break;
+    }
+    
+    // 更新角色状态
+    state = state.copyWith(characterStats: currentStats);
+    
+    // 调试输出
+    print('地形效果: $terrainType, 移动距离: ${distance.toStringAsFixed(2)}, 饱食度: ${currentStats['food']?.toStringAsFixed(1)}, 精神值: ${currentStats['san']?.toStringAsFixed(1)}, 生命值: ${currentStats['hp']?.toStringAsFixed(1)}');
+  }
+
+  /// 获取当前位置的地形类型
+  String _getCurrentTerrain() {
+    final position = state.playerPosition;
+    final gridX = position.x.round().clamp(0, state.map[0].length - 1);
+    final gridY = position.y.round().clamp(0, state.map.length - 1);
+    
+    return state.map[gridY][gridX];
+  }
+
+  /// 计算两点之间的距离
+  double _calculateMovementDistance(OptimizedPlayerPosition from, OptimizedPlayerPosition to) {
+    final dx = to.x - from.x;
+    final dy = to.y - from.y;
+    return sqrt(dx * dx + dy * dy);
+  }
+
   /// 检查游戏结束条件
   void _checkGameOverConditions() {
+
     final position = state.playerPosition;
     final character = state.characterStats;
     
@@ -1165,11 +1368,20 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _initializeGame();
   }
 
+  /// 重置伤害效果状态
+  void resetDamageEffect() {
+    state = state.copyWith(
+      shouldShowDamageEffect: false,
+      lastDamageAmount: 0.0,
+    );
+  }
+
   @override
   void dispose() {
     _movementTimer?.cancel();
     _visionUpdateTimer?.cancel();
     _unstuckTimer?.cancel();
+    _hungerTimer?.cancel();
     super.dispose();
   }
 }

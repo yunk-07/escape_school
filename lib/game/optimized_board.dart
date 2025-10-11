@@ -14,6 +14,8 @@ import 'package:escape_from_school/game/optimized_game_state.dart';
 import 'package:escape_from_school/game/gameOver.dart';
 import 'package:escape_from_school/game/inventory_page.dart';
 import 'package:escape_from_school/game/joystick.dart';
+import 'package:escape_from_school/game/damage_effect.dart';
+import 'package:escape_from_school/game/hp_listener.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -503,8 +505,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   // 构建精神值环形图（左上角）- 立体效果
   Widget _buildSanityCircle(OptimizedGameState gameState) {
-    final int currentSan = gameState.characterStats['san'] ?? 0;
-    final int maxSan = gameState.characterStats['maxSan'] ?? 100;
+    final double currentSan = (gameState.characterStats['san'] ?? 0).toDouble();
+    final double maxSan = (gameState.characterStats['maxSan'] ?? 100).toDouble();
     final double percentage = (currentSan / maxSan).clamp(0.0, 1.0);
     
     return Positioned(
@@ -581,7 +583,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             ),
             // 中心数字显示
             Text(
-              '$currentSan',
+              '${currentSan.round()}',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -608,10 +610,10 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   // 构建底部状态条（生命值和饱食度）
   Widget _buildBottomStatusBars(OptimizedGameState gameState) {
-    final int currentHp = gameState.characterStats['hp'] ?? 0;
-    final int maxHp = gameState.characterStats['maxHp'] ?? 100;
-    final int currentFood = gameState.characterStats['food'] ?? 0;
-    final int maxFood = 100;
+    final double currentHp = (gameState.characterStats['hp'] ?? 0).toDouble();
+    final double maxHp = (gameState.characterStats['maxHp'] ?? 100).toDouble();
+    final double currentFood = (gameState.characterStats['food'] ?? 0).toDouble();
+    final double maxFood = 100.0;
     
     return Positioned(
       bottom: 80,
@@ -645,7 +647,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   }
 
   // 构建单个状态条（更细更长的设计）
-  Widget _buildStatusBar(IconData icon, int current, int max, Color color, String label) {
+  Widget _buildStatusBar(IconData icon, double current, double max, Color color, String label) {
     final double percentage = (current / max).clamp(0.0, 1.0);
     
     return Container(
@@ -689,7 +691,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           ),
           // 数值文本
           Text(
-            '$current/$max',
+            '${current.round()}/${max.round()}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 10,  // 进一步减小字体
@@ -1105,12 +1107,48 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                        Icons.restaurant, Colors.green, stats['food'] / 100.0),
           
           // 金币
-          _buildStatRow('金币', '${stats['金币']}', 
+          _buildStatRow('金币', '${stats['gold']}', 
                        Icons.monetization_on, Colors.yellow, 1.0),
           
           // 移动速度
           _buildStatRow('移动速度', '${gameState.characterConfig.moveSpeed.toInt()}', 
                        Icons.directions_run, Colors.cyan, 1.0),
+          
+          // 调试信息：饥饿扣血监控
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              border: Border.all(color: Colors.red, width: 1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '饥饿扣血监控',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  'HP: ${stats['hp']?.toStringAsFixed(1)} / ${stats['maxHp']?.toStringAsFixed(1)}',
+                  style: TextStyle(color: Colors.red, fontSize: 10),
+                ),
+                Text(
+                  '食物: ${stats['food']?.toStringAsFixed(1)}',
+                  style: TextStyle(color: Colors.red, fontSize: 10),
+                ),
+                Text(
+                  '时间: ${DateTime.now().second}秒',
+                  style: TextStyle(color: Colors.red, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1234,38 +1272,49 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   // 构建游戏页面
   Widget _buildGamePage(OptimizedGameState gameState) {
-    return SizedBox.expand(
+    return HPListener(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 主游戏区域
-          _buildGameArea(gameState),
+          // 主游戏内容区域（包含伤害效果）
+          DamageEffectWrapper(
+            child: SizedBox.expand(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 主游戏区域
+                  _buildGameArea(gameState),
+                
+                  // 精神值环形图（左上角）
+                  _buildSanityCircle(gameState),
+                  
+                  // 生命值和饱食度条（下方居中）
+                  _buildBottomStatusBars(gameState),
+                  
+                  // 设置按钮（右上角）
+                  _buildSettingsButton(),
+                  
+                  // 探索结果显示
+                  if (gameState.explorationResult.isNotEmpty)
+                    _buildExplorationResult(gameState),
+                  
+                  // 角色信息面板（左侧）
+                  _buildCharacterInfoView(gameState),
+                  
+                  // 商店界面
+                  if (gameState.showShop && gameState.schoolShop != null)
+                    _buildShopView(gameState),
+                ],
+              ),
+            ),
+          ),
           
-          // 精神值环形图（左上角）
-          _buildSanityCircle(gameState),
-          
-          // 生命值和饱食度条（下方居中）
-          _buildBottomStatusBars(gameState),
-          
-          // 设置按钮（右上角）
-          _buildSettingsButton(),
-          
-          // 探索结果显示
-          if (gameState.explorationResult.isNotEmpty)
-            _buildExplorationResult(gameState),
-          
-          // 移动控制
+          // 交互控制组件（最高优先级，不受伤害效果影响）
+          // 移动控制（摇杆）
           _buildMovementControls(),
           
           // 功能按钮
           _buildActionButtons(gameState),
-          
-          // 角色信息面板（左侧）
-          _buildCharacterInfoView(gameState),
-          
-          // 商店界面
-          if (gameState.showShop && gameState.schoolShop != null)
-            _buildShopView(gameState),
         ],
       ),
     );
