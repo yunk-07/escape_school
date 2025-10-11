@@ -79,129 +79,218 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isLandscape = screenSize.width > screenSize.height;
+    
     return Scaffold(
       body: Stack(
         children: [
+          // 背景层
           Container(
             width: double.infinity,
             height: double.infinity,
             decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('images/background_1.png'),
-                fit: BoxFit.fill,
+                fit: BoxFit.cover,
               ),
             ),
-            child: FloatingTextBackground(child: Container(),),
+            child: FloatingTextBackground(child: Container()),
           ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(title.length, (index) {
-                        return SlideTransition(
-                          position: _letterAnimations[index],
-                          child: Text(
-                            title[index],
-                            style: const TextStyle(
-                              fontSize: 80,
-                              fontFamily: 'MicC',
-                              color: Colors.red,
-                              shadows: [
-                              Shadow(
-                              blurRadius: 10,
-                              color: Colors.black,
-                              offset: Offset(2, 2),)
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                    );
-                  },
-                ),
-                const SizedBox(height: 40),
-                if (_showButton)
-                  GestureDetector(
-                    onTap: () {
-                      // 按钮点击事件
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) =>  ChooseCharacterPage()),
-                      );
-                    },
-                    child: Container(
-                      width: 220,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black,
-                            offset: Offset(0, 10),
-                            blurRadius: 0,
-                          ),
-                          BoxShadow(
-                            color: Colors.red,
-                            offset: Offset(0, 0),
-                            blurRadius: 0,
-                            spreadRadius: 0,
-                          ),
-                        ],
+          
+          // 渐变遮罩层，增强可读性
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.3),
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.5),
+                ],
+                stops: const [0.0, 0.4, 1.0],
+              ),
+            ),
+          ),
+          
+          // 主要内容
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Center(
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                        maxWidth: isLandscape ? 800 : double.infinity,
                       ),
-                      child: Stack(
-                        children: [
-                          // 按钮顶部高光效果
-                          Positioned(
-                            top: 0,
-                            child: Container(
-                              width: 220,
-                              height: 15,
-                              decoration: BoxDecoration(
-                                color: Colors.redAccent.withValues(alpha: 0.5),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(15),
-                                  topRight: Radius.circular(15),
-                                ),
-                              ),
-                            ),
+                      child: IntrinsicHeight(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenSize.width * 0.1,
+                            vertical: 40,
                           ),
-                          // 按钮文字
-                          const Center(
-                            child: Text(
-                              '开始做人',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontFamily: 'MicC',
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                shadows: [
-                                Shadow(
-                                blurRadius: 5,
-                                color: Colors.black,
-                                offset: Offset(2, 2),)
-                                ],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              
+                              SizedBox(height: screenSize.height * 0.05),
+                              
+                              // 标题动画
+                              AnimatedBuilder(
+                                animation: _controller,
+                                builder: (context, child) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: List.generate(title.length, (index) {
+                                        return SlideTransition(
+                                          position: _letterAnimations[index],
+                                          child: Text(
+                                            title[index],
+                                            style: TextStyle(
+                                              fontSize: isLandscape ? 70 : 80,
+                                              fontFamily: 'MicC',
+                                              color: Colors.red,
+                                              shadows: const [
+                                                Shadow(
+                                                  blurRadius: 15,
+                                                  color: Colors.black,
+                                                  offset: Offset(3, 3),
+                                                ),
+                                                Shadow(
+                                                  blurRadius: 30,
+                                                  color: Colors.red,
+                                                  offset: Offset(0, 0),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  );
+                                },
                               ),
-                            ),
+                              
+                              SizedBox(height: screenSize.height * 0.03),
+                              SizedBox(height: screenSize.height * 0.05),
+
+                              // 开始按钮
+                              if (_showButton)
+                                _buildStartButton(isLandscape),
+                              
+                              
+                            
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ).animate().scale(
-                      begin: Offset(1, 1),
-                        end: Offset(0.9, 0.9),
-                      duration: 100.ms
                     ),
                   ),
-              ],
+                );
+              },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStartButton(bool isLandscape) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ChooseCharacterPage()),
+        );
+      },
+      child: Container(
+        width: isLandscape ? 200 : 240,
+        height: isLandscape ? 60 : 70,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFF4444),
+              Color(0xFFCC0000),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.6),
+              offset: const Offset(0, 8),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+            BoxShadow(
+              color: Colors.red.withOpacity(0.4),
+              offset: const Offset(0, 0),
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // 按钮顶部高光效果
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 20,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withOpacity(0.3),
+                      Colors.transparent,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(15),
+                    topRight: Radius.circular(15),
+                  ),
+                ),
+              ),
+            ),
+            
+            // 按钮文字
+            Center(
+              child: Text(
+                '开始做人',
+                style: TextStyle(
+                  fontSize: isLandscape ? 28 : 32,
+                  fontFamily: 'MicC',
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  shadows: const [
+                    Shadow(
+                      blurRadius: 8,
+                      color: Colors.black,
+                      offset: Offset(2, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ).animate().scale(
+        begin: const Offset(0.8, 0.8),
+        end: const Offset(1.0, 1.0),
+        duration: 300.ms,
+        curve: Curves.elasticOut,
+      ).fadeIn(duration: 300.ms),
     );
   }
 }

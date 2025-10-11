@@ -32,7 +32,7 @@ final List<Map<String, dynamic>> manData = const [
     'food': 20,
   },
   {
-    'name': '已经困了',
+    'name': '速度之王',
     'image': 'images/man/sleep.png',
     'gold': 10,
     'hp': 100,
