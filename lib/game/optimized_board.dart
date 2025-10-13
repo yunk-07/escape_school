@@ -16,6 +16,8 @@ import 'package:escape_from_school/game/inventory_page.dart';
 import 'package:escape_from_school/game/joystick.dart';
 import 'package:escape_from_school/game/damage_effect.dart';
 import 'package:escape_from_school/game/hp_listener.dart';
+import 'package:escape_from_school/game/smooth_vision.dart';
+import 'package:escape_from_school/game/enhanced_vision.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -495,6 +497,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           painter: _GameAreaPainter(
             gameState: gameState,
             terrainImages: terrainImages,
+            smoothVisionManager: gameStateNotifier.smoothVisionManager,
           ),
           size: Size.infinite,
         ),
@@ -1303,6 +1306,10 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                   // 商店界面
                   if (gameState.showShop && gameState.schoolShop != null)
                     _buildShopView(gameState),
+                  
+                  // 调试控制器（仅在调试模式下显示）
+                  if (kDebugMode)
+                    _buildDebugController(gameState),
                 ],
               ),
             ),
@@ -1437,6 +1444,102 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
       ),
     );
   }
+
+  /// 构建调试控制器（仅在调试模式下显示）
+  Widget _buildDebugController(OptimizedGameState gameState) {
+    final currentSanity = gameState.characterStats['san']?.toDouble() ?? 100.0;
+    final maxSanity = gameState.characterStats['maxSan']?.toDouble() ?? 100.0;
+    
+    return Positioned(
+      top: 120,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.withOpacity(0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '调试控制器',
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '精神值: ${currentSanity.toInt()}/${maxSanity.toInt()}',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 精神值快速设置按钮
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                _buildDebugButton('100%', () {
+                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+                  notifier.debugSetSanity(maxSanity);
+                }),
+                _buildDebugButton('50%', () {
+                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+                  notifier.debugSetSanity(maxSanity * 0.5);
+                }),
+                _buildDebugButton('25%', () {
+                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+                  notifier.debugSetSanity(maxSanity * 0.25);
+                }),
+                _buildDebugButton('10%', () {
+                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+                  notifier.debugSetSanity(maxSanity * 0.1);
+                }),
+                _buildDebugButton('5%', () {
+                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+                  notifier.debugSetSanity(maxSanity * 0.05);
+                }),
+                _buildDebugButton('0%', () {
+                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+                  notifier.debugSetSanity(0);
+                }),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建调试按钮
+  Widget _buildDebugButton(String text, VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.orange.withOpacity(0.5)),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: Colors.orange,
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // 自定义3D环形进度绘制器
@@ -1520,10 +1623,12 @@ class _3DCircularProgressPainter extends CustomPainter {
 class _GameAreaPainter extends CustomPainter {
   final OptimizedGameState gameState;
   final Map<String, ui.Image> terrainImages;
+  final SmoothVisionManager? smoothVisionManager;
 
   _GameAreaPainter({
     required this.gameState,
     required this.terrainImages,
+    this.smoothVisionManager,
   });
 
   @override
@@ -1541,7 +1646,10 @@ class _GameAreaPainter extends CustomPainter {
     final double mapOffsetX = playerScreenX - (gameState.playerPosition.x * tileSize);
     final double mapOffsetY = playerScreenY - (gameState.playerPosition.y * tileSize);
     
-    // 绘制地图
+    // 先绘制黑色背景
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..color = Colors.black);
+    
+    // 绘制地图（只绘制可见的瓦片）
     for (int y = 0; y < gameState.map.length; y++) {
       for (int x = 0; x < gameState.map[y].length; x++) {
         final double tileX = mapOffsetX + (x * tileSize);
@@ -1551,6 +1659,26 @@ class _GameAreaPainter extends CustomPainter {
         if (tileX > -tileSize && tileX < size.width && 
             tileY > -tileSize && tileY < size.height) {
           
+          // 获取瓦片的透明度 - 支持平滑视野过渡
+          final math.Point<int> tilePoint = math.Point(x, y);
+          double tileOpacity = 1.0;
+          
+          if (smoothVisionManager != null) {
+            // 使用平滑视野管理器获取透明度
+            tileOpacity = smoothVisionManager!.getTileOpacity(tilePoint);
+            
+            // 如果透明度为0，跳过渲染
+            if (tileOpacity <= 0.0) {
+              continue;
+            }
+          } else {
+            // 回退到原始的可见性检查
+            final bool isVisible = gameState.visibleTiles.contains(tilePoint);
+            if (!isVisible) {
+              continue;
+            }
+          }
+          
           final String terrain = gameState.map[y][x];
           final Rect tileRect = Rect.fromLTWH(tileX, tileY, tileSize, tileSize);
           
@@ -1558,9 +1686,11 @@ class _GameAreaPainter extends CustomPainter {
           final ui.Image? terrainImage = terrainImages[terrain];
           
           if (terrainImage != null) {
-            // 使用贴图渲染
+            // 使用贴图渲染，应用透明度
             final Rect srcRect = Rect.fromLTWH(0, 0, terrainImage.width.toDouble(), terrainImage.height.toDouble());
-            canvas.drawImageRect(terrainImage, srcRect, tileRect, Paint());
+            final Paint imagePaint = Paint()
+              ..color = Colors.white.withOpacity(tileOpacity);
+            canvas.drawImageRect(terrainImage, srcRect, tileRect, imagePaint);
           } else {
             // 回退到颜色渲染（使用改进的颜色和渐变效果）
             final Paint terrainPaint = Paint();
@@ -1595,14 +1725,14 @@ class _GameAreaPainter extends CustomPainter {
                 terrainColor = Colors.grey.shade500;
             }
             
-            // 添加渐变效果使地形更美观
+            // 添加渐变效果使地形更美观，应用透明度
             final gradient = LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                terrainColor.withOpacity(0.9),
-                terrainColor,
-                terrainColor.withOpacity(0.8),
+                terrainColor.withOpacity(0.9 * tileOpacity),
+                terrainColor.withOpacity(tileOpacity),
+                terrainColor.withOpacity(0.8 * tileOpacity),
               ],
             );
             
@@ -1610,12 +1740,17 @@ class _GameAreaPainter extends CustomPainter {
             canvas.drawRect(tileRect, terrainPaint);
           }
           
-          // 绘制细微边框以增强视觉效果
+          // 绘制细微边框以增强视觉效果，应用透明度
           final Paint borderPaint = Paint()
-            ..color = Colors.black12
+            ..color = Colors.black12.withOpacity(0.5 * tileOpacity)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 0.5;
           canvas.drawRect(tileRect, borderPaint);
+          
+          // 绘制雾霾装饰效果（如果该瓦片需要雾霾装饰）
+          if (smoothVisionManager != null) {
+            _drawFogDecorationIfNeeded(canvas, tilePoint, tileRect, tileOpacity);
+          }
         }
       }
     }
@@ -1638,6 +1773,183 @@ class _GameAreaPainter extends CustomPainter {
       tileSize / 3,
       playerBorderPaint,
     );
+    
+    // 绘制圆形视野边界效果
+    _drawCircularVisionBoundary(canvas, size, playerScreenX, playerScreenY, tileSize);
+    
+    // 视线遮挡系统已通过visibleTiles实现，无需额外的雾效遮罩
+  }
+
+  /// 绘制圆形视野边界效果
+  void _drawCircularVisionBoundary(Canvas canvas, Size size, double playerX, double playerY, double tileSize) {
+    // 获取当前精神值来计算动态视野半径
+    final currentSanity = (gameState.characterStats['san'] ?? 100).toDouble();
+    final maxSanity = (gameState.characterStats['maxSan'] ?? 100).toDouble();
+    final sanityPercentage = (currentSanity / maxSanity).clamp(0.0, 1.0);
+    
+    // 计算动态视野半径（与EnhancedVisionSystem保持一致）
+    const int minViewRadius = 1;
+    const int maxViewRadius = 12;
+    final adjustedPercentage = sanityPercentage * sanityPercentage; // 平方函数
+    final currentViewRadius = (minViewRadius + (maxViewRadius - minViewRadius) * adjustedPercentage).round();
+    final double visionRadius = currentViewRadius * tileSize;
+    
+    // 绘制多层雾效，创建更自然的视野过渡
+    _drawMultiLayerFog(canvas, size, playerX, playerY, visionRadius, sanityPercentage);
+    
+    // 绘制动态边界效果
+    _drawDynamicVisionBorder(canvas, playerX, playerY, visionRadius, sanityPercentage);
+  }
+
+  /// 绘制多层雾效
+  void _drawMultiLayerFog(Canvas canvas, Size size, double playerX, double playerY, double visionRadius, double sanityPercentage) {
+    // 外层浓雾（视野外完全黑暗）
+    final Path outerFogPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addOval(Rect.fromCircle(
+        center: Offset(playerX, playerY),
+        radius: visionRadius + 20, // 稍微扩大一点，避免硬边界
+      ));
+    outerFogPath.fillType = PathFillType.evenOdd;
+    
+    final Paint outerFogPaint = Paint()
+      ..color = Colors.black.withOpacity(0.95 - sanityPercentage * 0.1); // 精神值越低，雾越浓
+    canvas.drawPath(outerFogPath, outerFogPaint);
+    
+    // 中层雾效（渐变过渡区域）
+    final double transitionRadius = visionRadius + 15;
+    final Paint middleFogPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 1.0,
+        colors: [
+          Colors.transparent,
+          Colors.black.withOpacity(0.2 + (1.0 - sanityPercentage) * 0.3),
+          Colors.black.withOpacity(0.6 + (1.0 - sanityPercentage) * 0.3),
+          Colors.black.withOpacity(0.9),
+        ],
+        stops: const [0.0, 0.7, 0.9, 1.0],
+      ).createShader(Rect.fromCircle(
+        center: Offset(playerX, playerY),
+        radius: transitionRadius,
+      ));
+    
+    canvas.drawCircle(
+      Offset(playerX, playerY),
+      transitionRadius,
+      middleFogPaint,
+    );
+    
+    // 内层轻雾（视野边缘的细微雾效）
+    final double innerRadius = visionRadius * 0.9;
+    final Paint innerFogPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 1.0,
+        colors: [
+          Colors.transparent,
+          Colors.transparent,
+          Colors.black.withOpacity(0.1 + (1.0 - sanityPercentage) * 0.2),
+        ],
+        stops: const [0.0, 0.8, 1.0],
+      ).createShader(Rect.fromCircle(
+        center: Offset(playerX, playerY),
+        radius: visionRadius,
+      ));
+    
+    canvas.drawCircle(
+      Offset(playerX, playerY),
+      visionRadius,
+      innerFogPaint,
+    );
+  }
+
+  /// 绘制动态视野边界
+  void _drawDynamicVisionBorder(Canvas canvas, double playerX, double playerY, double visionRadius, double sanityPercentage) {
+    // 主边界线（根据精神值调整颜色和透明度）
+    final Paint borderPaint = Paint()
+      ..color = Color.lerp(
+        Colors.red.withOpacity(0.6), // 低精神值时的红色边界
+        Colors.blue.withOpacity(0.3), // 高精神值时的蓝色边界
+        sanityPercentage,
+      )!
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0 + (1.0 - sanityPercentage) * 2.0; // 精神值越低，边界线越粗
+    
+    canvas.drawCircle(
+      Offset(playerX, playerY),
+      visionRadius,
+      borderPaint,
+    );
+    
+    // 脉动效果（低精神值时更明显）
+    if (sanityPercentage < 0.5) {
+      final double pulseIntensity = (1.0 - sanityPercentage * 2.0);
+      final Paint pulsePaint = Paint()
+        ..color = Colors.red.withOpacity(0.3 * pulseIntensity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.0 * pulseIntensity;
+      
+      canvas.drawCircle(
+        Offset(playerX, playerY),
+        visionRadius + 5 * pulseIntensity,
+        pulsePaint,
+      );
+    }
+    
+    // 内部光晕效果
+    final Paint glowPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 1.0,
+        colors: [
+          Colors.white.withOpacity(0.1 * sanityPercentage),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 1.0],
+      ).createShader(Rect.fromCircle(
+        center: Offset(playerX, playerY),
+        radius: visionRadius * 0.3,
+      ));
+    
+    canvas.drawCircle(
+      Offset(playerX, playerY),
+      visionRadius * 0.3,
+      glowPaint,
+    );
+  }
+  
+  /// 绘制雾霾装饰效果（如果该瓦片需要雾霾装饰）
+  void _drawFogDecorationIfNeeded(Canvas canvas, math.Point<int> tilePoint, Rect tileRect, double tileOpacity) {
+    // 获取瓦片的可见性状态
+    final tileVisibility = smoothVisionManager!.getTileVisibility(tilePoint);
+    if (tileVisibility == null) return;
+    
+    // 只有带雾霾装饰的瓦片才需要绘制雾霾效果
+    if (tileVisibility == TileVisibility.visibleWithFogDecoration ||
+        tileVisibility == TileVisibility.partiallyVisibleWithFogDecoration) {
+      
+      // 创建雾霾装饰效果
+      final Paint fogPaint = Paint()
+        ..color = Colors.grey.withOpacity(0.3 * tileOpacity)
+        ..style = PaintingStyle.fill;
+      
+      // 绘制半透明的雾霾覆盖层
+      canvas.drawRect(tileRect, fogPaint);
+      
+      // 添加一些噪声纹理效果
+      final Paint noisePaint = Paint()
+        ..color = Colors.white.withOpacity(0.1 * tileOpacity)
+        ..style = PaintingStyle.fill;
+      
+      // 使用简单的点状纹理模拟雾霾颗粒
+      final double dotSize = tileRect.width * 0.05;
+      for (int i = 0; i < 8; i++) {
+        final double x = tileRect.left + (tileRect.width * (i % 3) / 3) + (dotSize * (i % 2));
+        final double y = tileRect.top + (tileRect.height * (i ~/ 3) / 3) + (dotSize * ((i + 1) % 2));
+        canvas.drawCircle(Offset(x, y), dotSize, noisePaint);
+      }
+    }
   }
 
   @override
@@ -1863,4 +2175,4 @@ class _UnstuckButtonState extends ConsumerState<_UnstuckButton> {
        ),
      );
    }
- }
+}

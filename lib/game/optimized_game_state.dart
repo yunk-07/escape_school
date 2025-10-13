@@ -11,7 +11,9 @@ import 'package:escape_from_school/data/props.dart';
 import 'package:escape_from_school/data/shop.dart';
 import 'package:escape_from_school/data/manData.dart';
 import 'package:escape_from_school/game/vision.dart';
+import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/ghost.dart';
+import 'package:escape_from_school/game/smooth_vision.dart';
 
 /// 游戏页面类型枚举
 enum GamePage {
@@ -152,6 +154,9 @@ class OptimizedGameState {
   final double? lastHp;                         // 上一次的生命值，用于检测变化
   final bool shouldShowDamageEffect;            // 是否应该显示伤害效果
   final double lastDamageAmount;                // 最后一次的伤害量
+  
+  // 平滑视野动画相关状态
+  final int lastAnimationFrame;                 // 最后一次动画帧标识，用于触发重绘
 
   const OptimizedGameState({
     required this.characterStats,
@@ -179,6 +184,7 @@ class OptimizedGameState {
     this.lastHp,
     this.shouldShowDamageEffect = false,
     this.lastDamageAmount = 0.0,
+    this.lastAnimationFrame = 0,
   });
 
   OptimizedGameState copyWith({
@@ -207,6 +213,7 @@ class OptimizedGameState {
     double? lastHp,
     bool? shouldShowDamageEffect,
     double? lastDamageAmount,
+    int? lastAnimationFrame,
   }) {
     return OptimizedGameState(
       characterStats: characterStats ?? this.characterStats,
@@ -234,6 +241,7 @@ class OptimizedGameState {
       lastHp: lastHp ?? this.lastHp,
       shouldShowDamageEffect: shouldShowDamageEffect ?? this.shouldShowDamageEffect,
       lastDamageAmount: lastDamageAmount ?? this.lastDamageAmount,
+      lastAnimationFrame: lastAnimationFrame ?? this.lastAnimationFrame,
     );
   }
 }
@@ -259,7 +267,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _visionUpdateTimer;
   Timer? _unstuckTimer;
   Timer? _hungerTimer;
+  Timer? _smoothVisionTimer; // 平滑视野动画定时器
   late VisionSystem _visionSystem;
+  late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
+  late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
   
   // 性能优化参数
   static const double _maxSpeed = 2.0;
@@ -267,6 +278,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   static const double _friction = 6.0;
   static const double _deltaTime = 0.016; // 16ms
   static const int _visionUpdateInterval = 100; // 视野更新间隔(ms)
+  static const int _smoothVisionUpdateInterval = 16; // 平滑视野动画间隔(ms) - 60fps
   
   // 缓存变量以减少重复计算
   Point<int>? _lastPlayerGridPosition;
@@ -299,11 +311,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   void _initializeGame() {
     _visionSystem = VisionSystem(map: MapData.testMap);
+    _enhancedVisionSystem = EnhancedVisionSystem(map: MapData.testMap); // 初始化增强版视野系统
+    _smoothVisionManager = SmoothVisionManager(); // 初始化平滑视野管理器
     _initializeShop();
     _initializeGhosts();
     _setRandomPlayerSpawn();
     _startMovementTimer();
     _startVisionUpdateTimer();
+    _startSmoothVisionTimer(); // 启动平滑视野动画定时器
     _startUnstuckTimer();
     _startHungerTimer();
     _updateVision();
@@ -632,6 +647,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 启动平滑视野动画定时器（高频率更新以保证流畅性）
+  void _startSmoothVisionTimer() {
+    _smoothVisionTimer = Timer.periodic(
+      const Duration(milliseconds: _smoothVisionUpdateInterval), 
+      (timer) {
+        _updateSmoothVisionAnimations();
+      }
+    );
+  }
+
   /// 启动脱离卡死状态更新定时器
   void _startUnstuckTimer() {
     _unstuckTimer = Timer.periodic(
@@ -851,9 +876,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _checkGameOverConditions();
   }
 
-  /// 优化的视野更新（使用缓存）
+  /// 更新视野
   void _updateVision() {
-    final playerGridPosition = Point<int>(
+    if (kDebugMode) {
+      print('_updateVision 被调用');
+    }
+    
+    final playerGridPosition = Point(
       state.playerPosition.x.round(),
       state.playerPosition.y.round(),
     );
@@ -872,7 +901,31 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     try {
-      final newVisibleTiles = _visionSystem.getVisibleTiles(playerGridPosition);
+      // 获取当前精神值
+      final currentSanity = (state.characterStats['san'] ?? 100).toDouble();
+      final maxSanity = (state.characterStats['maxSan'] ?? 100).toDouble();
+      
+      // 使用增强版视野系统获取带有可见性级别的瓦片（传递精神值）
+      final tilesWithVisibility = _enhancedVisionSystem.getVisibleTilesWithLevel(
+        playerGridPosition,
+        sanityValue: currentSanity,
+        maxSanity: maxSanity,
+      );
+      
+      // 提取完全可见的瓦片用于兼容性
+      final newVisibleTiles = tilesWithVisibility.entries
+          .where((entry) => entry.value == TileVisibility.fullyVisible)
+          .map((entry) => entry.key)
+          .toSet();
+      
+      // 调试输出
+      if (kDebugMode) {
+        print('玩家位置: ($playerGridPosition), 可见格子数量: ${newVisibleTiles.length}');
+        print('总视野瓦片数量: ${tilesWithVisibility.length}');
+        if (newVisibleTiles.length < 10) {
+          print('完全可见格子: $newVisibleTiles');
+        }
+      }
       
       // 更新缓存
       _lastPlayerGridPosition = playerGridPosition;
@@ -891,6 +944,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         }
       }
       
+      // 更新平滑视野管理器，使用新的可见性级别系统
+      _smoothVisionManager.updateVisionWithLevels(tilesWithVisibility);
+      
       state = state.copyWith(
         visibleTiles: newVisibleTiles,
         visibleMap: newVisibleMap,
@@ -899,6 +955,22 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       if (kDebugMode) {
         print('视野计算错误: $e');
       }
+    }
+  }
+
+  /// 更新平滑视野动画
+  void _updateSmoothVisionAnimations() {
+    final needsRepaint = _smoothVisionManager.updateAnimations();
+    
+    // 如果动画有更新，触发重绘
+    if (needsRepaint) {
+      // 通过更新一个无关紧要的状态来触发重绘
+      // 这里我们可以使用一个专门的动画帧计数器
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      state = state.copyWith(
+        // 添加一个动画帧标识，用于触发重绘
+        lastAnimationFrame: currentTime,
+      );
     }
   }
 
@@ -1072,6 +1144,21 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 停止所有计时器
     _movementTimer?.cancel();
     _visionUpdateTimer?.cancel();
+  }
+
+  /// 调试方法：设置精神值（用于测试视野效果）
+  void debugSetSanity(double sanityValue) {
+    final newStats = Map<String, dynamic>.from(state.characterStats);
+    newStats['san'] = sanityValue.clamp(0.0, newStats['maxSan'] ?? 100.0);
+    
+    state = state.copyWith(characterStats: newStats);
+    
+    // 强制更新视野
+    _updateVision();
+    
+    if (kDebugMode) {
+      print('调试：精神值设置为 ${newStats['san']}');
+    }
   }
 
   /// 根据地形类型扣除角色状态
@@ -1372,10 +1459,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 获取平滑视野管理器
+  SmoothVisionManager? get smoothVisionManager => _smoothVisionManager;
+
   @override
   void dispose() {
     _movementTimer?.cancel();
     _visionUpdateTimer?.cancel();
+    _smoothVisionTimer?.cancel();
     _unstuckTimer?.cancel();
     _hungerTimer?.cancel();
     super.dispose();

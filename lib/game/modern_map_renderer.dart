@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
 import 'dart:ui' as ui;
 import '../data/props.dart';
@@ -220,6 +221,11 @@ class MapPainter extends CustomPainter {
 
   void _drawTerrain(Canvas canvas, int startX, int startY, int endX, int endY, 
                    double offsetX, double offsetY) {
+    // 调试输出
+    if (kDebugMode && visibleTiles.isNotEmpty) {
+      print('渲染地形: visibleTiles数量=${visibleTiles.length}, 前5个=${visibleTiles.take(5).toList()}');
+    }
+    
     for (int y = startY; y < endY; y++) {
       for (int x = startX; x < endX; x++) {
         final screenX = (x - startX) * tileSize - offsetX;
@@ -230,11 +236,9 @@ class MapPainter extends CustomPainter {
           final terrain = map[y][x];
           final isVisible = visibleTiles.contains(Point(x, y));
           
+          // 只显示当前圆形视野内的地形，视野外完全不可见
           if (isVisible) {
             _drawTerrainTile(canvas, terrain, screenX, screenY, 1.0);
-          } else if (visibleMap[y][x]) {
-            // 已探索但不在视野内的区域，使用暗色显示
-            _drawTerrainTile(canvas, terrain, screenX, screenY, 0.3);
           }
         } else {
           // 地图外区域绘制为黑色

@@ -106,7 +106,7 @@ class VisionSystem {
     return points;
   }
 
-  // 获取可见的格子
+  // 获取可见的格子 - 带视线遮挡的圆形视野（半径5格）
   Set<Point<int>> getVisibleTiles(Point<int> playerPos) {
     // 首先检查玩家位置是否有效
     if (playerPos.x < 0 || playerPos.x >= map[0].length ||
@@ -115,58 +115,37 @@ class VisionSystem {
     }
 
     Set<Point<int>> visible = {};
-    final terrain = map[playerPos.y][playerPos.x];
-    final radius = (baseViewRadius * _getTerrainVisionModifier(terrain)).round();
+    // 固定视野半径为5格，不受地形影响
+    const radius = baseViewRadius;
 
-    // 步骤1：收集所有在视野范围内的墙体（带边界检查）
-    Set<Point<int>> potentialWalls = {};
+    // 玩家当前位置总是可见的
+    visible.add(playerPos);
+
+    // 遍历以玩家为中心的圆形区域
     for (int y = -radius; y <= radius; y++) {
       for (int x = -radius; x <= radius; x++) {
-        final tileX = playerPos.x + x;
-        final tileY = playerPos.y + y;
+        // 跳过玩家自己的位置
+        if (x == 0 && y == 0) continue;
+        
+        // 计算距离的平方
+        final distanceSquared = x * x + y * y;
+        
+        // 只有在圆形范围内的格子才需要检查
+        if (distanceSquared <= radius * radius) {
+          final tileX = playerPos.x + x;
+          final tileY = playerPos.y + y;
 
-        // 边界检查
-        if (tileX < 0 || tileX >= map[0].length ||
-            tileY < 0 || tileY >= map.length) continue;
-
-        if (map[tileY][tileX] == 'wall' &&
-            x * x + y * y <= radius * radius) {
-          potentialWalls.add(Point(tileX, tileY));
-        }
-      }
-    }
-
-    // 步骤2：找出所有相连的墙体组
-    Set<Point<int>> allConnectedWalls = {};
-    for (Point<int> wall in potentialWalls) {
-      if (!allConnectedWalls.contains(wall)) {
-        Set<Point<int>> connectedWalls = _getConnectedWalls(wall, radius);
-        // 只要组内至少有一个墙体在LOS内，就显示整个组
-        bool shouldShow = connectedWalls.any((w) => _hasLineOfSight(playerPos, w));
-        if (shouldShow) {
-          allConnectedWalls.addAll(connectedWalls);
-        }
-      }
-    }
-    visible.addAll(allConnectedWalls);
-
-    // 步骤3：添加可见的非墙体格子
-    for (int y = -radius; y <= radius; y++) {
-      for (int x = -radius; x <= radius; x++) {
-        if (x * x + y * y > radius * radius) continue;
-
-        final tileX = playerPos.x + x;
-        final tileY = playerPos.y + y;
-
-        if (tileX < 0 || tileX >= map[0].length ||
-            tileY < 0 || tileY >= map.length) continue;
-
-        // 跳过已经添加的墙体
-        if (map[tileY][tileX] == 'wall') continue;
-
-        // 检查视线
-        if (_hasLineOfSight(playerPos, Point(tileX, tileY))) {
-          visible.add(Point(tileX, tileY));
+          // 边界检查
+          if (tileX >= 0 && tileX < map[0].length &&
+              tileY >= 0 && tileY < map.length) {
+            
+            final targetPos = Point(tileX, tileY);
+            
+            // 检查从玩家位置到目标位置是否有视线
+            if (_hasLineOfSight(playerPos, targetPos)) {
+              visible.add(targetPos);
+            }
+          }
         }
       }
     }
