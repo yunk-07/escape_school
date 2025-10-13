@@ -26,9 +26,9 @@ class EnhancedVisionSystem {
   final List<List<String>> map;
   
   // 视野配置
-  static const int baseViewRadius = 8;
+  static const int baseViewRadius = 5;
   static const int minViewRadius = 1; // 最小视野半径（精神值为0时）
-  static const int maxViewRadius = 12; // 最大视野半径（精神值为100时）
+  static const int maxViewRadius = 5; // 最大视野半径（精神值为100时）
   static const int rayCount = 64; // 射线数量，影响精度
   static const double partialVisibilityOpacity = 0.4;
   
@@ -55,16 +55,25 @@ class EnhancedVisionSystem {
 
   /// 根据精神值计算动态视野半径
   int calculateViewRadius(double sanityValue, double maxSanity) {
-    // 精神值百分比 (0.0 - 1.0)
-    final sanityPercentage = (sanityValue / maxSanity).clamp(0.0, 1.0);
+    // 精神值百分比 (可以超过1.0，允许视野超过100%)
+    final sanityPercentage = (sanityValue / maxSanity).clamp(0.0, double.infinity);
     
-    // 使用非线性函数，让精神值低时视野急剧缩小
-    final adjustedPercentage = sanityPercentage * sanityPercentage; // 平方函数，让低精神值影响更明显
+    // 当精神值在0-100%时，使用非线性函数
+    // 当精神值超过100%时，线性增长
+    double adjustedPercentage;
+    if (sanityPercentage <= 1.0) {
+      // 使用平方函数，让精神值低时视野急剧缩小
+      adjustedPercentage = sanityPercentage * sanityPercentage;
+    } else {
+      // 超过100%时，线性增长
+      adjustedPercentage = 1.0 + (sanityPercentage - 1.0);
+    }
     
-    // 计算视野半径：从最小值到最大值的插值
+    // 计算视野半径：从最小值开始，可以无限增长
     final radius = (minViewRadius + (maxViewRadius - minViewRadius) * adjustedPercentage).round();
     
-    return radius.clamp(minViewRadius, maxViewRadius);
+    // 只限制最小值，不限制最大值
+    return radius.clamp(minViewRadius, double.infinity).toInt();
   }
 
   /// 获取玩家视野内的所有瓦片及其可见性级别

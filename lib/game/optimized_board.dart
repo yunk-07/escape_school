@@ -1306,10 +1306,6 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                   // 商店界面
                   if (gameState.showShop && gameState.schoolShop != null)
                     _buildShopView(gameState),
-                  
-                  // 调试控制器（仅在调试模式下显示）
-                  if (kDebugMode)
-                    _buildDebugController(gameState),
                 ],
               ),
             ),
@@ -1445,101 +1441,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     );
   }
 
-  /// 构建调试控制器（仅在调试模式下显示）
-  Widget _buildDebugController(OptimizedGameState gameState) {
-    final currentSanity = gameState.characterStats['san']?.toDouble() ?? 100.0;
-    final maxSanity = gameState.characterStats['maxSan']?.toDouble() ?? 100.0;
-    
-    return Positioned(
-      top: 120,
-      right: 20,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.orange.withOpacity(0.5)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '调试控制器',
-              style: TextStyle(
-                color: Colors.orange,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '精神值: ${currentSanity.toInt()}/${maxSanity.toInt()}',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // 精神值快速设置按钮
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                _buildDebugButton('100%', () {
-                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-                  notifier.debugSetSanity(maxSanity);
-                }),
-                _buildDebugButton('50%', () {
-                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-                  notifier.debugSetSanity(maxSanity * 0.5);
-                }),
-                _buildDebugButton('25%', () {
-                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-                  notifier.debugSetSanity(maxSanity * 0.25);
-                }),
-                _buildDebugButton('10%', () {
-                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-                  notifier.debugSetSanity(maxSanity * 0.1);
-                }),
-                _buildDebugButton('5%', () {
-                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-                  notifier.debugSetSanity(maxSanity * 0.05);
-                }),
-                _buildDebugButton('0%', () {
-                  final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-                  notifier.debugSetSanity(0);
-                }),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  /// 构建调试按钮
-  Widget _buildDebugButton(String text, VoidCallback onPressed) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.orange.withOpacity(0.5)),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: Colors.orange,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // 自定义3D环形进度绘制器
@@ -1785,13 +1687,21 @@ class _GameAreaPainter extends CustomPainter {
     // 获取当前精神值来计算动态视野半径
     final currentSanity = (gameState.characterStats['san'] ?? 100).toDouble();
     final maxSanity = (gameState.characterStats['maxSan'] ?? 100).toDouble();
-    final sanityPercentage = (currentSanity / maxSanity).clamp(0.0, 1.0);
+    final sanityPercentage = (currentSanity / maxSanity).clamp(0.0, double.infinity);
     
     // 计算动态视野半径（与EnhancedVisionSystem保持一致）
     const int minViewRadius = 1;
-    const int maxViewRadius = 12;
-    final adjustedPercentage = sanityPercentage * sanityPercentage; // 平方函数
-    final currentViewRadius = (minViewRadius + (maxViewRadius - minViewRadius) * adjustedPercentage).round();
+    const int maxViewRadius = 5; // 更新为新的最大视野半径
+    
+    // 当精神值在0-100%时，使用非线性函数；超过100%时，线性增长
+    double adjustedPercentage;
+    if (sanityPercentage <= 1.0) {
+      adjustedPercentage = sanityPercentage * sanityPercentage; // 平方函数
+    } else {
+      adjustedPercentage = 1.0 + (sanityPercentage - 1.0); // 超过100%时线性增长
+    }
+    
+    final currentViewRadius = (minViewRadius + (maxViewRadius - minViewRadius) * adjustedPercentage).round().clamp(minViewRadius, double.infinity).toInt();
     final double visionRadius = currentViewRadius * tileSize;
     
     // 绘制多层雾效，创建更自然的视野过渡

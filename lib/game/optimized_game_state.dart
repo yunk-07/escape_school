@@ -1146,20 +1146,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _visionUpdateTimer?.cancel();
   }
 
-  /// 调试方法：设置精神值（用于测试视野效果）
-  void debugSetSanity(double sanityValue) {
-    final newStats = Map<String, dynamic>.from(state.characterStats);
-    newStats['san'] = sanityValue.clamp(0.0, newStats['maxSan'] ?? 100.0);
-    
-    state = state.copyWith(characterStats: newStats);
-    
-    // 强制更新视野
-    _updateVision();
-    
-    if (kDebugMode) {
-      print('调试：精神值设置为 ${newStats['san']}');
-    }
-  }
+
 
   /// 根据地形类型扣除角色状态
   void _applyTerrainEffects(String terrainType, double distance) {
