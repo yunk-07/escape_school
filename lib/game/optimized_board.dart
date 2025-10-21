@@ -37,6 +37,7 @@ class OptimizedBoardPage extends StatefulWidget {
 class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   late OptimizedGameStateNotifier gameStateNotifier;
   final Map<String, ui.Image> terrainImages = {};
+  bool _hasNavigatedToGameOver = false; // 防止重复导航到游戏结束页面
 
   @override
   void initState() {
@@ -93,17 +94,20 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
               final gameState = ref.watch(optimizedGameStateProvider);
             
               // 检查游戏结束状态
-              if (gameState.isGameOver) {
+              if (gameState.isGameOver && !_hasNavigatedToGameOver) {
+                _hasNavigatedToGameOver = true; // 设置标志，防止重复导航
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => GameOverPage(
-                        deathReason: gameState.deathReason,
-                        characterImage: gameState.characterStats['image'] ?? 'images/man/cook.png',
+                  if (mounted) { // 确保组件仍然挂载
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GameOverPage(
+                          deathReason: gameState.deathReason,
+                          characterImage: gameState.characterStats['image'] ?? 'images/man/cook.png',
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  }
                 });
               }
               
