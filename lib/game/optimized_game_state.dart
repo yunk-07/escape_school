@@ -352,6 +352,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _smoothVisionTimer; // 平滑视野动画定时器
   Timer? _skillCooldownTimer; // 技能冷却时间更新定时器
   Timer? _gameLoopTimer; // 独立的游戏循环定时器，确保UI定期刷新
+  Timer? _deathCheckTimer; // 独立的死亡判定定时器
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
@@ -378,7 +379,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       movementState: const OptimizedMovementState(),
       map: MapData.testMap,
       chestPositions: [],
-      playerInventory: [],
+      playerInventory: [
+        // 添加一些测试物品
+        allItems.firstWhere((item) => item.id == 'fish02'), // 熟鱼
+        allItems.firstWhere((item) => item.id == 'fish03'), // 尘封已久的鱼
+        allItems.firstWhere((item) => item.id == 'book01'), // 学生守则
+      ],
       visibleTiles: {},
       visibleMap: List.generate(
         MapData.testMap.length,
@@ -411,6 +417,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startHungerTimer();
     _startSkillCooldownTimer(); // 启动技能冷却定时器
     _startGameLoopTimer(); // 启动独立的游戏循环定时器
+    _startDeathCheckTimer(); // 启动独立的死亡判定定时器
     _updateVision();
   }
 
@@ -779,6 +786,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 启动独立的死亡判定定时器
+  void _startDeathCheckTimer() {
+    _deathCheckTimer = Timer.periodic(
+      const Duration(milliseconds: 200), // 每200ms检查一次死亡条件
+      (timer) {
+        _checkGameOverConditions();
+      }
+    );
+  }
+
   /// 独立的游戏循环更新，确保UI定期刷新
   void _updateGameLoop() {
     // 强制触发UI更新，确保技能倒计时、视野等元素能够实时显示
@@ -1018,9 +1035,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         );
       }
     }
-    
-    // 检查游戏结束条件
-    _checkGameOverConditions();
   }
 
   /// 更新视野
@@ -1286,6 +1300,91 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return true; // 购买成功
   }
 
+  /// 使用物品
+  bool useItem(Item item) {
+    // 检查物品是否在背包中
+    final inventory = List<Item>.from(state.playerInventory);
+    final itemIndex = inventory.indexWhere((i) => i.id == item.id);
+    
+    if (itemIndex == -1) {
+      return false; // 物品不在背包中
+    }
+    
+    // 应用物品效果
+    final character = Map<String, dynamic>.from(state.characterStats);
+    bool hasEffect = false;
+    
+    item.effects.forEach((effectType, value) {
+      switch (effectType) {
+        case 'hp':
+          final currentHp = character['hp'] ?? 100;
+          final newHp = (currentHp + value).clamp(0, 100);
+          character['hp'] = newHp;
+          hasEffect = true;
+          break;
+        case 'food':
+          final currentFood = character['food'] ?? 100;
+          final newFood = (currentFood + value).clamp(0, 100);
+          character['food'] = newFood;
+          hasEffect = true;
+          break;
+        case 'san':
+          final currentSan = character['san'] ?? 100;
+          final newSan = (currentSan + value).clamp(0, 100);
+          character['san'] = newSan;
+          hasEffect = true;
+          break;
+        case 'moveSpeed':
+          final currentSpeed = character['moveSpeed'] ?? 100;
+          final newSpeed = (currentSpeed + value).clamp(50, 200); // 限制移动速度范围
+          character['moveSpeed'] = newSpeed;
+          hasEffect = true;
+          break;
+        case 'gold':
+          final currentGold = character['gold'] ?? 0;
+          final newGold = (currentGold + value).clamp(0, 999999);
+          character['gold'] = newGold;
+          hasEffect = true;
+          break;
+      }
+    });
+    
+    if (hasEffect) {
+      // 从背包中移除物品（如果数量大于1，则减少数量）
+      if (item.count > 1) {
+        inventory[itemIndex] = Item(
+          id: item.id,
+          name: item.name,
+          image: item.image,
+          description: item.description,
+          effects: item.effects,
+          type: item.type,
+          count: item.count - 1,
+          availableInShop: item.availableInShop,
+          basePrice: item.basePrice,
+        );
+      } else {
+        inventory.removeAt(itemIndex);
+      }
+      
+      // 更新游戏状态
+      state = state.copyWith(
+        characterStats: character,
+        playerInventory: inventory,
+      );
+      
+      // 添加使用物品的播报消息
+      addBroadcastMessage(
+        '使用了 ${item.name}',
+        BroadcastMessageType.item,
+      );
+      
+      return true; // 使用成功
+    }
+    
+    return false; // 使用失败
+  }
+
   /// 触发游戏结束
   void triggerGameOver(String reason) {
     // 添加游戏结束的播报消息
@@ -1302,6 +1401,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 停止所有计时器
     _movementTimer?.cancel();
     _visionUpdateTimer?.cancel();
+    _deathCheckTimer?.cancel(); // 停止死亡判定定时器
   }
 
 
@@ -1403,18 +1503,25 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 检查游戏结束条件
   void _checkGameOverConditions() {
+    // 如果游戏已经结束，立即停止判定
+    if (state.isGameOver) {
+      _deathCheckTimer?.cancel();
+      return;
+    }
 
     final position = state.playerPosition;
     final character = state.characterStats;
     
     // 检查生命值
     if (character['hp'] != null && character['hp'] <= 0) {
+      _deathCheckTimer?.cancel(); // 立即停止死亡判定定时器
       triggerGameOver('生命值耗尽');
       return;
     }
     
     // 检查理智值
     if (character['san'] != null && character['san'] <= 0) {
+      _deathCheckTimer?.cancel(); // 立即停止死亡判定定时器
       triggerGameOver('理智崩溃');
       return;
     }
@@ -1429,6 +1536,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       
       // 如果走到了特殊的结束位置
       if (tile == 'exit') {
+        _deathCheckTimer?.cancel(); // 立即停止死亡判定定时器
         triggerGameOver('成功逃离学校！');
         return;
       }
@@ -2084,6 +2192,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _hungerTimer?.cancel();
     _skillCooldownTimer?.cancel();
     _gameLoopTimer?.cancel();
+    _deathCheckTimer?.cancel();
     super.dispose();
   }
 }

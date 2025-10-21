@@ -1286,8 +1286,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   // 构建移动控制
   Widget _buildMovementControls() {
     return Positioned(
-      bottom: 20,
-      left: 20,
+      bottom: 40,
+      left: 60,
       child: Consumer(
         builder: (context, ref, child) {
           return 
@@ -1311,8 +1311,6 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
       ),
     );
   }
-
-
 
   // 构建功能按钮
   Widget _buildActionButtons(OptimizedGameState gameState) {
