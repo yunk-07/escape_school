@@ -84,7 +84,7 @@ class InventoryPage extends ConsumerWidget {
   /// 构建标题栏
   Widget _buildHeader(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -111,13 +111,13 @@ class InventoryPage extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.inventory_2, color: Colors.white, size: 18),
+              Icon(Icons.inventory_2, color: Colors.white, size: 16),
               const SizedBox(width: 8),
               const Text(
                 '角色信息 & 背包',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
                 ),

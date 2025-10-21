@@ -195,6 +195,12 @@ class OptimizedGameState {
   final Map<String, SkillState> skillStates;      // 技能状态映射
   final String? currentCastingSkillId;            // 当前正在施法的技能ID
   final double castingProgress;                   // 施法进度 (0.0 - 1.0)
+  
+  // 物品使用相关状态
+  final bool isUsingItem;                         // 是否正在使用物品
+  final Item? currentUsingItem;                   // 当前正在使用的物品
+  final double itemUsageProgress;                 // 物品使用进度 (0.0 - 1.0)
+  final DateTime? itemUsageStartTime;             // 物品使用开始时间
 
   const OptimizedGameState({
     required this.characterStats,
@@ -229,6 +235,10 @@ class OptimizedGameState {
     this.skillStates = const {},
     this.currentCastingSkillId,
     this.castingProgress = 0.0,
+    this.isUsingItem = false,
+    this.currentUsingItem,
+    this.itemUsageProgress = 0.0,
+    this.itemUsageStartTime,
   });
 
   OptimizedGameState copyWith({
@@ -264,6 +274,10 @@ class OptimizedGameState {
     Map<String, SkillState>? skillStates,
     String? currentCastingSkillId,
     double? castingProgress,
+    bool? isUsingItem,
+    Item? currentUsingItem,
+    double? itemUsageProgress,
+    DateTime? itemUsageStartTime,
   }) {
     return OptimizedGameState(
       characterStats: characterStats ?? this.characterStats,
@@ -298,6 +312,10 @@ class OptimizedGameState {
       skillStates: skillStates ?? this.skillStates,
       currentCastingSkillId: currentCastingSkillId ?? this.currentCastingSkillId,
       castingProgress: castingProgress ?? this.castingProgress,
+      isUsingItem: isUsingItem ?? this.isUsingItem,
+      currentUsingItem: currentUsingItem ?? this.currentUsingItem,
+      itemUsageProgress: itemUsageProgress ?? this.itemUsageProgress,
+      itemUsageStartTime: itemUsageStartTime ?? this.itemUsageStartTime,
     );
   }
 }
@@ -353,6 +371,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _skillCooldownTimer; // 技能冷却时间更新定时器
   Timer? _gameLoopTimer; // 独立的游戏循环定时器，确保UI定期刷新
   Timer? _deathCheckTimer; // 独立的死亡判定定时器
+  Timer? _itemUsageTimer; // 物品使用进度定时器
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
@@ -1200,6 +1219,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 摇杆移动
   void onJoystickMove(double x, double y, double intensity) {
+    // 如果正在使用物品，禁止移动
+    if (state.isUsingItem) {
+      return;
+    }
+    
     final movement = state.movementState;
     final position = state.playerPosition;
     
@@ -1300,14 +1324,81 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return true; // 购买成功
   }
 
-  /// 使用物品
+  /// 开始使用物品（启动进度条）
   bool useItem(Item item) {
+    // 检查是否已经在使用物品
+    if (state.isUsingItem) {
+      return false; // 已经在使用物品，不能同时使用多个
+    }
+    
     // 检查物品是否在背包中
     final inventory = List<Item>.from(state.playerInventory);
     final itemIndex = inventory.indexWhere((i) => i.id == item.id);
     
     if (itemIndex == -1) {
       return false; // 物品不在背包中
+    }
+    
+    // 关闭背包页面
+    state = state.copyWith(showInventory: false);
+    
+    // 开始使用物品
+    state = state.copyWith(
+      isUsingItem: true,
+      currentUsingItem: item,
+      itemUsageProgress: 0.0,
+      itemUsageStartTime: DateTime.now(),
+    );
+    
+    // 启动物品使用计时器
+    _startItemUsageTimer(item);
+    
+    // 添加开始使用物品的播报消息
+    addBroadcastMessage(
+      '开始使用 ${item.name}...',
+      BroadcastMessageType.item,
+    );
+    
+    return true; // 开始使用成功
+  }
+  
+  /// 启动物品使用计时器
+  void _startItemUsageTimer(Item item) {
+    _itemUsageTimer?.cancel(); // 取消之前的计时器
+    
+    const updateInterval = Duration(milliseconds: 50); // 20fps更新
+    final totalDuration = Duration(milliseconds: item.usageTime);
+    
+    _itemUsageTimer = Timer.periodic(updateInterval, (timer) {
+      if (!state.isUsingItem || state.currentUsingItem?.id != item.id) {
+        timer.cancel();
+        return;
+      }
+      
+      final elapsed = DateTime.now().difference(state.itemUsageStartTime!);
+      final progress = (elapsed.inMilliseconds / totalDuration.inMilliseconds).clamp(0.0, 1.0);
+      
+      if (progress >= 1.0) {
+        // 使用完成，应用物品效果
+        timer.cancel();
+        _completeItemUsage(item);
+      } else {
+        // 更新进度
+        state = state.copyWith(itemUsageProgress: progress);
+      }
+    });
+  }
+  
+  /// 完成物品使用，应用效果
+  void _completeItemUsage(Item item) {
+    // 检查物品是否在背包中
+    final inventory = List<Item>.from(state.playerInventory);
+    final itemIndex = inventory.indexWhere((i) => i.id == item.id);
+    
+    if (itemIndex == -1) {
+      // 物品不在背包中，取消使用
+      cancelItemUsage();
+      return;
     }
     
     // 应用物品效果
@@ -1362,6 +1453,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           count: item.count - 1,
           availableInShop: item.availableInShop,
           basePrice: item.basePrice,
+          usageTime: item.usageTime,
         );
       } else {
         inventory.removeAt(itemIndex);
@@ -1371,18 +1463,73 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       state = state.copyWith(
         characterStats: character,
         playerInventory: inventory,
+        isUsingItem: false,
+        currentUsingItem: null,
+        itemUsageProgress: 0.0,
+        itemUsageStartTime: null,
       );
       
-      // 添加使用物品的播报消息
+      // 添加使用完成的播报消息
       addBroadcastMessage(
         '使用了 ${item.name}',
         BroadcastMessageType.item,
       );
+    } else {
+      // 没有效果，取消使用
+      cancelItemUsage();
+    }
+  }
+  
+  /// 取消物品使用
+  void cancelItemUsage() {
+    if (!state.isUsingItem) return;
+    
+    final item = state.currentUsingItem;
+    
+    // 取消计时器
+    _itemUsageTimer?.cancel();
+    
+    // 消耗物品但不应用效果
+    if (item != null) {
+      final inventory = List<Item>.from(state.playerInventory);
+      final itemIndex = inventory.indexWhere((i) => i.id == item.id);
       
-      return true; // 使用成功
+      if (itemIndex != -1) {
+        if (item.count > 1) {
+          inventory[itemIndex] = Item(
+            id: item.id,
+            name: item.name,
+            image: item.image,
+            description: item.description,
+            effects: item.effects,
+            type: item.type,
+            count: item.count - 1,
+            availableInShop: item.availableInShop,
+            basePrice: item.basePrice,
+            usageTime: item.usageTime,
+          );
+        } else {
+          inventory.removeAt(itemIndex);
+        }
+        
+        // 更新背包
+        state = state.copyWith(playerInventory: inventory);
+        
+        // 添加取消使用的播报消息
+        addBroadcastMessage(
+          '取消使用 ${item.name}，物品已消耗',
+          BroadcastMessageType.item,
+        );
+      }
     }
     
-    return false; // 使用失败
+    // 重置物品使用状态
+    state = state.copyWith(
+      isUsingItem: false,
+      currentUsingItem: null,
+      itemUsageProgress: 0.0,
+      itemUsageStartTime: null,
+    );
   }
 
   /// 触发游戏结束
@@ -2193,6 +2340,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _skillCooldownTimer?.cancel();
     _gameLoopTimer?.cancel();
     _deathCheckTimer?.cancel();
+    _itemUsageTimer?.cancel();
     super.dispose();
   }
 }

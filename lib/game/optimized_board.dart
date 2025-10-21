@@ -19,6 +19,7 @@ import 'package:escape_from_school/game/hp_listener.dart';
 import 'package:escape_from_school/game/smooth_vision.dart';
 import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/shop_view.dart';
+import 'package:escape_from_school/game/item_usage_progress.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -1879,6 +1880,9 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                 
                 // 背包界面（动态显示）
                 if (gameState.showInventory) const InventoryView(),
+                
+                // 物品使用进度条（动态显示）
+                const ItemUsageProgress(),
                 
               ],
             ),

@@ -81,6 +81,9 @@ class Shop {
 
   // 计算商品价格（考虑随机浮动）
   static int _calculatePrice(int basePrice) {
+    // 如果基础价格为0，直接返回0
+    if (basePrice == 0) return 0;
+    
     final random = Random();
     // 基础浮动范围：-10%到+20%
     int variation = random.nextInt(31) - 10;

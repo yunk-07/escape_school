@@ -1,4 +1,5 @@
 // data/props.dart
+// 物品数据配置文件 - 包含物品的基本信息、效果和使用时间
 class Item {
   final String id;
   final String name;
@@ -9,6 +10,7 @@ class Item {
   final int count;   // 新增：物品数量
   final bool availableInShop; // 新增：是否在商店出售
   final int basePrice;       // 新增：基础价格
+  final int usageTime;       // 新增：使用时间（毫秒）
 
   Item({
     required this.id,
@@ -20,6 +22,7 @@ class Item {
     this.count = 1,
     this.availableInShop = false, // 默认不在商店出售
     this.basePrice = 0,
+    this.usageTime = 2000, // 默认使用时间2秒
   });
 }
 
@@ -32,7 +35,8 @@ final List<Item> allItems = [
     effects: {'hp': -2,'food': 20},
     type: 'potion',
     availableInShop: false,
-    basePrice: 16
+    basePrice: 16,
+    usageTime: 3000, // 汉堡需要3秒食用
   ),
   Item(
     id: 'fish01',
@@ -42,7 +46,8 @@ final List<Item> allItems = [
     effects: {'hp': -5,'food':10,'san':-5,'moveSpeed':-5}, // 移动速度减少5
     type: 'potion',
     availableInShop: true,
-    basePrice: 8
+    basePrice: 8,
+    usageTime: 2500, // 半生不熟鱼需要2.5秒食用
   ),
   Item(
     id: 'fish02',
@@ -52,7 +57,8 @@ final List<Item> allItems = [
     effects: {'hp': -30,'food':50,'san':20},
     type: 'potion',
     availableInShop: true,
-    basePrice: 12
+    basePrice: 12,
+    usageTime: 2000, // 熟鱼需要2秒食用
   ),
   Item(
     id: 'fish03',
@@ -62,7 +68,8 @@ final List<Item> allItems = [
     effects: {'hp': -10,'food':5,'san':-15,'moveSpeed':-5}, // 移动速度减少5
     type: 'potion',
     availableInShop: true,
-    basePrice: 8
+    basePrice: 8,
+    usageTime: 1500, // 尘封鱼很难吃，快速吞下只需1.5秒
   ),
   Item(
       id: 'book01',
@@ -72,6 +79,7 @@ final List<Item> allItems = [
       effects: {'san':-25,'moveSpeed': 10}, // 移动速度增加10
       type: 'potion',
       availableInShop: true,
-      basePrice: 0
+      basePrice: 0,
+      usageTime: 5000, // 阅读书籍需要5秒
   ),
 ];
