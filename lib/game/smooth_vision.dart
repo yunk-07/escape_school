@@ -288,29 +288,4 @@ class SmoothVisionManager {
     _cachedRenderableTiles.clear();
     _renderableTilesCacheValid = false;
   }
-
-  /// 调试信息
-  void printDebugInfo() {
-    if (kDebugMode) {
-      print('平滑视野状态:');
-      print('  活跃瓦片数: ${_tileStates.length}');
-      print('  当前可见瓦片数: ${_currentVisibleTiles.length}');
-      
-      int fadingIn = 0;
-      int fadingOut = 0;
-      int stable = 0;
-      
-      for (final state in _tileStates.values) {
-        if ((state.opacity - state.targetOpacity).abs() < 0.01) {
-          stable++;
-        } else if (state.opacity < state.targetOpacity) {
-          fadingIn++;
-        } else {
-          fadingOut++;
-        }
-      }
-      
-      print('  渐入: $fadingIn, 渐出: $fadingOut, 稳定: $stable');
-    }
-  }
 }

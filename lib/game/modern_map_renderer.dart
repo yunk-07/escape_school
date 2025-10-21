@@ -221,10 +221,6 @@ class MapPainter extends CustomPainter {
 
   void _drawTerrain(Canvas canvas, int startX, int startY, int endX, int endY, 
                    double offsetX, double offsetY) {
-    // 调试输出
-    if (kDebugMode && visibleTiles.isNotEmpty) {
-      print('渲染地形: visibleTiles数量=${visibleTiles.length}, 前5个=${visibleTiles.take(5).toList()}');
-    }
     
     for (int y = startY; y < endY; y++) {
       for (int x = startX; x < endX; x++) {

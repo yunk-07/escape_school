@@ -55,24 +55,34 @@ class EnhancedVisionSystem {
 
   /// 根据精神值计算动态视野半径
   int calculateViewRadius(double sanityValue, double maxSanity) {
-    // 精神值百分比 (可以超过1.0，允许视野超过100%)
-    final sanityPercentage = (sanityValue / maxSanity).clamp(0.0, double.infinity);
+    // 基于精神值绝对数值计算视野半径，而不是百分比
+    // 精神值50时视野半径为3，精神值100时视野半径为5
     
-    // 当精神值在0-100%时，使用非线性函数
-    // 当精神值超过100%时，线性增长
-    double adjustedPercentage;
-    if (sanityPercentage <= 1.0) {
-      // 使用平方函数，让精神值低时视野急剧缩小
-      adjustedPercentage = sanityPercentage * sanityPercentage;
+    // 定义视野半径映射关系
+    // 0精神值 -> 1半径, 25精神值 -> 2半径, 50精神值 -> 3半径, 75精神值 -> 4半径, 100精神值 -> 5半径
+    // 超过100精神值时，每25点增加1半径
+    
+    int radius;
+    if (sanityValue <= 0) {
+      radius = 1;
+    } else if (sanityValue <= 25) {
+      // 0-25: 线性插值从1到2
+      radius = (1 + (sanityValue / 25.0)).round();
+    } else if (sanityValue <= 50) {
+      // 25-50: 线性插值从2到3
+      radius = (2 + ((sanityValue - 25) / 25.0)).round();
+    } else if (sanityValue <= 75) {
+      // 50-75: 线性插值从3到4
+      radius = (3 + ((sanityValue - 50) / 25.0)).round();
+    } else if (sanityValue <= 100) {
+      // 75-100: 线性插值从4到5
+      radius = (4 + ((sanityValue - 75) / 25.0)).round();
     } else {
-      // 超过100%时，线性增长
-      adjustedPercentage = 1.0 + (sanityPercentage - 1.0);
+      // 超过100时，每25点增加1半径
+      radius = 5 + ((sanityValue - 100) / 25.0).floor();
     }
     
-    // 计算视野半径：从最小值开始，可以无限增长
-    final radius = (minViewRadius + (maxViewRadius - minViewRadius) * adjustedPercentage).round();
-    
-    // 只限制最小值，不限制最大值
+    // 确保最小视野半径为1
     return radius.clamp(minViewRadius, double.infinity).toInt();
   }
 

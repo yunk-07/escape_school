@@ -350,6 +350,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
         builder: (context) => OptimizedBoardPage(
           characterStats: {
             'id': widget.character['name'],
+            'name': widget.character['name'], // 添加name字段用于技能初始化
             'hp': (widget.character['hp'] as num).toDouble(),
             'maxHp': (widget.character['hp'] as num).toDouble(),
             'san': (widget.character['san'] as num).toDouble(),
@@ -357,6 +358,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
             'moveSpeed': widget.character['moveSpeed'],
             'gold': (widget.character['gold'] as num).toDouble(),
             'food': (widget.character['food'] as num).toDouble(),
+            'image': widget.character['image'], // 添加image字段
           },
           characterImage: widget.character['image'],
         ),

@@ -501,7 +501,6 @@ class GhostManager {
       if (targetX >= 0 && targetX < map[0].length &&
           targetY >= 0 && targetY < map.length) {
         ghost.fleeDestination = Point(targetX, targetY);
-        print('${ghost.name}开始逃跑至($targetX, $targetY)');
         return;
       }
     }

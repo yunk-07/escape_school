@@ -10,6 +10,7 @@ import 'package:escape_from_school/data/mapData.dart';
 import 'package:escape_from_school/data/props.dart';
 import 'package:escape_from_school/data/shop.dart';
 import 'package:escape_from_school/data/manData.dart';
+import 'package:escape_from_school/data/skill_data.dart';
 import 'package:escape_from_school/game/vision.dart';
 import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/ghost.dart';
@@ -21,6 +22,32 @@ enum GamePage {
   inventory, // 背包页面
   shop,      // 商店页面
   character, // 角色信息页面
+}
+
+/// 播报消息类型枚举
+enum BroadcastMessageType {
+  damage,     // 伤害消息
+  heal,       // 治疗消息
+  item,       // 物品相关消息
+  system,     // 系统消息
+}
+
+/// 播报消息类
+@immutable
+class BroadcastMessage {
+  final String text;
+  final BroadcastMessageType type;
+  final DateTime timestamp;
+  final Duration displayDuration;
+
+  const BroadcastMessage({
+    required this.text,
+    required this.type,
+    required this.timestamp,
+    this.displayDuration = const Duration(seconds: 3),
+  });
+
+  bool get isExpired => DateTime.now().difference(timestamp) > displayDuration;
 }
 
 /// 优化的玩家位置类
@@ -124,6 +151,7 @@ class OptimizedMovementState {
 @immutable
 class OptimizedGameState {
   final Map<String, dynamic> characterStats; // 当前角色状态（HP、理智值等）
+  // 注意：characterStats是不可变的，但其内部的Map内容可能会被修改
   final OptimizedPlayerPosition playerPosition;
   final OptimizedMovementState movementState;
   final List<List<String>> map;
@@ -131,7 +159,6 @@ class OptimizedGameState {
   final List<Item> playerInventory;
   final Set<Point<int>> visibleTiles;
   final List<List<bool>> visibleMap;
-  final String explorationResult;
   final bool showInventory;
   final bool showCharacterInfo;
   final bool showShop;
@@ -145,6 +172,8 @@ class OptimizedGameState {
   final bool isNoClipMode;              // 是否处于无视地形模式
   final DateTime? noClipEndTime;        // 无视地形模式结束时间
   final DateTime? unstuckCooldownEnd;   // 脱离卡死冷却结束时间
+  final bool isWaitingForMovement;      // 是否正在等待玩家移动以开始冷却
+  final DateTime? unstuckActivatedTime; // 脱离卡死激活时间
   
   // 移动距离计算相关状态
   final OptimizedPlayerPosition? lastPosition;  // 上一次位置，用于计算移动距离
@@ -157,10 +186,19 @@ class OptimizedGameState {
   
   // 平滑视野动画相关状态
   final int lastAnimationFrame;                 // 最后一次动画帧标识，用于触发重绘
+  
+  // 播报消息相关状态
+  final List<BroadcastMessage> broadcastMessages; // 播报消息列表
+  
+  // 技能系统相关状态
+  final List<Skill> characterSkills;              // 角色拥有的技能列表
+  final Map<String, SkillState> skillStates;      // 技能状态映射
+  final String? currentCastingSkillId;            // 当前正在施法的技能ID
+  final double castingProgress;                   // 施法进度 (0.0 - 1.0)
 
   const OptimizedGameState({
     required this.characterStats,
-    required this.playerPosition,
+    required this.playerPosition,  
     required this.movementState,
     required this.map,
     required this.chestPositions,
@@ -168,7 +206,6 @@ class OptimizedGameState {
     required this.visibleTiles,
     required this.visibleMap,
     required this.ghostManager,
-    this.explorationResult = '',
     this.showInventory = false,
     this.showCharacterInfo = false,
     this.showShop = false,
@@ -179,12 +216,19 @@ class OptimizedGameState {
     this.isNoClipMode = false,
     this.noClipEndTime,
     this.unstuckCooldownEnd,
+    this.isWaitingForMovement = false,
+    this.unstuckActivatedTime,
     this.lastPosition,
     this.accumulatedDistance = 0.0,
     this.lastHp,
     this.shouldShowDamageEffect = false,
     this.lastDamageAmount = 0.0,
     this.lastAnimationFrame = 0,
+    this.broadcastMessages = const [],
+    this.characterSkills = const [],
+    this.skillStates = const {},
+    this.currentCastingSkillId,
+    this.castingProgress = 0.0,
   });
 
   OptimizedGameState copyWith({
@@ -197,7 +241,6 @@ class OptimizedGameState {
     Set<Point<int>>? visibleTiles,
     List<List<bool>>? visibleMap,
     GhostManager? ghostManager,
-    String? explorationResult,
     bool? showInventory,
     bool? showCharacterInfo,
     bool? showShop,
@@ -208,12 +251,19 @@ class OptimizedGameState {
     bool? isNoClipMode,
     DateTime? noClipEndTime,
     DateTime? unstuckCooldownEnd,
+    bool? isWaitingForMovement,
+    DateTime? unstuckActivatedTime,
     OptimizedPlayerPosition? lastPosition,
     double? accumulatedDistance,
     double? lastHp,
     bool? shouldShowDamageEffect,
     double? lastDamageAmount,
     int? lastAnimationFrame,
+    List<BroadcastMessage>? broadcastMessages,
+    List<Skill>? characterSkills,
+    Map<String, SkillState>? skillStates,
+    String? currentCastingSkillId,
+    double? castingProgress,
   }) {
     return OptimizedGameState(
       characterStats: characterStats ?? this.characterStats,
@@ -225,7 +275,6 @@ class OptimizedGameState {
       visibleTiles: visibleTiles ?? this.visibleTiles,
       visibleMap: visibleMap ?? this.visibleMap,
       ghostManager: ghostManager ?? this.ghostManager,
-      explorationResult: explorationResult ?? this.explorationResult,
       showInventory: showInventory ?? this.showInventory,
       showCharacterInfo: showCharacterInfo ?? this.showCharacterInfo,
       showShop: showShop ?? this.showShop,
@@ -236,12 +285,19 @@ class OptimizedGameState {
       isNoClipMode: isNoClipMode ?? this.isNoClipMode,
       noClipEndTime: noClipEndTime ?? this.noClipEndTime,
       unstuckCooldownEnd: unstuckCooldownEnd ?? this.unstuckCooldownEnd,
+      isWaitingForMovement: isWaitingForMovement ?? this.isWaitingForMovement,
+      unstuckActivatedTime: unstuckActivatedTime ?? this.unstuckActivatedTime,
       lastPosition: lastPosition ?? this.lastPosition,
       accumulatedDistance: accumulatedDistance ?? this.accumulatedDistance,
       lastHp: lastHp ?? this.lastHp,
       shouldShowDamageEffect: shouldShowDamageEffect ?? this.shouldShowDamageEffect,
       lastDamageAmount: lastDamageAmount ?? this.lastDamageAmount,
       lastAnimationFrame: lastAnimationFrame ?? this.lastAnimationFrame,
+      broadcastMessages: broadcastMessages ?? this.broadcastMessages,
+      characterSkills: characterSkills ?? this.characterSkills,
+      skillStates: skillStates ?? this.skillStates,
+      currentCastingSkillId: currentCastingSkillId ?? this.currentCastingSkillId,
+      castingProgress: castingProgress ?? this.castingProgress,
     );
   }
 }
@@ -261,6 +317,32 @@ Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> character
   };
 }
 
+/// 初始化角色技能列表
+  List<Skill> _initializeCharacterSkills(String? characterName) {
+    if (characterName == null || characterName.isEmpty) {
+      return [];
+    }
+    
+    final skills = CharacterSkills.getSkillsForCharacter(characterName);
+    return skills;
+  }
+
+/// 初始化技能状态映射
+Map<String, SkillState> _initializeSkillStates(String? characterName) {
+  if (characterName == null || characterName.isEmpty) {
+    return {};
+  }
+  
+  final skills = CharacterSkills.getSkillsForCharacter(characterName);
+  final skillStates = <String, SkillState>{};
+  
+  for (final skill in skills) {
+    skillStates[skill.id] = SkillState(skillId: skill.id);
+  }
+  
+  return skillStates;
+}
+
 /// 优化的游戏状态管理器
 class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _movementTimer;
@@ -268,9 +350,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _unstuckTimer;
   Timer? _hungerTimer;
   Timer? _smoothVisionTimer; // 平滑视野动画定时器
+  Timer? _skillCooldownTimer; // 技能冷却时间更新定时器
+  Timer? _gameLoopTimer; // 独立的游戏循环定时器，确保UI定期刷新
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
+  
+  // 状态更新锁，防止竞争条件
+  bool _isUpdatingStats = false;
   
   // 性能优化参数
   static const double _maxSpeed = 2.0;
@@ -298,12 +385,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         (y) => List.generate(MapData.testMap[0].length, (x) => false),
       ),
       ghostManager: GhostManager(map: MapData.testMap),
-      explorationResult: '',
       showInventory: false,
       showCharacterInfo: false,
       showShop: false,
       isGameOver: false,
       deathReason: '',
+      characterSkills: _initializeCharacterSkills(characterData['name']),
+      skillStates: _initializeSkillStates(characterData['name']),
     ),
   ) {
     _initializeGame();
@@ -321,6 +409,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startSmoothVisionTimer(); // 启动平滑视野动画定时器
     _startUnstuckTimer();
     _startHungerTimer();
+    _startSkillCooldownTimer(); // 启动技能冷却定时器
+    _startGameLoopTimer(); // 启动独立的游戏循环定时器
     _updateVision();
   }
 
@@ -475,7 +565,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         
         if (_isValidSpawnPosition(candidatePosition, minDistanceFromGhost, maxDistanceFromGhost)) {
           validSpawnPoint = candidatePosition;
-          print('玩家出生在: ${zone['name']} (${candidatePosition.x}, ${candidatePosition.y})');
           break;
         }
       }
@@ -485,7 +574,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 如果预定义区域都不合适，回退到全地图随机搜索
     if (validSpawnPoint == null) {
-      print('预定义区域不合适，使用全地图搜索...');
       final walkablePositions = _getWalkablePositions();
       
       while (validSpawnPoint == null && attempts < maxAttempts) {
@@ -493,7 +581,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         
         if (_isValidSpawnPosition(candidatePosition, minDistanceFromGhost, maxDistanceFromGhost)) {
           validSpawnPoint = candidatePosition;
-          print('玩家出生在: 随机位置 (${candidatePosition.x}, ${candidatePosition.y})');
         }
         
         attempts++;
@@ -502,7 +589,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 如果还是找不到合适的位置，找一个距离鬼适中的位置
     if (validSpawnPoint == null) {
-      print('寻找距离鬼适中的位置...');
       validSpawnPoint = _findBalancedSpawnPosition();
     }
 
@@ -517,8 +603,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         facingRight: true,
       ),
     );
-    
-    print('最终出生位置: (${validSpawnPoint.x}, ${validSpawnPoint.y})');
   }
 
   /// 获取指定区域内的所有可行走位置
@@ -633,8 +717,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       _updateMovement();
     });
     
-    // 调试信息
-    print('移动定时器已启动');
   }
 
   /// 启动视野更新定时器（降低频率以提高性能）
@@ -677,6 +759,38 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 启动技能冷却时间更新定时器
+  void _startSkillCooldownTimer() {
+    _skillCooldownTimer = Timer.periodic(
+      const Duration(milliseconds: 100), // 每100ms更新一次冷却状态
+      (timer) {
+        _updateSkillCooldowns();
+      }
+    );
+  }
+
+  /// 启动独立的游戏循环定时器
+  void _startGameLoopTimer() {
+    _gameLoopTimer = Timer.periodic(
+      const Duration(milliseconds: 500), // 每500ms强制刷新一次UI
+      (timer) {
+        _updateGameLoop();
+      }
+    );
+  }
+
+  /// 独立的游戏循环更新，确保UI定期刷新
+  void _updateGameLoop() {
+    // 强制触发UI更新，确保技能倒计时、视野等元素能够实时显示
+    final currentTime = DateTime.now().millisecondsSinceEpoch;
+    
+    // 通过更新动画帧计数器来强制触发UI刷新
+    // 这确保了即使玩家不移动，UI也会定期更新
+    state = state.copyWith(
+      lastAnimationFrame: currentTime,
+    );
+  }
+
   /// 更新脱离卡死状态
   void _updateUnstuckState() {
     final now = DateTime.now();
@@ -700,53 +814,81 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
   }
 
+  /// 安全更新角色状态，防止竞争条件
+  void _safeUpdateCharacterStats(Map<String, dynamic> Function(Map<String, dynamic>) updateFunction, String debugInfo) {
+    if (_isUpdatingStats) {
+      return;
+    }
+    
+    _isUpdatingStats = true;
+    try {
+      // 获取最新状态
+      final currentStats = Map<String, dynamic>.from(state.characterStats);
+      
+      // 应用更新函数
+      final updatedStats = updateFunction(currentStats);
+      
+      // 更新状态
+      state = state.copyWith(characterStats: updatedStats);
+    } finally {
+      _isUpdatingStats = false;
+    }
+  }
+
   /// 更新饥饿扣血逻辑
   void _updateHungerDamage() {
-    final currentFood = state.characterStats['food'] ?? 0;
-    final currentHp = state.characterStats['hp'] ?? 0;
-    
-    // 当饱食度为0且生命值大于0时，每秒扣1生命值
-    if (currentFood <= 0 && currentHp > 0) {
-      final damageAmount = 1.0; // 饥饿扣血量
-      final newHp = (currentHp - damageAmount).clamp(0, state.characterStats['maxHp'] ?? 100);
+    _safeUpdateCharacterStats((currentStats) {
+      final currentFood = currentStats['food'] ?? 0;
+      final currentHp = currentStats['hp'] ?? 0;
       
-      // 更新生命值 - 只复制数值类型的字段
-      final newStats = Map<String, dynamic>.from(state.characterStats);
-      newStats['hp'] = newHp.toDouble();
+
       
-      // 检测生命值变化并触发伤害效果
-      final hpChanged = currentHp != newHp;
-      
-      state = state.copyWith(
-        characterStats: newStats,
-        lastHp: currentHp.toDouble(),
-        shouldShowDamageEffect: hpChanged, // 每次有伤害都触发效果
-        lastDamageAmount: hpChanged ? damageAmount : 0.0,
-      );
-      
-      // 调试信息
-      if (hpChanged) {
-        print('饥饿扣血: 饱食度为0，生命值从 ${currentHp.toStringAsFixed(1)} 减少到 ${newHp.toStringAsFixed(1)}');
-        print('伤害效果触发: $hpChanged');
+      // 当饱食度为0且生命值大于0时，每秒扣1生命值
+      if (currentFood <= 0 && currentHp > 0) {
+        final damageAmount = 1.0; // 饥饿扣血量
+        final newHp = (currentHp - damageAmount).clamp(0, currentStats['maxHp'] ?? 100);
+        
+
+        
+        // 检测生命值变化并触发伤害效果
+        final hpChanged = currentHp != newHp;
+        
+        if (hpChanged) {
+          // 更新生命值
+          final updatedStats = Map<String, dynamic>.from(currentStats);
+          updatedStats['hp'] = newHp.toDouble();
+          
+          // 更新其他状态
+          state = state.copyWith(
+            lastHp: currentHp.toDouble(),
+            shouldShowDamageEffect: true,
+            lastDamageAmount: damageAmount,
+          );
+          
+          // 添加饥饿伤害播报消息
+          addBroadcastMessage(
+            '饥饿扣血 -${damageAmount.toStringAsFixed(1)}',
+            BroadcastMessageType.damage,
+          );
+          
+          // 检查是否死亡
+          if (newHp <= 0) {
+            // 这里可以触发游戏结束逻辑
+          }
+          
+          return updatedStats;
+        }
       }
       
-      // 检查是否死亡
-      if (newHp <= 0) {
-        print('角色因饥饿死亡！');
-        // 这里可以触发游戏结束逻辑
-      }
-    }
+      // 没有变化，返回原状态
+      return currentStats;
+    }, '饥饿系统扣血');
   }
 
   /// 优化的移动更新
   void _updateMovement() {
     final movement = state.movementState;
     final position = state.playerPosition;
-    
-    // 调试信息：检查移动状态
-    if (movement.isMoving) {
-      print('移动中: joystick(${movement.joystickX.toStringAsFixed(2)}, ${movement.joystickY.toStringAsFixed(2)}) 强度: ${movement.joystickIntensity.toStringAsFixed(2)}');
-    }
     
     // 如果没有移动输入且速度为0，跳过计算
     if (!movement.isMoving && 
@@ -829,6 +971,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 只有位置真正改变时才更新状态和应用地形效果
     if (newPosition != position || newMovement != movement) {
+      // 检查是否需要开始脱离卡死冷却
+      if (newPosition != position && state.isWaitingForMovement) {
+        _startUnstuckCooldown();
+      }
+      
       // 计算移动距离
       double movementDistance = 0.0;
       if (newPosition != position) {
@@ -878,19 +1025,22 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 更新视野
   void _updateVision() {
-    if (kDebugMode) {
-      print('_updateVision 被调用');
-    }
-    
+
     final playerGridPosition = Point(
       state.playerPosition.x.round(),
       state.playerPosition.y.round(),
     );
     
-    // 如果玩家网格位置没有改变，使用缓存的视野数据
-    if (_lastPlayerGridPosition == playerGridPosition && _cachedVisibleTiles != null) {
-      return;
-    }
+    // 检查是否需要强制更新视野（基于时间或精神值变化）
+    final currentSanity = (state.characterStats['san'] ?? 100).toDouble();
+    final maxSanity = (state.characterStats['maxSan'] ?? 100).toDouble();
+    
+    // 如果玩家网格位置没有改变且精神值没有显著变化，可以跳过视野计算
+    // 但仍然需要更新平滑视野动画，所以不能完全跳过
+    bool positionChanged = _lastPlayerGridPosition != playerGridPosition;
+    
+    // 即使位置没有变化，也要定期更新视野以支持动态效果
+    // 这里我们移除了过于严格的缓存机制
     
     // 检查位置有效性
     if (playerGridPosition.x < 0 || 
@@ -901,10 +1051,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     try {
-      // 获取当前精神值
-      final currentSanity = (state.characterStats['san'] ?? 100).toDouble();
-      final maxSanity = (state.characterStats['maxSan'] ?? 100).toDouble();
-      
       // 使用增强版视野系统获取带有可见性级别的瓦片（传递精神值）
       final tilesWithVisibility = _enhancedVisionSystem.getVisibleTilesWithLevel(
         playerGridPosition,
@@ -918,18 +1064,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           .map((entry) => entry.key)
           .toSet();
       
-      // 调试输出
-      if (kDebugMode) {
-        print('玩家位置: ($playerGridPosition), 可见格子数量: ${newVisibleTiles.length}');
-        print('总视野瓦片数量: ${tilesWithVisibility.length}');
-        if (newVisibleTiles.length < 10) {
-          print('完全可见格子: $newVisibleTiles');
-        }
+      // 更新缓存（只在位置改变时更新位置缓存）
+      if (positionChanged) {
+        _lastPlayerGridPosition = playerGridPosition;
+        _cachedVisibleTiles = newVisibleTiles;
       }
-      
-      // 更新缓存
-      _lastPlayerGridPosition = playerGridPosition;
-      _cachedVisibleTiles = newVisibleTiles;
       
       // 更新已探索区域
       final newVisibleMap = List.generate(
@@ -947,9 +1086,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 更新平滑视野管理器，使用新的可见性级别系统
       _smoothVisionManager.updateVisionWithLevels(tilesWithVisibility);
       
+      // 始终更新状态以确保UI能够响应视野变化
+      // 即使位置没有改变，精神值或其他因素可能影响视野
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
       state = state.copyWith(
         visibleTiles: newVisibleTiles,
         visibleMap: newVisibleMap,
+        lastAnimationFrame: currentTime, // 强制触发UI更新
       );
     } catch (e) {
       if (kDebugMode) {
@@ -1043,7 +1186,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 摇杆移动
   void onJoystickMove(double x, double y, double intensity) {
-    print('摇杆移动: x=$x, y=$y, intensity=$intensity');
     final movement = state.movementState;
     final position = state.playerPosition;
     
@@ -1083,15 +1225,19 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
   }
 
-  /// 切换到背包页面
+  /// 切换背包显示
   void toggleInventory() {
-    if (state.currentPage == GamePage.inventory) {
-      // 如果当前在背包页面，返回游戏页面
-      state = state.copyWith(currentPage: GamePage.game);
-    } else {
-      // 否则切换到背包页面
-      state = state.copyWith(currentPage: GamePage.inventory);
-    }
+    state = state.copyWith(showInventory: !state.showInventory);
+  }
+
+  /// 打开背包
+  void openInventory() {
+    state = state.copyWith(showInventory: true);
+  }
+
+  /// 关闭背包
+  void closeInventory() {
+    state = state.copyWith(showInventory: false);
   }
 
   /// 切换角色信息面板显示
@@ -1131,11 +1277,23 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       playerInventory: newInventory,
     );
     
+    // 添加购买成功的播报消息
+    addBroadcastMessage(
+      '购买了 ${shopItem.item.name}',
+      BroadcastMessageType.item,
+    );
+    
     return true; // 购买成功
   }
 
   /// 触发游戏结束
   void triggerGameOver(String reason) {
+    // 添加游戏结束的播报消息
+    addBroadcastMessage(
+      '游戏结束: $reason',
+      BroadcastMessageType.system,
+    );
+    
     state = state.copyWith(
       isGameOver: true,
       deathReason: reason,
@@ -1152,75 +1310,79 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _applyTerrainEffects(String terrainType, double distance) {
     if (distance <= 0) return;
     
-    final currentStats = Map<String, dynamic>.from(state.characterStats);
-    final random = Random();
-    
-    // 计算移动格数（每格约为1个单位距离）
-    final gridsMoved = distance;
-    
-    switch (terrainType) {
-      case 'grass': // 草地
-        for (int i = 0; i < gridsMoved.ceil(); i++) {
-          // 随机扣除0.5-1饱食度
-          final foodDeduction = 0.5 + random.nextDouble() * 0.5;
-          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
-          
-          // 随机扣除0-1精神值
-          final sanDeduction = random.nextDouble();
-          currentStats['san'] = ((currentStats['san'] ?? 0) - sanDeduction).clamp(0, currentStats['maxSan'] ?? 100);
-        }
-        break;
-        
-      case 'building': // 建筑里
-        for (int i = 0; i < gridsMoved.ceil(); i++) {
-          // 随机扣除0.2-1饱食度
-          final foodDeduction = 0.2 + random.nextDouble() * 0.8;
-          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
-          
-          // 随机扣除0.8-2精神值
-          final sanDeduction = 0.8 + random.nextDouble() * 1.2;
-          currentStats['san'] = ((currentStats['san'] ?? 0) - sanDeduction).clamp(0, currentStats['maxSan'] ?? 100);
-        }
-        break;
-        
-      case 'woods': // 树林里
-        for (int i = 0; i < gridsMoved.ceil(); i++) {
-          // 随机扣除0.5-1饱食度
-          final foodDeduction = 0.5 + random.nextDouble() * 0.5;
-          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
-          
-          // 随机扣除0-1精神值
-          final sanDeduction = random.nextDouble();
-          currentStats['san'] = ((currentStats['san'] ?? 0) - sanDeduction).clamp(0, currentStats['maxSan'] ?? 100);
-          
-          // 随机扣除0-0.5生命值
-          final hpDeduction = random.nextDouble() * 0.5;
-          currentStats['hp'] = ((currentStats['hp'] ?? 0) - hpDeduction).clamp(0, currentStats['maxHp'] ?? 100);
-        }
-        break;
-        
-      case 'path': // 路上
-        for (int i = 0; i < gridsMoved.ceil(); i++) {
-          // 随机扣除0.2-0.5饱食度
-          final foodDeduction = 0.2 + random.nextDouble() * 0.3;
-          currentStats['food'] = ((currentStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
-          
-          // 随机恢复0-0.5精神值
-          final sanRecovery = random.nextDouble() * 0.5;
-          currentStats['san'] = ((currentStats['san'] ?? 0) + sanRecovery).clamp(0, currentStats['maxSan'] ?? 100);
-        }
-        break;
-        
-      default:
-        // 其他地形类型暂时不扣除状态
-        break;
+    // 检查是否有技能正在施法，施法期间不消耗饱食度和精神值
+    final isAnyCasting = state.skillStates.values.any((skillState) => skillState.isCasting);
+    if (isAnyCasting) {
+      return;
     }
     
-    // 更新角色状态
-    state = state.copyWith(characterStats: currentStats);
-    
-    // 调试输出
-    print('地形效果: $terrainType, 移动距离: ${distance.toStringAsFixed(2)}, 饱食度: ${currentStats['food']?.toStringAsFixed(1)}, 精神值: ${currentStats['san']?.toStringAsFixed(1)}, 生命值: ${currentStats['hp']?.toStringAsFixed(1)}');
+    _safeUpdateCharacterStats((currentStats) {
+      final updatedStats = Map<String, dynamic>.from(currentStats);
+      final random = Random();
+      
+      // 计算移动格数（每格约为1个单位距离）
+      final gridsMoved = distance;
+      
+      switch (terrainType) {
+        case 'grass': // 草地
+          for (int i = 0; i < gridsMoved.ceil(); i++) {
+            // 随机扣除0.5-1饱食度
+            final foodDeduction = 0.5 + random.nextDouble() * 0.5;
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            
+            // 随机扣除0-1精神值
+            final sanDeduction = random.nextDouble();
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, updatedStats['maxSan'] ?? 100);
+          }
+          break;
+          
+        case 'building': // 建筑里
+          for (int i = 0; i < gridsMoved.ceil(); i++) {
+            // 随机扣除0.2-1饱食度
+            final foodDeduction = 0.2 + random.nextDouble() * 0.8;
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            
+            // 随机扣除0.8-2精神值
+            final sanDeduction = 0.8 + random.nextDouble() * 1.2;
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, updatedStats['maxSan'] ?? 100);
+          }
+          break;
+          
+        case 'woods': // 树林里
+          for (int i = 0; i < gridsMoved.ceil(); i++) {
+            // 随机扣除0.5-1饱食度
+            final foodDeduction = 0.5 + random.nextDouble() * 0.5;
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            
+            // 随机扣除0-1精神值
+            final sanDeduction = random.nextDouble();
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, updatedStats['maxSan'] ?? 100);
+            
+            // 随机扣除0-0.5生命值
+            final hpDeduction = random.nextDouble() * 0.5;
+            updatedStats['hp'] = ((updatedStats['hp'] ?? 0) - hpDeduction).clamp(0, updatedStats['maxHp'] ?? 100);
+          }
+          break;
+          
+        case 'path': // 路上
+          for (int i = 0; i < gridsMoved.ceil(); i++) {
+            // 随机扣除0.2-0.5饱食度
+            final foodDeduction = 0.2 + random.nextDouble() * 0.3;
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            
+            // 随机恢复0-0.5精神值
+            final sanRecovery = random.nextDouble() * 0.5;
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) + sanRecovery).clamp(0, updatedStats['maxSan'] ?? 100);
+          }
+          break;
+          
+        default:
+          // 其他地形类型暂时不扣除状态
+          break;
+      }
+      
+      return updatedStats;
+    }, '移动系统地形效果-$terrainType');
   }
 
   /// 获取当前位置的地形类型
@@ -1285,25 +1447,32 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 检查是否在冷却期间
     if (state.unstuckCooldownEnd != null && now.isBefore(state.unstuckCooldownEnd!)) {
-      final remainingSeconds = state.unstuckCooldownEnd!.difference(now).inSeconds;
-      print('脱离卡死功能冷却中，剩余时间: ${remainingSeconds}秒');
       return;
     }
     
-    print('激活脱离卡死模式: 1秒无视地形移动');
-    
     // 激活无视地形模式，持续1秒
     final noClipEndTime = now.add(const Duration(seconds: 1));
-    // 设置60秒冷却时间
-    final cooldownEndTime = now.add(const Duration(seconds: 60));
     
     state = state.copyWith(
       isNoClipMode: true,
       noClipEndTime: noClipEndTime,
+      isWaitingForMovement: true,  // 等待玩家移动以开始冷却
+      unstuckActivatedTime: now,   // 记录激活时间
+      unstuckCooldownEnd: null,    // 清除之前的冷却时间
+    );
+  }
+
+  /// 开始脱离卡死冷却计时
+  void _startUnstuckCooldown() {
+    if (!state.isWaitingForMovement) return;
+    
+    final now = DateTime.now();
+    final cooldownEndTime = now.add(const Duration(seconds: 60));
+    
+    state = state.copyWith(
+      isWaitingForMovement: false,
       unstuckCooldownEnd: cooldownEndTime,
     );
-    
-    print('脱离卡死激活成功: 无视地形移动1秒，冷却60秒');
   }
 
   /// 寻找最近的可移动空地
@@ -1311,11 +1480,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final mapHeight = state.map.length;
     final mapWidth = state.map[0].length;
     
-    print('搜索安全位置: 地图大小 ${mapWidth}x${mapHeight}, 起始位置: ($startX, $startY)');
-    
     // 首先检查当前位置是否已经是可移动的
     if (_isEmptySpace(startX, startY)) {
-      print('当前位置已经是安全位置: ($startX, $startY)');
       return Point(startX, startY);
     }
     
@@ -1355,8 +1521,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           
           // 检查这个位置是否是可移动的空地
           if (_isEmptySpace(newX, newY)) {
-            final distance = (newX - startX).abs() + (newY - startY).abs();
-            print('找到安全位置: ($newX, $newY), 距离: $distance');
             return newPoint;
           }
           
@@ -1367,11 +1531,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
     
     // 如果没有找到空地，尝试寻找任何非墙壁位置
-    print('未找到空地，寻找任何可通行位置...');
     for (int y = 0; y < mapHeight; y++) {
       for (int x = 0; x < mapWidth; x++) {
         if (state.map[y][x] != 'wall' && state.map[y][x] != 'water') {
-          print('找到可通行位置: ($x, $y) - ${state.map[y][x]}');
           return Point(x, y);
         }
       }
@@ -1380,7 +1542,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 最后的备选方案：返回地图中心
     final centerX = mapWidth ~/ 2;
     final centerY = mapHeight ~/ 2;
-    print('使用地图中心作为备选: ($centerX, $centerY)');
     return Point(centerX, centerY);
   }
 
@@ -1426,7 +1587,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         (y) => List.generate(MapData.testMap[0].length, (x) => false),
       ),
       ghostManager: GhostManager(map: MapData.testMap),
-      explorationResult: '',
       showInventory: false,
       showCharacterInfo: false,
       showShop: false,
@@ -1446,8 +1606,474 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 添加播报消息
+  void addBroadcastMessage(String text, BroadcastMessageType type, {Duration? duration}) {
+    // 检查是否已存在相同的消息（相同文本和类型，且未过期）
+    final now = DateTime.now();
+    BroadcastMessage? existingMessage;
+    try {
+      existingMessage = state.broadcastMessages.firstWhere(
+        (message) => 
+          message.text == text && 
+          message.type == type && 
+          now.difference(message.timestamp) <= message.displayDuration,
+      );
+    } catch (e) {
+      existingMessage = null;
+    }
+    
+    // 如果找到相同且未过期的消息，则不添加新消息
+    if (existingMessage != null) {
+      return;
+    }
+    
+    final message = BroadcastMessage(
+      text: text,
+      type: type,
+      timestamp: DateTime.now(),
+      displayDuration: duration ?? const Duration(seconds: 3),
+    );
+    
+    final updatedMessages = List<BroadcastMessage>.from(state.broadcastMessages)
+      ..add(message);
+    
+    // 限制消息数量，最多保留10条
+    if (updatedMessages.length > 10) {
+      updatedMessages.removeAt(0);
+    }
+    
+    state = state.copyWith(broadcastMessages: updatedMessages);
+  }
+
+  /// 清理过期的播报消息
+  void cleanupExpiredMessages() {
+    final now = DateTime.now();
+    final activeMessages = state.broadcastMessages
+        .where((message) => now.difference(message.timestamp) <= message.displayDuration)
+        .toList();
+    
+    if (activeMessages.length != state.broadcastMessages.length) {
+      state = state.copyWith(broadcastMessages: activeMessages);
+    }
+  }
+
+  /// 清除所有播报消息
+  void clearAllBroadcastMessages() {
+    state = state.copyWith(broadcastMessages: []);
+  }
+
+
+
   /// 获取平滑视野管理器
   SmoothVisionManager? get smoothVisionManager => _smoothVisionManager;
+
+  // ===== 技能系统相关方法 =====
+  
+  /// 使用技能
+  void useSkill(String skillId) {
+    final skillState = state.skillStates[skillId];
+    if (skillState == null) {
+      return;
+    }
+    
+    // 获取技能数据
+    final skill = SkillData.getSkillById(skillId);
+    if (skill == null) {
+      return;
+    }
+    
+    // 检查技能是否在冷却中
+    if (skillState.isOnCooldown(skill.cooldownSeconds)) {
+      final remainingTime = skillState.getRemainingCooldown(skill.cooldownSeconds);
+      addBroadcastMessage(
+        '技能冷却中，剩余 $remainingTime 秒',
+        BroadcastMessageType.system,
+      );
+      return;
+    }
+    
+    // 检查技能是否正在使用中
+    if (skillState.isCurrentlyCasting) {
+      addBroadcastMessage(
+        '技能正在使用中',
+        BroadcastMessageType.system,
+      );
+      return;
+    }
+    
+    // 开始使用技能
+    _startSkillExecution(skill, skillState);
+  }
+  
+  /// 开始执行技能
+  void _startSkillExecution(Skill skill, SkillState skillState) {
+
+    final now = DateTime.now();
+    
+    // 更新技能状态为施法状态
+    final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
+    updatedSkillStates[skill.id] = skillState.copyWith(
+      isCasting: true,
+      castStartTime: now,
+    );
+    
+    state = state.copyWith(
+      skillStates: updatedSkillStates,
+      currentCastingSkillId: skill.id,
+      castingProgress: 0.0,
+    );
+
+    
+    // 添加技能开始使用的播报消息
+    addBroadcastMessage(
+      '开始使用技能: ${skill.name}',
+      BroadcastMessageType.system,
+    );
+    
+    // 设置技能执行完成的定时器
+    Timer(Duration(seconds: skill.castTimeSeconds), () {
+      _completeSkillExecution(skill);
+    });
+  }
+  
+  /// 完成技能执行
+  void _completeSkillExecution(Skill skill) {
+    final now = DateTime.now();
+    final skillState = state.skillStates[skill.id];
+    
+    if (skillState == null || !skillState.isCurrentlyCasting) {
+      return;
+    }
+    
+    // 先更新技能状态：结束施法状态，开始冷却
+    final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
+    updatedSkillStates[skill.id] = skillState.copyWith(
+      isCasting: false,
+      castStartTime: null,
+      lastUsedTime: now,
+    );
+    
+    // 更新技能状态到当前state中，清除施法状态
+    state = state.copyWith(
+      skillStates: updatedSkillStates,
+      currentCastingSkillId: null,
+      castingProgress: 0.0,
+    );
+    
+    // 应用技能效果（这会进一步更新state）
+    _applySkillEffects(skill);
+    
+    // 添加技能完成的播报消息
+    addBroadcastMessage(
+      '技能 ${skill.name} 使用完成',
+      BroadcastMessageType.system,
+    );
+  }
+  
+  /// 应用技能效果
+  void _applySkillEffects(Skill skill) {
+    // 特殊处理烹饪技能
+    if (skill.id == 'cooking') {
+      _applyCookingSkillEffect(skill);
+      return;
+    }
+    
+    final effect = skill.effect;
+    final newStats = Map<String, dynamic>.from(state.characterStats);
+    
+    // 应用技能效果并收集结果消息
+    final effectResults = effect.apply();
+    final messages = <String>[];
+    
+    // 处理各种效果
+    effectResults.forEach((effectType, value) {
+      switch (effectType) {
+        case 'health':
+          final currentHp = (newStats['hp'] ?? 0).toDouble();
+          final maxHp = (newStats['maxHp'] ?? 100).toDouble();
+          final newHp = (currentHp + value).clamp(0, maxHp);
+          newStats['hp'] = newHp;
+          messages.add('恢复生命值 +$value (${currentHp.toStringAsFixed(1)} → ${newHp.toStringAsFixed(1)})');
+          break;
+        case 'sanity':
+          final currentSan = (newStats['san'] ?? 0).toDouble();
+          final maxSan = (newStats['maxSan'] ?? 100).toDouble();
+          final newSan = (currentSan + value).clamp(0, maxSan);
+          newStats['san'] = newSan;
+          messages.add('恢复精神值 +$value (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
+          break;
+        case 'food':
+          final currentFood = (newStats['food'] ?? 0).toDouble();
+          final maxFood = 100.0; // 饱食度最大值固定为100
+          final newFood = (currentFood + value).clamp(0, maxFood);
+          newStats['food'] = newFood;
+          messages.add('恢复饱食度 +${value.toStringAsFixed(1)} (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})');
+          break;
+        case 'gold':
+          final currentGold = (newStats['gold'] ?? 0).toDouble();
+          final newGold = currentGold + value;
+          newStats['gold'] = newGold;
+          messages.add('获得金币 +$value (${currentGold.toStringAsFixed(0)} → ${newGold.toStringAsFixed(0)})');
+          break;
+        case 'damage':
+          // 伤害效果暂时不实现
+          break;
+      }
+    });
+    
+    // 创建播报消息列表
+    final broadcastMessages = <BroadcastMessage>[];
+    for (final message in messages) {
+      broadcastMessages.add(BroadcastMessage(
+        text: message,
+        type: BroadcastMessageType.heal,
+        timestamp: DateTime.now(),
+        displayDuration: const Duration(seconds: 3),
+      ));
+    }
+    
+    // 合并现有播报消息
+    final updatedMessages = List<BroadcastMessage>.from(state.broadcastMessages)
+      ..addAll(broadcastMessages);
+    
+    // 限制消息数量
+    while (updatedMessages.length > 10) {
+      updatedMessages.removeAt(0);
+    }
+    
+    // 一次性更新所有状态，确保状态变化被正确传播
+    state = state.copyWith(
+      characterStats: newStats,
+      broadcastMessages: updatedMessages,
+      // 使用动画帧标识确保状态变化被检测到
+      lastAnimationFrame: state.lastAnimationFrame + 1,
+    );
+  }
+
+  /// 应用烹饪技能特殊效果
+  void _applyCookingSkillEffect(Skill skill) {
+    // 确保获取最新的游戏状态
+    final currentState = state;
+    final newStats = Map<String, dynamic>.from(currentState.characterStats);
+    final messages = <String>[];
+    final random = Random();
+    
+    // 烹饪技能：不需要食物，等待施法时间后获得随机属性
+    messages.add('烹饪完成！制作了美味的料理');
+    
+    // 随机生命值 1-10
+    final hpGain = random.nextInt(10) + 1;
+    final currentHp = (newStats['hp'] ?? 0).toDouble();
+    final maxHp = (newStats['maxHp'] ?? 100).toDouble();
+    final newHp = (currentHp + hpGain).clamp(0, maxHp);
+    newStats['hp'] = newHp;
+    messages.add('恢复生命值 +$hpGain (${currentHp.toStringAsFixed(1)} → ${newHp.toStringAsFixed(1)})');
+    
+    // 随机精神值 1-10
+    final sanGain = random.nextInt(10) + 1;
+    final currentSan = (newStats['san'] ?? 0).toDouble();
+    final maxSan = (newStats['maxSan'] ?? 100).toDouble();
+    final newSan = (currentSan + sanGain).clamp(0, maxSan);
+    newStats['san'] = newSan;
+    messages.add('恢复精神值 +$sanGain (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
+    
+    // 随机饱食度 10-50
+    final foodGain = random.nextInt(41) + 10; // 10-50的随机数
+    final currentFood = (newStats['food'] ?? 0).toDouble();
+    final maxFood = 100.0; // 饱食度最大值固定为100
+    final newFood = (currentFood + foodGain).clamp(0, maxFood);
+    newStats['food'] = newFood;
+    messages.add('恢复饱食度 +$foodGain (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})');
+    
+    // 立即更新状态并强制通知UI
+    
+    // 创建播报消息列表
+    final broadcastMessages = <BroadcastMessage>[];
+    for (final message in messages) {
+      broadcastMessages.add(BroadcastMessage(
+        text: message,
+        type: BroadcastMessageType.heal,
+        timestamp: DateTime.now(),
+        displayDuration: const Duration(seconds: 3),
+      ));
+    }
+    
+    // 合并现有播报消息
+    final updatedMessages = List<BroadcastMessage>.from(state.broadcastMessages)
+      ..addAll(broadcastMessages);
+    
+    // 限制消息数量
+    while (updatedMessages.length > 10) {
+      updatedMessages.removeAt(0);
+    }
+    
+    // 使用copyWith确保状态更新被正确传播，一次性更新所有状态
+    final oldState = state;
+    state = state.copyWith(
+      characterStats: newStats,
+      broadcastMessages: updatedMessages,
+      // 使用动画帧标识确保状态变化被检测到
+      lastAnimationFrame: state.lastAnimationFrame + 1,
+    );
+    
+
+  }
+
+  /// 测试方法：直接添加饱食度
+  void testAddFood(int amount) {
+    
+    try {
+      // 暂时停止移动定时器，避免饱食度被立即扣除
+      final wasMovementTimerActive = _movementTimer?.isActive ?? false;
+      _movementTimer?.cancel();
+      
+      _safeUpdateCharacterStats((currentStats) {
+        final currentFood = (currentStats['food'] ?? 0).toDouble();
+        final maxFood = 100.0;
+        
+        // 计算新的饱食度值
+        final newFood = (currentFood + amount).clamp(0, maxFood);
+        
+
+        
+        // 创建更新后的状态
+        final updatedStats = Map<String, dynamic>.from(currentStats);
+        updatedStats['food'] = newFood;
+        
+        return updatedStats;
+      }, '测试添加饱食度');
+      
+      // 更新动画帧
+      state = state.copyWith(
+        lastAnimationFrame: state.lastAnimationFrame + 1,
+      );
+      
+      // 延迟3秒后重新启动移动定时器，让用户能看到变化
+      if (wasMovementTimerActive) {
+        Timer(const Duration(seconds: 3), () {
+          _startMovementTimer();
+        });
+      }
+    } catch (e) {
+      // 静默处理错误
+    }
+  }
+
+  /// 取消技能施法
+  void cancelSkillCasting() {
+    
+    // 查找当前正在施法的技能
+    String? castingSkillId;
+    SkillState? castingSkillState;
+    
+    for (final entry in state.skillStates.entries) {
+      if (entry.value.isCurrentlyCasting) {
+        castingSkillId = entry.key;
+        castingSkillState = entry.value;
+        break;
+      }
+    }
+    
+    if (castingSkillId == null || castingSkillState == null) {
+      return;
+    }
+    
+    // 获取技能数据
+    final skill = SkillData.getSkillById(castingSkillId);
+    if (skill == null) {
+      return;
+    }
+    
+    final now = DateTime.now();
+    
+    // 更新技能状态：结束施法，设置一半冷却时间
+    final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
+    updatedSkillStates[castingSkillId] = castingSkillState.copyWith(
+      isCasting: false,
+      castStartTime: null,
+      lastUsedTime: now, // 设置为当前时间，这样冷却时间会是一半
+    );
+    
+    // 更新游戏状态
+    state = state.copyWith(
+      skillStates: updatedSkillStates,
+      currentCastingSkillId: null,
+      castingProgress: 0.0,
+    );
+    
+    // 添加取消施法的播报消息
+    addBroadcastMessage(
+      '取消施法: ${skill.name}（冷却时间减半）',
+      BroadcastMessageType.system,
+    );
+  }
+
+  /// 更新技能冷却状态和施法进度
+  void _updateSkillCooldowns() {
+    final now = DateTime.now();
+    bool hasUpdates = false;
+    final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
+    String? currentCastingSkillId;
+    double castingProgress = 0.0;
+    
+    // 检查所有技能的冷却状态和施法进度
+    updatedSkillStates.forEach((skillId, skillState) {
+      // 检查施法进度
+      if (skillState.isCurrentlyCasting && skillState.castStartTime != null) {
+        final skill = SkillData.getSkillById(skillId);
+        if (skill != null) {
+          final castDuration = Duration(seconds: skill.castTimeSeconds);
+          final elapsed = now.difference(skillState.castStartTime!);
+          final progress = (elapsed.inMilliseconds / castDuration.inMilliseconds).clamp(0.0, 1.0);
+          
+          currentCastingSkillId = skillId;
+          castingProgress = progress;
+          hasUpdates = true;
+          
+          // 如果施法时间已完成，这里不处理，让定时器处理
+        }
+      }
+      // 如果技能正在冷却中，检查是否已经冷却完成
+      if (skillState.lastUsedTime != null) {
+        final skill = SkillData.getSkillById(skillId);
+        if (skill != null) {
+          final timeSinceLastUse = now.difference(skillState.lastUsedTime!);
+          final cooldownDuration = Duration(seconds: skill.cooldownSeconds);
+          
+          // 检查冷却状态变化，强制更新UI以显示倒计时
+          hasUpdates = true; // 始终标记为有更新，确保UI能显示实时倒计时
+          
+          // 如果冷却时间已过，可以清除lastUsedTime（可选）
+          if (timeSinceLastUse >= cooldownDuration && skillState.lastUsedTime != null) {
+            // 技能冷却完成，可以选择清除lastUsedTime或保留用于UI显示
+            // 这里我们保留lastUsedTime，让UI层决定如何显示
+          }
+        }
+      }
+    });
+    
+    // 强制更新状态以触发UI刷新，确保技能倒计时和施法进度能实时显示
+    if (hasUpdates || state.skillStates.isNotEmpty) {
+      // 通过更新一个时间戳来强制触发UI刷新
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      state = state.copyWith(
+        skillStates: updatedSkillStates,
+        currentCastingSkillId: currentCastingSkillId,
+        castingProgress: castingProgress,
+        lastAnimationFrame: currentTime, // 使用动画帧计数器来触发UI更新
+      );
+    }
+  }
+  
+  /// 获取技能状态（用于UI显示）
+  SkillState? getSkillState(String skillId) {
+    return state.skillStates[skillId];
+  }
+  
+  /// 获取角色的技能列表
+  List<Skill> getCharacterSkills() {
+    return state.characterSkills;
+  }
 
   @override
   void dispose() {
@@ -1456,6 +2082,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _smoothVisionTimer?.cancel();
     _unstuckTimer?.cancel();
     _hungerTimer?.cancel();
+    _skillCooldownTimer?.cancel();
+    _gameLoopTimer?.cancel();
     super.dispose();
   }
 }

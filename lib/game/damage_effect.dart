@@ -159,44 +159,34 @@ class _DynamicDamageEffectState extends ConsumerState<DynamicDamageEffect>
         final edgeOpacity = _calculateEdgeOpacity(event);
         final blurRadius = _calculateBlurRadius(event);
 
-        return Stack(
-          children: [
-            // 原始内容
-            Transform.scale(
-              scale: scale,
-              child: widget.child,
+        // 使用Container包装，避免嵌套Stack导致的ParentDataWidget错误
+        return Container(
+          decoration: opacity > 0.0 ? BoxDecoration(
+            // 使用边框创建屏幕边缘红边效果
+            border: Border.all(
+              color: Colors.red.withOpacity(edgeOpacity * opacity),
+              width: edgeThickness,
             ),
-            // 屏幕边缘红边效果 - 使用IgnorePointer确保不干扰摇杆交互
-            if (opacity > 0.0)
-              IgnorePointer(
-                child: Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      // 使用边框创建屏幕边缘红边效果
-                      border: Border.all(
-                        color: Colors.red.withOpacity(edgeOpacity * opacity),
-                        width: edgeThickness,
-                      ),
-                      // 添加内阴影效果，让红边向内渐变
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(edgeOpacity * opacity * 0.8),
-                          blurRadius: blurRadius,
-                          spreadRadius: -edgeThickness / 2, // 负值创建内阴影效果
-                          offset: Offset.zero,
-                        ),
-                        BoxShadow(
-                          color: Colors.red.withOpacity(edgeOpacity * opacity * 0.4),
-                          blurRadius: blurRadius * 2,
-                          spreadRadius: -edgeThickness / 4,
-                          offset: Offset.zero,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            // 添加内阴影效果，让红边向内渐变
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(edgeOpacity * opacity * 0.8),
+                blurRadius: blurRadius,
+                spreadRadius: -edgeThickness / 2, // 负值创建内阴影效果
+                offset: Offset.zero,
               ),
-          ],
+              BoxShadow(
+                color: Colors.red.withOpacity(edgeOpacity * opacity * 0.4),
+                blurRadius: blurRadius * 2,
+                spreadRadius: -edgeThickness / 4,
+                offset: Offset.zero,
+              ),
+            ],
+          ) : null,
+          child: Transform.scale(
+            scale: scale,
+            child: widget.child,
+          ),
         );
       },
     );
