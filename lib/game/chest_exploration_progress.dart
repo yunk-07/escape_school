@@ -1,26 +1,24 @@
-// game/item_usage_progress.dart
-// 物品使用进度条组件 - 简洁的物品使用进度显示
+// game/chest_exploration_progress.dart
+// 宝箱探索进度条组件 - 简洁的宝箱探索进度显示
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:escape_from_school/game/optimized_game_state.dart';
-import 'package:escape_from_school/data/props.dart';
+import 'optimized_game_state.dart';
 
-/// 物品使用进度条组件
-class ItemUsageProgress extends ConsumerWidget {
-  const ItemUsageProgress({super.key});
+/// 宝箱探索进度条组件
+class ChestExplorationProgress extends ConsumerWidget {
+  const ChestExplorationProgress({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(optimizedGameStateProvider);
     
-    // 如果没有在使用物品，不显示进度条
-    if (!gameState.isUsingItem || gameState.currentUsingItem == null) {
+    // 如果没有在探索宝箱，不显示进度条
+    if (!gameState.isExploringChest) {
       return const SizedBox.shrink();
     }
     
-    final item = gameState.currentUsingItem!;
-    final progress = gameState.itemUsageProgress;
+    final progress = gameState.chestExplorationProgress;
     
     return Positioned(
       top: MediaQuery.of(context).size.height * 0.25,
@@ -52,15 +50,15 @@ class ItemUsageProgress extends ConsumerWidget {
                         value: progress,
                         backgroundColor: Colors.transparent,
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                          Colors.grey,
+                          Colors.amber,
                         ),
                       ),
                     ),
                   ),
-                  // 物品名称居中显示
+                  // 探索文本居中显示
                   Center(
                     child: Text(
-                      item.name,
+                      '探索宝箱中...',
                       style: const TextStyle(
                         color: Colors.black,
                         fontSize: 12,
@@ -79,7 +77,7 @@ class ItemUsageProgress extends ConsumerWidget {
           GestureDetector(
             onTap: () {
               final notifier = ref.read(optimizedGameStateProvider.notifier);
-              notifier.cancelItemUsage();
+              notifier.cancelChestExploration();
             },
             child: Container(
               width: 60,
@@ -91,7 +89,7 @@ class ItemUsageProgress extends ConsumerWidget {
               ),
               child: const Center(
                 child: Text(
-                  '取消使用',
+                  '取消探索',
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 10,
@@ -104,21 +102,5 @@ class ItemUsageProgress extends ConsumerWidget {
         ],
       ),
     );
-  }
-  
-  /// 获取物品类型颜色
-  Color _getItemTypeColor(String type) {
-    switch (type) {
-      case 'potion':
-        return Colors.green;
-      case 'food':
-        return Colors.orange;
-      case 'tool':
-        return Colors.blue;
-      case 'weapon':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
   }
 }

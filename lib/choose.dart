@@ -408,145 +408,230 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.black.withOpacity(0.7),
-                          Colors.black.withOpacity(0.5),
+                          Colors.black.withOpacity(0.85),
+                          Colors.grey[900]!.withOpacity(0.8),
+                          Colors.black.withOpacity(0.9),
                         ],
+                        stops: const [0.0, 0.5, 1.0],
                       ),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: _isHovering ? Colors.orange : Colors.red,
+                        color: _isHovering ? const Color(0xFFFF6B35) : const Color(0xFFFF4444),
                         width: _isHovering ? 3 : 2,
                       ),
                       boxShadow: [
+                        // 主阴影
                         BoxShadow(
-                          color: Colors.black.withOpacity(_isHovering ? 0.8 : 0.6),
-                          blurRadius: _isHovering ? 35 : 25,
-                          spreadRadius: _isHovering ? 12 : 8,
+                          color: Colors.black.withOpacity(_isHovering ? 0.9 : 0.7),
+                          blurRadius: _isHovering ? 40 : 30,
+                          spreadRadius: _isHovering ? 15 : 10,
                           offset: Offset(
-                            _dragAlignment.x * (_isHovering ? 18 : 12),
-                            _dragAlignment.y * (_isHovering ? 18 : 12) + 5,
+                            _dragAlignment.x * (_isHovering ? 20 : 15),
+                            _dragAlignment.y * (_isHovering ? 20 : 15) + 8,
                           ),
                         ),
+                        // 内发光效果
                         if (_isHovering)
                           BoxShadow(
-                            color: Colors.red.withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 5,
+                            color: const Color(0xFFFF6B35).withOpacity(0.4),
+                            blurRadius: 25,
+                            spreadRadius: 8,
                             offset: const Offset(0, 0),
                           ),
+                        // 边缘高光
+                        BoxShadow(
+                          color: Colors.white.withOpacity(_isHovering ? 0.1 : 0.05),
+                          blurRadius: 2,
+                          spreadRadius: 0,
+                          offset: const Offset(0, -1),
+                        ),
                       ],
                     ),
                     child: Column(
                       children: [
-                        // 顶部图片区域
+                        // 顶部图片区域 - 减少占比，为数据区域让出更多空间
                         Expanded(
-                          flex: 5,
+                          flex: 3,
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                width: double.infinity,
-                                height: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(12),
+                            padding: const EdgeInsets.all(10),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.grey[800]!.withOpacity(0.9),
+                                    Colors.grey[900]!.withOpacity(0.95),
+                                  ],
                                 ),
-                                child: Image.asset(
-                                  widget.character['image'],
-                                  fit: BoxFit.contain,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.1),
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.5),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  child: Stack(
+                                    children: [
+                                      // 背景渐变
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: RadialGradient(
+                                            center: Alignment.center,
+                                            radius: 0.8,
+                                            colors: [
+                                              Colors.grey[700]!.withOpacity(0.3),
+                                              Colors.grey[900]!.withOpacity(0.8),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      // 角色图片
+                                      Center(
+                                        child: Image.asset(
+                                          widget.character['image'],
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      // 顶部高光效果
+                                      Positioned(
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        height: 30,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: const BorderRadius.only(
+                                              topLeft: Radius.circular(14),
+                                              topRight: Radius.circular(14),
+                                            ),
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Colors.white.withOpacity(0.15),
+                                                Colors.transparent,
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
 
-                        // 底部信息区域
+                        // 底部信息区域 - 增大占比，为属性显示提供更多空间
                         Expanded(
-                          flex: 5,
+                          flex: 7,
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: SingleChildScrollView(
-                              physics: const BouncingScrollPhysics(),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // 角色名称
-                                  Text(
-                                    widget.character['name'],
-                                    style: TextStyle(
-                                      fontSize: widget.isCompact ? 20 : 22,
-                                      fontFamily: 'MicC',
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      shadows: const [
-                                        Shadow(
-                                          blurRadius: 8,
-                                          color: Colors.black,
-                                          offset: Offset(1, 1),
-                                        ),
-                                      ],
-                                    ),
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // 角色名称 - 增大字体，更突出
+                                Text(
+                                  widget.character['name'],
+                                  style: TextStyle(
+                                    fontSize: widget.isCompact ? 18 : 20,
+                                    fontFamily: 'MicC',
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    shadows: const [
+                                      Shadow(
+                                        blurRadius: 6,
+                                        color: Colors.black,
+                                        offset: Offset(1, 1),
+                                      ),
+                                    ],
                                   ),
+                                  textAlign: TextAlign.center,
+                                ),
 
-                                  const SizedBox(height: 8),
+                                const SizedBox(height: 6),
 
-                                  // 角色描述 - 移除maxLines限制，允许完整显示
-                                  Text(
+                                // 角色描述 - 减少占比，为属性显示让出空间
+                                Expanded(
+                                  flex: 1,
+                                  child: Text(
                                     widget.character['description'],
                                     style: TextStyle(
-                                      fontSize: widget.isCompact ? 11 : 13,
+                                      fontSize: widget.isCompact ? 8 : 9,
                                       fontFamily: 'MicC',
                                       color: Colors.white70,
-                                      height: 1.3, // 增加行高提升可读性
+                                      height: 1.1,
                                     ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
+                                ),
 
-                                  const SizedBox(height: 12),
+                                const SizedBox(height: 6),
 
-                                  // 属性信息 - 使用网格布局以更好地展示进度条
-                                  Container(
-                                    width: double.infinity,
-                                    child: Column(
-                                      children: [
-                                        // 第一行：金币和生命
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                // 属性信息 - 增大占比，让数据更突出
+                                Expanded(
+                                  flex: 5,
+                                  child: Column(
+                                    children: [
+                                      // 第一行：生命和精神
+                                      Expanded(
+                                        child: Row(
                                           children: [
-                                            _buildStatItem('金币', widget.character['gold']),
-                                            _buildStatItem('生命', widget.character['hp']),
+                                            Expanded(child: _buildCompactStatItem('生命', widget.character['hp'], const Color(0xFFFF4444))),
+                                            const SizedBox(width: 4),
+                                            Expanded(child: _buildCompactStatItem('精神', widget.character['san'], const Color(0xFF44AAFF))),
                                           ],
                                         ),
-                                        
-                                        const SizedBox(height: 8),
-                                        
-                                        // 第二行：精神和速度
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      ),
+                                      
+                                      const SizedBox(height: 4),
+                                      
+                                      // 第二行：金币和速度
+                                      Expanded(
+                                        child: Row(
                                           children: [
-                                            _buildStatItem('精神', widget.character['san']),
-                                            _buildStatItem('速度', (widget.character['moveSpeed'] as num).toInt()),
+                                            Expanded(child: _buildCompactStatItem('金币', widget.character['gold'], const Color(0xFFFFD700))),
+                                            const SizedBox(width: 4),
+                                            Expanded(child: _buildCompactStatItem('速度', (widget.character['moveSpeed'] as num).toInt(), const Color(0xFF44FF44))),
                                           ],
                                         ),
-                                        
-                                        const SizedBox(height: 8),
-                                        
-                                        // 第三行：饱食度（居中显示）
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                      ),
+                                      
+                                      const SizedBox(height: 4),
+                                      
+                                      // 第三行：饱食度（居中显示）
+                                      Expanded(
+                                        child: Row(
                                           children: [
-                                            _buildStatItem('饱食', widget.character['food']),
+                                            Expanded(child: Container()),
+                                            Expanded(
+                                              flex: 2,
+                                              child: _buildCompactStatItem('饱食', widget.character['food'], const Color(0xFFFF8844)),
+                                            ),
+                                            Expanded(child: Container()),
                                           ],
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-
-                                  // 添加底部间距，确保滚动时有足够空间
-                                  const SizedBox(height: 8),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -732,6 +817,178 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
           'color': Colors.grey,
           'maxValue': 100.0,
         };
+    }
+  }
+
+  // 紧凑的属性显示组件 - 增大高度，让数据更突出
+  Widget _buildCompactStatItem(String label, dynamic value, Color color) {
+    final numValue = (value is num) ? value.toDouble() : double.tryParse(value.toString()) ?? 0.0;
+    final maxValue = _getMaxValueForAttribute(label);
+    // 对于精神值，允许超过100%显示，其他属性保持原有限制
+    final progress = label == '精神' 
+        ? (numValue / maxValue).clamp(0.0, double.infinity) 
+        : (numValue / maxValue).clamp(0.0, 1.0);
+    
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.black.withOpacity(0.6),
+            Colors.grey[900]!.withOpacity(0.8),
+          ],
+        ),
+        border: Border.all(
+          color: color.withOpacity(0.7),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 4,
+            spreadRadius: 1,
+            offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: color.withOpacity(0.2),
+            blurRadius: 6,
+            spreadRadius: 0,
+            offset: const Offset(0, 0),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // 进度条背景
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8.5),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey[800]!.withOpacity(0.9),
+                  Colors.grey[900]!.withOpacity(0.95),
+                ],
+              ),
+            ),
+          ),
+          
+          // 进度条填充
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            width: double.infinity,
+            child: FractionallySizedBox(
+              widthFactor: progress,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8.5),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      color.withOpacity(0.9),
+                      color,
+                      color.withOpacity(0.8),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.5),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8.5),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withOpacity(0.2),
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.1),
+                      ],
+                      stops: const [0.0, 0.3, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // 标签和数值 - 增大字体，提高可读性
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // 属性标签
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: widget.isCompact ? 12 : 14,
+                    fontFamily: 'MicC',
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    shadows: const [
+                      Shadow(
+                        blurRadius: 4,
+                        color: Colors.black,
+                        offset: Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // 数值
+                Text(
+                  value.toString(),
+                  style: TextStyle(
+                    fontSize: widget.isCompact ? 13 : 15,
+                    fontFamily: 'MicC',
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    shadows: const [
+                      Shadow(
+                        blurRadius: 4,
+                        color: Colors.black,
+                        offset: Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 获取属性的最大值
+  double _getMaxValueForAttribute(String label) {
+    switch (label) {
+      case '金币':
+        return 100.0;
+      case '生命':
+        return 100.0;
+      case '精神':
+        return 100.0;
+      case '速度':
+        return 200.0;
+      case '饱食':
+        return 30.0;
+      default:
+        return 100.0;
     }
   }
 }

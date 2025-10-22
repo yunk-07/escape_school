@@ -20,6 +20,7 @@ import 'package:escape_from_school/game/smooth_vision.dart';
 import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/shop_view.dart';
 import 'package:escape_from_school/game/item_usage_progress.dart';
+import 'package:escape_from_school/game/chest_exploration_progress.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -38,6 +39,7 @@ class OptimizedBoardPage extends StatefulWidget {
 class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   late OptimizedGameStateNotifier gameStateNotifier;
   final Map<String, ui.Image> terrainImages = {};
+  ui.Image? characterImage;
   bool _hasNavigatedToGameOver = false; // 防止重复导航到游戏结束页面
 
   @override
@@ -47,11 +49,12 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     // 初始化游戏状态管理器 - 使用完整的角色数据
     gameStateNotifier = OptimizedGameStateNotifier(widget.characterStats);
 
-    // 预加载地形图片
-    _preloadTerrainImages();
+    // 预加载地形图片和角色图片
+    _preloadImages();
   }
 
-  Future<void> _preloadTerrainImages() async {
+  Future<void> _preloadImages() async {
+    // 加载地形图片
     final terrainTypes = ['grass', 'wall', 'water', 'path', 'building', 'woods', 'shop', 'chest'];
     
     try {
@@ -65,6 +68,19 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     } catch (e) {
       print('Error loading terrain images: $e');
       // 如果加载失败，继续使用颜色渲染
+    }
+
+    // 加载角色图片
+    try {
+      final ByteData data = await rootBundle.load(widget.characterImage);
+      final Uint8List bytes = data.buffer.asUint8List();
+      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+      final ui.FrameInfo frameInfo = await codec.getNextFrame();
+      characterImage = frameInfo.image;
+      setState(() {}); // 触发重绘以显示角色图片
+    } catch (e) {
+      print('Error loading character image: $e');
+      // 如果加载失败，将使用红色圆圈作为回退
     }
   }
 
@@ -871,6 +887,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                 painter: _GameAreaPainter(
                   gameState: gameState,
                   terrainImages: terrainImages,
+                  characterImage: characterImage,
                   smoothVisionManager: gameStateNotifier.smoothVisionManager,
                   damageEvent: damageEvent,
                 ),
@@ -885,8 +902,6 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   // 处理地图点击事件
   void _handleMapTap(TapDownDetails details, OptimizedGameState gameState) {
-    if (gameState.schoolShop == null) return;
-    
     // 获取点击位置
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final Size size = renderBox.size;
@@ -901,28 +916,67 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     final double mapOffsetX = centerX - (gameState.playerPosition.x * tileSize);
     final double mapOffsetY = centerY - (gameState.playerPosition.y * tileSize);
     
-    // 计算商店在屏幕上的位置
-    final shopPos = gameState.schoolShop!.position;
-    final double shopScreenX = mapOffsetX + (shopPos.x * tileSize);
-    final double shopScreenY = mapOffsetY + (shopPos.y * tileSize);
-    
-    // 检查点击是否在商店区域内
-    final Rect shopRect = Rect.fromLTWH(shopScreenX, shopScreenY, tileSize, tileSize);
-    if (shopRect.contains(localPosition)) {
-      // 检查商店是否可见
-      final math.Point<int> shopPoint = math.Point(shopPos.x.toInt(), shopPos.y.toInt());
-      bool isShopVisible = false;
+    // 检查宝箱点击
+    print('检查宝箱点击 - 宝箱数量: ${gameState.chestPositions.length}');
+    for (final chestPos in gameState.chestPositions) {
+      final double chestScreenX = mapOffsetX + (chestPos.x * tileSize);
+      final double chestScreenY = mapOffsetY + (chestPos.y * tileSize);
       
-      if (gameStateNotifier.smoothVisionManager != null) {
-        final opacity = gameStateNotifier.smoothVisionManager!.getTileOpacity(shopPoint);
-        isShopVisible = opacity > 0.0;
-      } else {
-        isShopVisible = gameState.visibleTiles.contains(shopPoint);
+      // 检查点击是否在宝箱区域内
+      final Rect chestRect = Rect.fromLTWH(chestScreenX, chestScreenY, tileSize, tileSize);
+      print('宝箱位置: (${chestPos.x}, ${chestPos.y}), 屏幕坐标: ($chestScreenX, $chestScreenY), 点击位置: (${localPosition.dx}, ${localPosition.dy})');
+      
+      if (chestRect.contains(localPosition)) {
+        print('点击命中宝箱区域!');
+        
+        // 检查宝箱是否可见
+        final math.Point<int> chestPoint = math.Point(chestPos.x.toInt(), chestPos.y.toInt());
+        bool isChestVisible = false;
+        
+        if (gameStateNotifier.smoothVisionManager != null) {
+          final opacity = gameStateNotifier.smoothVisionManager!.getTileOpacity(chestPoint);
+          isChestVisible = opacity > 0.0;
+          print('宝箱可见性检查 (smoothVision): opacity = $opacity, visible = $isChestVisible');
+        } else {
+          isChestVisible = gameState.visibleTiles.contains(chestPoint);
+          print('宝箱可见性检查 (visibleTiles): visible = $isChestVisible');
+        }
+        
+        if (isChestVisible) {
+           print('宝箱可见，直接打开宝箱...');
+           // 直接打开宝箱，不检查距离
+           gameStateNotifier.openChestAtPosition(chestPos);
+           return; // 找到点击的宝箱后退出循环
+         } else {
+           print('宝箱不可见，无法交互');
+         }
       }
+    }
+    
+    // 检查商店点击（如果商店存在）
+    if (gameState.schoolShop != null) {
+      final shopPos = gameState.schoolShop!.position;
+      final double shopScreenX = mapOffsetX + (shopPos.x * tileSize);
+      final double shopScreenY = mapOffsetY + (shopPos.y * tileSize);
       
-      if (isShopVisible) {
-        // 打开商店
-        gameStateNotifier.toggleShop();
+      // 检查点击是否在商店区域内
+      final Rect shopRect = Rect.fromLTWH(shopScreenX, shopScreenY, tileSize, tileSize);
+      if (shopRect.contains(localPosition)) {
+        // 检查商店是否可见
+        final math.Point<int> shopPoint = math.Point(shopPos.x.toInt(), shopPos.y.toInt());
+        bool isShopVisible = false;
+        
+        if (gameStateNotifier.smoothVisionManager != null) {
+          final opacity = gameStateNotifier.smoothVisionManager!.getTileOpacity(shopPoint);
+          isShopVisible = opacity > 0.0;
+        } else {
+          isShopVisible = gameState.visibleTiles.contains(shopPoint);
+        }
+        
+        if (isShopVisible) {
+          // 打开商店
+          gameStateNotifier.toggleShop();
+        }
       }
     }
   }
@@ -931,7 +985,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   Widget _buildSanityCircle(OptimizedGameState gameState) {
     final double currentSan = (gameState.characterStats['san'] ?? 0).toDouble();
     final double maxSan = (gameState.characterStats['maxSan'] ?? 100).toDouble();
-    final double percentage = (currentSan / maxSan).clamp(0.0, 1.0);
+    final double percentage = (currentSan / maxSan).clamp(0.0, double.infinity); // 允许显示超过100%的理智值
     
     return Positioned(
       top: 40,
@@ -1098,7 +1152,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             height: 12,  // 调整内部高度
             decoration: BoxDecoration(
               color: Colors.grey.shade800,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
           // 进度条
@@ -1109,7 +1163,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
               height: 12,  // 调整进度条高度
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -1162,7 +1216,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             height: 12,
             decoration: BoxDecoration(
               color: Colors.grey.shade800,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
           // 饱食度进度条
@@ -1173,7 +1227,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
               height: 12,
               decoration: BoxDecoration(
                 color: Colors.orange,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -1233,7 +1287,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                   height: 12,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade800,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 // 施法进度条
@@ -1244,7 +1298,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                     height: 12,
                     decoration: BoxDecoration(
                       color: Colors.purple.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.purple.withOpacity(0.5),
@@ -1295,6 +1349,13 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
       left: 60,
       child: Consumer(
         builder: (context, ref, child) {
+          final gameState = ref.watch(optimizedGameStateProvider);
+          
+          // 当背包打开时隐藏摇杆
+          if (gameState.showInventory) {
+            return const SizedBox.shrink();
+          }
+          
           return 
               // 摇杆控制器
               Container(
@@ -1394,84 +1455,51 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             );
           }).toList(),
           
-          // 背包按钮
-          Consumer(
-            builder: (context, ref, child) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                width: 50,
-                height: 50,
-                child: Material(
-                  color: Colors.red.withOpacity(0.8), // 临时改为红色，更容易识别
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
+          // 背包按钮（背包打开时隐藏）
+          if (!gameState.showInventory)
+            Consumer(
+              builder: (context, ref, child) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  width: 50,
+                  height: 50,
+                  child: Material(
+                    color: Colors.red.withOpacity(0.8), // 临时改为红色，更容易识别
                     borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      print('背包按钮被点击 - 打开背包'); // 添加调试信息
-                      final notifier = ref.read(optimizedGameStateProvider.notifier);
-                      notifier.openInventory(); // 只负责打开背包
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.yellow, width: 3), // 添加黄色边框
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
-                            offset: const Offset(2, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Text(
-                          '背包',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        final notifier = ref.read(optimizedGameStateProvider.notifier);
+                        notifier.openInventory(); // 只负责打开背包
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.yellow, width: 3), // 添加黄色边框
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5),
+                              offset: const Offset(2, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            '背包',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-
-          // 测试按钮 - 添加10饱食度
-          GestureDetector(
-            onTap: () {
-              // 使用ProviderScope.containerOf获取notifier并调用方法
-              final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-              notifier.testAddFood(10);
-            },
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.greenAccent, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    offset: const Offset(2, 2),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.restaurant,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
+                );
+              },
             ),
-          ),
 
         ],
       ),
@@ -1652,7 +1680,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             gameState.characterStats['name'] ?? '未知角色',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -1663,7 +1691,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             gameState.characterStats['description'] ?? '无描述',
             style: TextStyle(
               color: Colors.blue.shade200,
-              fontSize: 14,
+              fontSize: 16,
             ),
             textAlign: TextAlign.center,
           ),
@@ -1702,7 +1730,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           
           // 理智值
           _buildStatRow('理智值', '${stats['san']}/${stats['maxSan']}', 
-                       Icons.psychology, Colors.blue, stats['san'] / stats['maxSan']),
+                       Icons.psychology, Colors.blue, (stats['san'] / stats['maxSan']).clamp(0.0, double.infinity)), // 允许显示超过100%
           
           // 移动速度
           _buildStatRow('移动速度', '${stats['moveSpeed']?.toInt() ?? 100}', 
@@ -1727,18 +1755,18 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   // 构建单个属性行
   Widget _buildStatRow(String label, String value, IconData icon, Color color, double progress) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 8),
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 10),
           Expanded(
             flex: 2,
             child: Text(
               label,
               style: const TextStyle(
                 color: Colors.white70,
-                fontSize: 14,
+                fontSize: 16,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1754,7 +1782,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                       value: progress,
                       backgroundColor: Colors.grey.shade700,
                       valueColor: AlwaysStoppedAnimation<Color>(color),
-                      minHeight: 4,
+                      minHeight: 6,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1764,7 +1792,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                     value,
                     style: TextStyle(
                       color: color,
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -1817,7 +1845,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             '特殊能力',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -1878,15 +1906,18 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                 // 商店界面（独立组件，避免不必要的刷新）
                 const ShopView(),
                 
-                // 背包界面（动态显示）
-                if (gameState.showInventory) const InventoryView(),
-                
                 // 物品使用进度条（动态显示）
                 const ItemUsageProgress(),
+                
+                // 宝箱探索进度条（动态显示）
+                const ChestExplorationProgress(),
                 
               ],
             ),
           ),
+          
+          // 背包界面（需要在功能按钮之前，避免覆盖按钮）
+          if (gameState.showInventory) const InventoryView(),
           
           // 交互控制组件（最高优先级，不受伤害效果影响）
           // 移动控制（摇杆）
@@ -1996,12 +2027,14 @@ class _3DCircularProgressPainter extends CustomPainter {
 class _GameAreaPainter extends CustomPainter {
   final OptimizedGameState gameState;
   final Map<String, ui.Image> terrainImages;
+  final ui.Image? characterImage;
   final SmoothVisionManager? smoothVisionManager;
   final DamageEvent? damageEvent;
 
   _GameAreaPainter({
     required this.gameState,
     required this.terrainImages,
+    this.characterImage,
     this.smoothVisionManager,
     this.damageEvent,
   });
@@ -2160,24 +2193,81 @@ class _GameAreaPainter extends CustomPainter {
       }
     }
     
-    // 绘制玩家角色
-    final Paint playerPaint = Paint()..color = Colors.red;
-    canvas.drawCircle(
-      Offset(playerScreenX, playerScreenY),
-      tileSize / 3,
-      playerPaint,
-    );
+    // 绘制宝箱
+    for (final chestPos in gameState.chestPositions) {
+      final double chestX = mapOffsetX + (chestPos.x * tileSize);
+      final double chestY = mapOffsetY + (chestPos.y * tileSize);
+      
+      // 只在屏幕范围内且可见时绘制宝箱
+      if (chestX > -tileSize && chestX < size.width && 
+          chestY > -tileSize && chestY < size.height) {
+        
+        final math.Point<int> chestPoint = math.Point(chestPos.x.toInt(), chestPos.y.toInt());
+        double chestOpacity = 1.0;
+        
+        if (smoothVisionManager != null) {
+          chestOpacity = smoothVisionManager!.getTileOpacity(chestPoint);
+          if (chestOpacity <= 0.0) {
+            // 宝箱不可见，跳过绘制
+            continue;
+          }
+        } else {
+          // 回退到原始的可见性检查
+          final bool isVisible = gameState.visibleTiles.contains(chestPoint);
+          if (!isVisible) {
+            continue;
+          }
+        }
+        
+        _drawChest(canvas, chestX, chestY, tileSize, chestOpacity);
+      }
+    }
     
-    // 绘制玩家边框
-    final Paint playerBorderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawCircle(
-      Offset(playerScreenX, playerScreenY),
-      tileSize / 3,
-      playerBorderPaint,
-    );
+    // 绘制玩家角色
+    if (characterImage != null) {
+      // 使用角色贴图
+      final double characterSize = tileSize * 0.8; // 角色大小为瓦片大小的80%
+      final Rect characterRect = Rect.fromCenter(
+        center: Offset(playerScreenX, playerScreenY),
+        width: characterSize,
+        height: characterSize,
+      );
+      
+      final Rect srcRect = Rect.fromLTWH(
+        0, 0, 
+        characterImage!.width.toDouble(), 
+        characterImage!.height.toDouble()
+      );
+      
+      // 根据玩家朝向决定是否翻转贴图
+      final bool shouldFlip = !gameState.playerPosition.facingRight;
+      
+      if (shouldFlip) {
+        // 需要翻转时，先保存画布状态
+        canvas.save();
+        // 移动到角色中心
+        canvas.translate(playerScreenX, playerScreenY);
+        // 水平翻转
+        canvas.scale(-1.0, 1.0);
+        // 移回原位置
+        canvas.translate(-playerScreenX, -playerScreenY);
+      }
+      
+      canvas.drawImageRect(characterImage!, srcRect, characterRect, Paint());
+      
+      if (shouldFlip) {
+        // 恢复画布状态
+        canvas.restore();
+      }
+    } else {
+      // 回退到红色圆圈（如果没有角色图片）
+      final Paint playerPaint = Paint()..color = Colors.red;
+      canvas.drawCircle(
+        Offset(playerScreenX, playerScreenY),
+        tileSize / 3,
+        playerPaint,
+      );
+    }
     
     // 绘制圆形视野边界效果
     _drawCircularVisionBoundary(canvas, size, playerScreenX, playerScreenY, tileSize);
@@ -2464,6 +2554,100 @@ class _GameAreaPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawRect(shopRect, borderPaint);
+  }
+
+  /// 绘制宝箱
+  void _drawChest(Canvas canvas, double chestX, double chestY, double tileSize, double opacity) {
+    final Rect chestRect = Rect.fromLTWH(chestX, chestY, tileSize, tileSize);
+    
+    // 尝试使用宝箱贴图
+    final ui.Image? chestImage = terrainImages['chest'];
+    
+    if (chestImage != null) {
+      // 使用贴图渲染宝箱
+      final Rect srcRect = Rect.fromLTWH(0, 0, chestImage.width.toDouble(), chestImage.height.toDouble());
+      final Paint imagePaint = Paint()
+        ..color = Colors.white.withOpacity(opacity);
+      canvas.drawImageRect(chestImage, srcRect, chestRect, imagePaint);
+    } else {
+      // 回退到手绘宝箱
+      // 绘制宝箱主体（棕色）
+      final Paint chestBodyPaint = Paint()
+        ..color = Colors.brown.shade700.withOpacity(opacity);
+      
+      final double chestWidth = tileSize * 0.8;
+      final double chestHeight = tileSize * 0.6;
+      final double chestBodyX = chestX + (tileSize - chestWidth) / 2;
+      final double chestBodyY = chestY + tileSize * 0.3;
+      
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(chestBodyX, chestBodyY, chestWidth, chestHeight),
+          const Radius.circular(4),
+        ),
+        chestBodyPaint,
+      );
+      
+      // 绘制宝箱盖子（稍浅的棕色）
+      final Paint chestLidPaint = Paint()
+        ..color = Colors.brown.shade600.withOpacity(opacity);
+      
+      final double lidHeight = chestHeight * 0.4;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(chestBodyX, chestBodyY, chestWidth, lidHeight),
+          const Radius.circular(4),
+        ),
+        chestLidPaint,
+      );
+      
+      // 绘制锁扣（金色）
+      final Paint lockPaint = Paint()
+        ..color = Colors.amber.shade600.withOpacity(opacity);
+      
+      final double lockSize = tileSize * 0.15;
+      final double lockX = chestX + (tileSize - lockSize) / 2;
+      final double lockY = chestBodyY + lidHeight * 0.6;
+      
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(lockX, lockY, lockSize, lockSize * 0.8),
+          const Radius.circular(2),
+        ),
+        lockPaint,
+      );
+      
+      // 绘制金属边框
+      final Paint metalPaint = Paint()
+        ..color = Colors.grey.shade400.withOpacity(opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1;
+      
+      // 宝箱边框
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(chestBodyX, chestBodyY, chestWidth, chestHeight),
+          const Radius.circular(4),
+        ),
+        metalPaint,
+      );
+      
+      // 盖子边框
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(chestBodyX, chestBodyY, chestWidth, lidHeight),
+          const Radius.circular(4),
+        ),
+        metalPaint,
+      );
+    }
+    
+    // 绘制发光效果（表示可交互）
+    final Paint glowPaint = Paint()
+      ..color = Colors.yellow.withOpacity(0.3 * opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRect(chestRect, glowPaint);
   }
 
   /// 绘制雾霾装饰效果（如果该瓦片需要雾霾装饰）

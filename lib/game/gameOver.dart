@@ -217,7 +217,7 @@ class _GameOverPageState extends State<GameOverPage>
                         padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.05),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade900.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: Colors.red.withOpacity(0.6),
                             width: 2,
@@ -279,7 +279,7 @@ class _GameOverPageState extends State<GameOverPage>
       padding: EdgeInsets.all(screenWidth * 0.04),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Colors.blue.shade400.withOpacity(0.3),
           width: 1,
@@ -327,7 +327,7 @@ class _GameOverPageState extends State<GameOverPage>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.red.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: Colors.red.withOpacity(0.5),
                 width: 1,
@@ -405,7 +405,7 @@ class _GameOverPageState extends State<GameOverPage>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Colors.red.withOpacity(0.4),
           width: 1,
@@ -470,7 +470,7 @@ class _GameOverPageState extends State<GameOverPage>
                 Colors.blue.shade800,
               ],
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: Colors.blue.shade400.withOpacity(0.6),
               width: 2,
@@ -487,7 +487,7 @@ class _GameOverPageState extends State<GameOverPage>
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(8),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/');
               },
@@ -526,7 +526,7 @@ class _GameOverPageState extends State<GameOverPage>
           height: buttonHeight * 0.85,
           decoration: BoxDecoration(
             color: Colors.grey.shade800.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: Colors.grey.shade600.withOpacity(0.5),
               width: 1,
@@ -535,7 +535,7 @@ class _GameOverPageState extends State<GameOverPage>
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               onTap: () {
                 Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
               },

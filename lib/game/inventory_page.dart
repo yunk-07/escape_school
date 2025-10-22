@@ -32,7 +32,7 @@ class InventoryPage extends ConsumerWidget {
             height: MediaQuery.of(context).size.height * 0.85,
             decoration: BoxDecoration(
               color: Colors.grey.shade900.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: Colors.blue.shade400.withOpacity(0.5),
                 width: 2,
@@ -84,7 +84,7 @@ class InventoryPage extends ConsumerWidget {
   /// 构建标题栏
   Widget _buildHeader(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -95,8 +95,8 @@ class InventoryPage extends ConsumerWidget {
           ],
         ),
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
+          topLeft: Radius.circular(8),
+          topRight: Radius.circular(8),
         ),
         boxShadow: [
           BoxShadow(
@@ -107,38 +107,133 @@ class InventoryPage extends ConsumerWidget {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Icon(Icons.inventory_2, color: Colors.white, size: 16),
-              const SizedBox(width: 8),
-              const Text(
-                '角色信息 & 背包',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
+          // 左侧：健康模块 (对应下方角色信息面板 flex: 2)
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.green.withOpacity(0.4), width: 1),
               ),
-            ],
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.red.withOpacity(0.5)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite, color: Colors.green.shade300, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '健康',
+                    style: TextStyle(
+                      color: Colors.green.shade100,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 16),
-              iconSize: 16,
-              padding: const EdgeInsets.all(8),
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              onPressed: () {
-                final notifier = ref.read(optimizedGameStateProvider.notifier);
-                notifier.toggleInventory();
-              },
+          ),
+          
+          // 分隔线 (对应下方的分隔线)
+          Container(
+            width: 1,
+            height: 20,
+            color: Colors.blue.shade400.withOpacity(0.3),
+          ),
+          
+          // 右侧：背包模块和退出按钮 (对应下方背包物品区域 flex: 3)
+          Expanded(
+            flex: 3,
+            child: Row(
+              children: [
+                // 背包标题
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.amber.withOpacity(0.4), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inventory_2, color: Colors.amber.shade300, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          '背包',
+                          style: TextStyle(
+                            color: Colors.amber.shade100,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                
+                // 退出按钮
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.red.shade600,
+                        Colors.red.shade700,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.red.shade400.withOpacity(0.6), width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () {
+                        final notifier = ref.read(optimizedGameStateProvider.notifier);
+                        notifier.toggleInventory();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.close, color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            const Text(
+                              '退出',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+              ],
             ),
           ),
         ],
@@ -172,7 +267,7 @@ class InventoryPage extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.blue.shade400.withOpacity(0.3)),
       ),
       child: Column(
@@ -182,29 +277,29 @@ class InventoryPage extends ConsumerWidget {
             '属性详情',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 12),
           
-          // 生命值 - 只显示后两位数
+          // 生命值 - 显示小数点后两位
           _buildStatRow('生命值', '${_formatToTwoDigits(stats['hp'])}/${_formatToTwoDigits(stats['maxHp'])}', 
                        Icons.favorite, Colors.red),
           
-          // 理智值 - 只显示后两位数
+          // 理智值 - 显示小数点后两位
           _buildStatRow('理智值', '${_formatToTwoDigits(stats['san'])}/${_formatToTwoDigits(stats['maxSan'])}', 
                        Icons.psychology, Colors.blue),
           
-          // 饱食度 - 只显示后两位数
+          // 饱食度 - 显示小数点后两位
           _buildStatRow('饱食度', '${_formatToTwoDigits(stats['food'])}', 
                        Icons.restaurant, Colors.green),
           
-          // 金币 - 只显示后两位数
+          // 金币 - 显示小数点后两位
           _buildStatRow('金币', '${_formatToTwoDigits(stats['gold'])}', 
                        Icons.monetization_on, Colors.yellow),
           
-          // 移动速度 - 只显示后两位数
+          // 移动速度 - 显示小数点后两位
           _buildStatRow('移动速度', '${_formatToTwoDigits(stats['moveSpeed']?.toInt() ?? 100)}', 
                        Icons.directions_run, Colors.orange),
         ],
@@ -215,17 +310,17 @@ class InventoryPage extends ConsumerWidget {
   /// 构建单个属性行
   Widget _buildStatRow(String label, String value, IconData icon, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               label,
               style: const TextStyle(
                 color: Colors.white70,
-                fontSize: 12,
+                fontSize: 16,
               ),
             ),
           ),
@@ -233,7 +328,7 @@ class InventoryPage extends ConsumerWidget {
             value,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -258,7 +353,7 @@ class InventoryPage extends ConsumerWidget {
                 '背包物品',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -267,7 +362,7 @@ class InventoryPage extends ConsumerWidget {
                 '${gameState.playerInventory.length} 件物品',
                 style: TextStyle(
                   color: Colors.blue.shade300,
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
               ),
             ],
@@ -295,7 +390,7 @@ class InventoryPage extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.grey.shade700.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(50),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: Colors.grey.shade500.withOpacity(0.5),
                 width: 2,
@@ -353,7 +448,7 @@ class InventoryPage extends ConsumerWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.4),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: _getItemTypeColor(item.type).withOpacity(0.5),
             width: 1,
@@ -445,7 +540,7 @@ class InventoryPage extends ConsumerWidget {
         return AlertDialog(
           backgroundColor: Colors.grey.shade900,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.5)),
           ),
           title: Row(
@@ -659,20 +754,20 @@ class InventoryPage extends ConsumerWidget {
     }
   }
 
-  /// 格式化数值为后两位数显示
+  /// 格式化数值为小数点后两位显示
   String _formatToTwoDigits(dynamic value) {
-    if (value == null) return '00';
+    if (value == null) return '0.00';
     
-    int intValue;
+    double doubleValue;
     if (value is double) {
-      intValue = value.round();
+      doubleValue = value;
     } else if (value is int) {
-      intValue = value;
+      doubleValue = value.toDouble();
     } else {
-      intValue = 0;
+      doubleValue = 0.0;
     }
     
-    // 只显示后两位数
-    return (intValue % 100).toString().padLeft(2, '0');
+    // 显示小数点后两位
+    return doubleValue.toStringAsFixed(2);
   }
 }

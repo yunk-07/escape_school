@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -201,6 +202,12 @@ class OptimizedGameState {
   final Item? currentUsingItem;                   // 当前正在使用的物品
   final double itemUsageProgress;                 // 物品使用进度 (0.0 - 1.0)
   final DateTime? itemUsageStartTime;             // 物品使用开始时间
+  
+  // 宝箱探索相关状态
+  final bool isExploringChest;                    // 是否正在探索宝箱
+  final Point<int>? currentExploringChest;        // 当前正在探索的宝箱位置
+  final double chestExplorationProgress;          // 宝箱探索进度 (0.0 - 1.0)
+  final DateTime? chestExplorationStartTime;      // 宝箱探索开始时间
 
   const OptimizedGameState({
     required this.characterStats,
@@ -239,6 +246,10 @@ class OptimizedGameState {
     this.currentUsingItem,
     this.itemUsageProgress = 0.0,
     this.itemUsageStartTime,
+    this.isExploringChest = false,
+    this.currentExploringChest,
+    this.chestExplorationProgress = 0.0,
+    this.chestExplorationStartTime,
   });
 
   OptimizedGameState copyWith({
@@ -278,6 +289,10 @@ class OptimizedGameState {
     Item? currentUsingItem,
     double? itemUsageProgress,
     DateTime? itemUsageStartTime,
+    bool? isExploringChest,
+    Point<int>? currentExploringChest,
+    double? chestExplorationProgress,
+    DateTime? chestExplorationStartTime,
   }) {
     return OptimizedGameState(
       characterStats: characterStats ?? this.characterStats,
@@ -316,6 +331,10 @@ class OptimizedGameState {
       currentUsingItem: currentUsingItem ?? this.currentUsingItem,
       itemUsageProgress: itemUsageProgress ?? this.itemUsageProgress,
       itemUsageStartTime: itemUsageStartTime ?? this.itemUsageStartTime,
+      isExploringChest: isExploringChest ?? this.isExploringChest,
+      currentExploringChest: currentExploringChest ?? this.currentExploringChest,
+      chestExplorationProgress: chestExplorationProgress ?? this.chestExplorationProgress,
+      chestExplorationStartTime: chestExplorationStartTime ?? this.chestExplorationStartTime,
     );
   }
 }
@@ -372,6 +391,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _gameLoopTimer; // 独立的游戏循环定时器，确保UI定期刷新
   Timer? _deathCheckTimer; // 独立的死亡判定定时器
   Timer? _itemUsageTimer; // 物品使用进度定时器
+  Timer? _chestExplorationTimer; // 宝箱探索进度定时器
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
@@ -380,7 +400,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   bool _isUpdatingStats = false;
   
   // 性能优化参数
-  static const double _maxSpeed = 2.0;
   static const double _acceleration = 8.0;
   static const double _friction = 6.0;
   static const double _deltaTime = 0.016; // 16ms
@@ -397,13 +416,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
       movementState: const OptimizedMovementState(),
       map: MapData.testMap,
-      chestPositions: [],
-      playerInventory: [
-        // 添加一些测试物品
-        allItems.firstWhere((item) => item.id == 'fish02'), // 熟鱼
-        allItems.firstWhere((item) => item.id == 'fish03'), // 尘封已久的鱼
-        allItems.firstWhere((item) => item.id == 'book01'), // 学生守则
-      ],
+      chestPositions: [], // 初始为空，将在 _initializeGame 中随机生成
+      playerInventory: [], // 玩家从空背包开始
       visibleTiles: {},
       visibleMap: List.generate(
         MapData.testMap.length,
@@ -429,6 +443,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _initializeShop();
     _initializeGhosts();
     _setRandomPlayerSpawn();
+    _initializeChests(); // 初始化随机宝箱位置
     _startMovementTimer();
     _startVisionUpdateTimer();
     _startSmoothVisionTimer(); // 启动平滑视野动画定时器
@@ -935,7 +950,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 计算基于玩家移动速度的最大速度（缓存计算结果）
     final baseSpeed = state.characterStats['moveSpeed'] ?? 100.0;
-    final currentMaxSpeed = (baseSpeed / 20.0).clamp(0.5, 8.0); // 将像素/秒转换为游戏内速度单位
+    final currentMaxSpeed = (baseSpeed / 20.0).clamp(0.1, double.infinity); // 移除上限，只保留最小值0.1防止零速度
     
     // 计算目标速度
     final targetVelocityX = movement.joystickX * currentMaxSpeed * movement.joystickIntensity;
@@ -1219,8 +1234,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 摇杆移动
   void onJoystickMove(double x, double y, double intensity) {
-    // 如果正在使用物品，禁止移动
-    if (state.isUsingItem) {
+    // 如果正在使用物品或探索宝箱，禁止移动
+    if (state.isUsingItem || state.isExploringChest) {
       return;
     }
     
@@ -1286,6 +1301,176 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 切换商店显示
   void toggleShop() {
     state = state.copyWith(showShop: !state.showShop);
+  }
+
+  /// 检查玩家是否靠近宝箱
+  bool isNearChest() {
+    // 玩家像素坐标转换为网格坐标
+    // 注意：玩家初始位置(10.0, 10.0)对应网格(0, 0)，所以需要先减去偏移量
+    final playerGridX = ((state.playerPosition.x - 10.0) / 40).round();
+    final playerGridY = ((state.playerPosition.y - 10.0) / 40).round();
+    final playerPos = Point(playerGridX, playerGridY);
+    
+    print('isNearChest - 玩家位置: 像素(${state.playerPosition.x}, ${state.playerPosition.y}), 网格($playerGridX, $playerGridY)');
+    print('isNearChest - 宝箱数量: ${state.chestPositions.length}');
+    
+    for (final chestPos in state.chestPositions) {
+      final distance = _calculateDistance(playerPos, chestPos);
+      print('isNearChest - 宝箱位置: (${chestPos.x}, ${chestPos.y}), 距离: $distance');
+      if (distance <= 1.5) { // 允许1.5格的交互距离
+        print('isNearChest - 玩家靠近宝箱，距离: $distance <= 1.5');
+        return true;
+      }
+    }
+    print('isNearChest - 玩家不靠近任何宝箱');
+    return false;
+  }
+
+  /// 打开指定位置的宝箱（点击时使用）
+  void openChestAtPosition(Point<int> chestPosition) {
+    
+    // 检查宝箱是否存在
+    if (!state.chestPositions.contains(chestPosition)) {
+      print('openChestAtPosition - 宝箱不存在于指定位置');
+      return;
+    }
+
+    // 如果已经在探索宝箱，则取消当前探索
+    if (state.isExploringChest) {
+      cancelChestExploration();
+    }
+    
+    // 开始宝箱探索进度
+    state = state.copyWith(
+      isExploringChest: true,
+      currentExploringChest: chestPosition,
+      chestExplorationProgress: 0.0,
+      chestExplorationStartTime: DateTime.now(),
+    );
+    
+    // 启动宝箱探索计时器
+    _startChestExplorationTimer(chestPosition);
+    
+    // 显示开始探索的消息
+    addBroadcastMessage('开始探索宝箱...', BroadcastMessageType.item);
+    print('openChestAtPosition - 开始探索宝箱: (${chestPosition.x}, ${chestPosition.y})');
+  }
+
+  /// 打开宝箱（原有的距离检查方法）
+  void openChest() {
+    print('openChest - 开始执行');
+    if (!isNearChest()) {
+      print('openChest - 玩家不靠近宝箱，退出');
+      return;
+    }
+    
+    final playerGridX = ((state.playerPosition.x - 10.0) / 40).round();
+    final playerGridY = ((state.playerPosition.y - 10.0) / 40).round();
+    final playerPos = Point(playerGridX, playerGridY);
+    
+    print('openChest - 玩家位置: ($playerGridX, $playerGridY)');
+    
+    // 找到最近的宝箱
+    Point<int>? nearestChest;
+    double minDistance = double.infinity;
+    
+    for (final chestPos in state.chestPositions) {
+      final distance = _calculateDistance(playerPos, chestPos);
+      print('openChest - 检查宝箱: (${chestPos.x}, ${chestPos.y}), 距离: $distance');
+      if (distance <= 1.5 && distance < minDistance) {
+        minDistance = distance;
+        nearestChest = chestPos;
+        print('openChest - 找到更近的宝箱: (${chestPos.x}, ${chestPos.y}), 距离: $distance');
+      }
+    }
+    
+    if (nearestChest != null) {
+      print('openChest - 找到最近宝箱: (${nearestChest.x}, ${nearestChest.y}), 距离: $minDistance');
+      
+      // 使用进度条机制打开宝箱
+      openChestAtPosition(nearestChest);
+    } else {
+      print('openChest - 未找到可打开的宝箱');
+    }
+  }
+
+  /// 获取宝箱随机物品
+  List<Item> _getRandomChestItems() {
+    final random = math.Random();
+    final items = <Item>[];
+    
+    // 随机获得1-3个物品
+    final itemCount = 1 + random.nextInt(3);
+    
+    for (int i = 0; i < itemCount; i++) {
+      // 从所有物品中随机选择
+      if (allItems.isNotEmpty) {
+        final randomItem = allItems[random.nextInt(allItems.length)];
+        items.add(randomItem);
+      }
+    }
+    
+    return items;
+  }
+
+  /// 获取适合放置宝箱的位置（只在草地和路径上）
+  List<Point<int>> _getChestSuitablePositions() {
+    final suitablePositions = <Point<int>>[];
+    
+    for (int y = 0; y < MapData.testMap.length; y++) {
+      for (int x = 0; x < MapData.testMap[y].length; x++) {
+        final terrain = MapData.testMap[y][x];
+        // 只在草地和路径上放置宝箱，避免墙体、水域、建筑等
+        if (terrain == 'grass' || terrain == 'path') {
+          suitablePositions.add(Point(x, y));
+        }
+      }
+    }
+    
+    return suitablePositions;
+  }
+
+  /// 随机生成宝箱位置
+  List<Point<int>> _generateRandomChestPositions({int chestCount = 5}) {
+    final random = math.Random();
+    final suitablePositions = _getChestSuitablePositions();
+    final chestPositions = <Point<int>>[];
+    
+    if (suitablePositions.isEmpty) {
+      print('警告：没有找到适合放置宝箱的位置');
+      return chestPositions;
+    }
+    
+    // 确保不会生成超过可用位置数量的宝箱
+    final maxChests = math.min(chestCount, suitablePositions.length);
+    
+    // 随机选择不重复的位置
+    final selectedPositions = <Point<int>>[];
+    while (selectedPositions.length < maxChests) {
+      final randomIndex = random.nextInt(suitablePositions.length);
+      final position = suitablePositions[randomIndex];
+      
+      // 确保位置不重复
+      if (!selectedPositions.contains(position)) {
+        selectedPositions.add(position);
+      }
+    }
+    
+    return selectedPositions;
+  }
+
+  /// 初始化宝箱位置
+  void _initializeChests() {
+    final initialChestPositions = _generateRandomChestPositions(chestCount: 5);
+    state = state.copyWith(chestPositions: initialChestPositions);
+    print('初始化宝箱位置，数量：${initialChestPositions.length}');
+  }
+
+  /// 刷新宝箱位置（在宝箱被打开后调用）
+  void _refreshChestPositions() {
+    final newChestPositions = _generateRandomChestPositions(chestCount: 5);
+    state = state.copyWith(chestPositions: newChestPositions);
+    print('宝箱位置已刷新，新位置: ${newChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}');
   }
 
   /// 购买商品
@@ -1388,6 +1573,77 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       }
     });
   }
+
+  /// 启动宝箱探索计时器
+  void _startChestExplorationTimer(Point<int> chestPosition) {
+    _chestExplorationTimer?.cancel(); // 取消之前的计时器
+    
+    const updateInterval = Duration(milliseconds: 50); // 20fps更新
+    const totalDuration = Duration(seconds: 3); // 宝箱探索需要3秒
+    
+    _chestExplorationTimer = Timer.periodic(updateInterval, (timer) {
+      if (!state.isExploringChest || state.currentExploringChest != chestPosition) {
+        timer.cancel();
+        return;
+      }
+      
+      final elapsed = DateTime.now().difference(state.chestExplorationStartTime!);
+      final progress = (elapsed.inMilliseconds / totalDuration.inMilliseconds).clamp(0.0, 1.0);
+      
+      if (progress >= 1.0) {
+        // 探索完成，打开宝箱
+        timer.cancel();
+        _completeChestExploration(chestPosition);
+      } else {
+        // 更新进度
+        state = state.copyWith(chestExplorationProgress: progress);
+      }
+    });
+  }
+
+  /// 完成宝箱探索，获得物品
+  void _completeChestExploration(Point<int> chestPosition) {
+    // 检查宝箱是否仍然存在
+    if (!state.chestPositions.contains(chestPosition)) {
+      // 宝箱已经不存在，重置状态
+      state = state.copyWith(
+        isExploringChest: false,
+        currentExploringChest: null,
+        chestExplorationProgress: 0.0,
+        chestExplorationStartTime: null,
+      );
+      return;
+    }
+    
+    // 移除已打开的宝箱
+    final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
+    updatedChestPositions.remove(chestPosition);
+    
+    // 随机获得物品
+    final randomItems = _getRandomChestItems();
+    print('_completeChestExploration - 获得物品: ${randomItems.map((item) => item.name).toList()}');
+    
+    final updatedInventory = List<Item>.from(state.playerInventory);
+    updatedInventory.addAll(randomItems);
+    
+    // 更新状态
+    state = state.copyWith(
+      chestPositions: updatedChestPositions,
+      playerInventory: updatedInventory,
+      isExploringChest: false,
+      currentExploringChest: null,
+      chestExplorationProgress: 0.0,
+      chestExplorationStartTime: null,
+    );
+    
+    // 显示获得物品的消息
+    final itemNames = randomItems.map((item) => item.name).join('、');
+    addBroadcastMessage('打开宝箱获得：$itemNames', BroadcastMessageType.item, duration: const Duration(seconds: 3));
+    print('_completeChestExploration - 显示消息: 打开宝箱获得：$itemNames');
+    
+    // 自动刷新宝箱位置，保持地图上始终有宝箱
+    _refreshChestPositions();
+  }
   
   /// 完成物品使用，应用效果
   void _completeItemUsage(Item item) {
@@ -1421,13 +1677,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
         case 'san':
           final currentSan = character['san'] ?? 100;
-          final newSan = (currentSan + value).clamp(0, 100);
+          final newSan = (currentSan + value).clamp(0, double.infinity); // 移除上限限制，允许突破上限
           character['san'] = newSan;
           hasEffect = true;
           break;
         case 'moveSpeed':
           final currentSpeed = character['moveSpeed'] ?? 100;
-          final newSpeed = (currentSpeed + value).clamp(50, 200); // 限制移动速度范围
+          final newSpeed = (currentSpeed + value).clamp(1, double.infinity); // 移除上限，只保留最小值1防止负速度
           character['moveSpeed'] = newSpeed;
           hasEffect = true;
           break;
@@ -1532,6 +1788,28 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 取消宝箱探索
+  void cancelChestExploration() {
+    if (!state.isExploringChest) return;
+    
+    // 取消计时器
+    _chestExplorationTimer?.cancel();
+    
+    // 重置宝箱探索状态，但不移除宝箱
+    state = state.copyWith(
+      isExploringChest: false,
+      currentExploringChest: null,
+      chestExplorationProgress: 0.0,
+      chestExplorationStartTime: null,
+    );
+    
+    // 添加取消探索的播报消息
+    addBroadcastMessage(
+      '取消探索宝箱',
+      BroadcastMessageType.item,
+    );
+  }
+
   /// 触发游戏结束
   void triggerGameOver(String reason) {
     // 添加游戏结束的播报消息
@@ -1579,7 +1857,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, updatedStats['maxSan'] ?? 100);
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, double.infinity); // 只限制下限，允许突破上限
           }
           break;
           
@@ -1591,7 +1869,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机扣除0.8-2精神值
             final sanDeduction = 0.8 + random.nextDouble() * 1.2;
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, updatedStats['maxSan'] ?? 100);
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, double.infinity); // 只限制下限，允许突破上限
           }
           break;
           
@@ -1603,7 +1881,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, updatedStats['maxSan'] ?? 100);
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, double.infinity); // 只限制下限，允许突破上限
             
             // 随机扣除0-0.5生命值
             final hpDeduction = random.nextDouble() * 0.5;
@@ -1619,7 +1897,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机恢复0-0.5精神值
             final sanRecovery = random.nextDouble() * 0.5;
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) + sanRecovery).clamp(0, updatedStats['maxSan'] ?? 100);
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) + sanRecovery).clamp(0, double.infinity); // 允许恢复时突破上限
           }
           break;
           
@@ -2053,7 +2331,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         case 'sanity':
           final currentSan = (newStats['san'] ?? 0).toDouble();
           final maxSan = (newStats['maxSan'] ?? 100).toDouble();
-          final newSan = (currentSan + value).clamp(0, maxSan);
+          final newSan = (currentSan + value).clamp(0, double.infinity); // 允许技能恢复时突破上限
           newStats['san'] = newSan;
           messages.add('恢复精神值 +$value (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
           break;
@@ -2128,7 +2406,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final sanGain = random.nextInt(10) + 1;
     final currentSan = (newStats['san'] ?? 0).toDouble();
     final maxSan = (newStats['maxSan'] ?? 100).toDouble();
-    final newSan = (currentSan + sanGain).clamp(0, maxSan);
+    final newSan = (currentSan + sanGain).clamp(0, double.infinity); // 允许恢复时突破上限
     newStats['san'] = newSan;
     messages.add('恢复精神值 +$sanGain (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
     
@@ -2174,45 +2452,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   }
 
-  /// 测试方法：直接添加饱食度
-  void testAddFood(int amount) {
-    
-    try {
-      // 暂时停止移动定时器，避免饱食度被立即扣除
-      final wasMovementTimerActive = _movementTimer?.isActive ?? false;
-      _movementTimer?.cancel();
-      
-      _safeUpdateCharacterStats((currentStats) {
-        final currentFood = (currentStats['food'] ?? 0).toDouble();
-        final maxFood = 100.0;
-        
-        // 计算新的饱食度值
-        final newFood = (currentFood + amount).clamp(0, maxFood);
-        
 
-        
-        // 创建更新后的状态
-        final updatedStats = Map<String, dynamic>.from(currentStats);
-        updatedStats['food'] = newFood;
-        
-        return updatedStats;
-      }, '测试添加饱食度');
-      
-      // 更新动画帧
-      state = state.copyWith(
-        lastAnimationFrame: state.lastAnimationFrame + 1,
-      );
-      
-      // 延迟3秒后重新启动移动定时器，让用户能看到变化
-      if (wasMovementTimerActive) {
-        Timer(const Duration(seconds: 3), () {
-          _startMovementTimer();
-        });
-      }
-    } catch (e) {
-      // 静默处理错误
-    }
-  }
 
   /// 取消技能施法
   void cancelSkillCasting() {
@@ -2341,6 +2581,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _gameLoopTimer?.cancel();
     _deathCheckTimer?.cancel();
     _itemUsageTimer?.cancel();
+    _chestExplorationTimer?.cancel();
     super.dispose();
   }
 }
