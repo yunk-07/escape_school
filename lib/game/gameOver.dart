@@ -2,9 +2,13 @@
 // 游戏结束页面 - 优化设计风格，符合当前游戏的整体视觉风格
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
+import 'optimized_game_state.dart';
+import '../data/props.dart';
+import 'time.dart';
 
-class GameOverPage extends StatefulWidget {
+class GameOverPage extends ConsumerStatefulWidget {
   final String deathReason;
   final String characterImage;
 
@@ -15,10 +19,10 @@ class GameOverPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<GameOverPage> createState() => _GameOverPageState();
+  ConsumerState<GameOverPage> createState() => _GameOverPageState();
 }
 
-class _GameOverPageState extends State<GameOverPage>
+class _GameOverPageState extends ConsumerState<GameOverPage>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _scaleController;
@@ -34,10 +38,16 @@ class _GameOverPageState extends State<GameOverPage>
   bool _isDisposed = false;
   bool _isAutoScrolling = false;
   bool _hasUserScrolled = false;
+  
+  // 固定的生存时间，在初始化时计算一次
+  late String _finalSurvivalTime;
 
   @override
   void initState() {
     super.initState();
+    
+    // 初始化固定的生存时间为空字符串，稍后在 didChangeDependencies 中计算
+    _finalSurvivalTime = '';
     
     // 淡入动画
     _fadeController = AnimationController(
@@ -80,6 +90,15 @@ class _GameOverPageState extends State<GameOverPage>
     
     // 启动动画序列
     _startAnimations();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 在依赖项准备好后计算固定的生存时间
+    if (_finalSurvivalTime.isEmpty) {
+      _calculateFinalSurvivalTime();
+    }
   }
 
   void _startAnimations() async {
@@ -285,62 +304,90 @@ class _GameOverPageState extends State<GameOverPage>
           width: 1,
         ),
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 角色头像
-          Container(
-            width: avatarSize,
-            height: avatarSize,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(avatarSize / 2),
-              border: Border.all(
-                color: Colors.red.withOpacity(0.6),
-                width: 3,
+          // 左侧：角色头像
+          Column(
+            children: [
+              Container(
+                width: avatarSize,
+                height: avatarSize,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(avatarSize / 2),
+                  border: Border.all(
+                    color: Colors.red.withOpacity(0.6),
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.4),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular((avatarSize / 2) - 3),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      Colors.red.withOpacity(0.3),
+                      BlendMode.overlay,
+                    ),
+                    child: Image.asset(
+                      widget.characterImage,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red.withOpacity(0.4),
-                  blurRadius: 15,
-                  spreadRadius: 2,
+              
+              const SizedBox(height: 12),
+              
+              // 角色状态文本
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.red.withOpacity(0.5),
+                    width: 1,
+                  ),
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular((avatarSize / 2) - 3),
-              child: ColorFiltered(
-                colorFilter: ColorFilter.mode(
-                  Colors.red.withOpacity(0.3),
-                  BlendMode.overlay,
-                ),
-                child: Image.asset(
-                  widget.characterImage,
-                  fit: BoxFit.cover,
+                child: const Text(
+                  '角色已死亡',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 1.0,
+                  ),
                 ),
               ),
-            ),
+              
+              const SizedBox(height: 8),
+              
+              // 生存时间显示
+              _buildSurvivalTime(),
+            ],
           ),
           
-          const SizedBox(height: 12),
+          const SizedBox(width: 20),
           
-          // 角色状态文本
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Colors.red.withOpacity(0.5),
-                width: 1,
-              ),
-            ),
-            child: const Text(
-              '角色已死亡',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 1.0,
-              ),
+          // 右侧：玩家数据和背包物品
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 玩家死前数据
+                _buildPlayerDataSection(),
+                
+                const SizedBox(height: 16),
+                
+                // 背包剩余物品
+                _buildInventorySection(),
+              ],
             ),
           ),
         ],
@@ -555,5 +602,194 @@ class _GameOverPageState extends State<GameOverPage>
         ),
       ],
     );
+  }
+
+  // 构建玩家死前数据区域
+  Widget _buildPlayerDataSection() {
+    final gameState = ref.watch(optimizedGameStateProvider);
+    // 使用死亡时的数据快照，如果没有则使用当前数据
+    final stats = gameState.deathTimeStats ?? gameState.characterStats;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDataRow('生命值', '${stats['hp']}/${stats['maxHp']}'),
+        _buildDataRow('饱食度', '${stats['food']}'),
+        _buildDataRow('精神值', '${stats['san']}/${stats['maxSan']}'),
+        _buildDataRow('移动速度', '${stats['moveSpeed']}'),
+        _buildDataRow('金币', '${stats['gold']}'),
+      ],
+    );
+  }
+
+  // 构建背包物品区域
+  Widget _buildInventorySection() {
+    final gameState = ref.watch(optimizedGameStateProvider);
+    // 使用死亡时的背包快照，如果没有则使用当前背包
+    final inventory = gameState.deathTimeInventory ?? gameState.playerInventory;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (inventory.isEmpty)
+          const Text(
+            '背包为空',
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: inventory.map((item) => _buildInventoryItem(item)).toList(),
+          ),
+      ],
+    );
+  }
+
+  // 构建数据行
+  Widget _buildDataRow(String label, String value) {
+    // 检查是否为归零数据
+    bool isZeroValue = _isZeroValue(value);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: isZeroValue ? Colors.red.shade200 : Colors.white70,
+              fontSize: isZeroValue ? 14 : 12,
+              fontWeight: isZeroValue ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: isZeroValue ? Colors.red.shade100 : Colors.white,
+              fontSize: isZeroValue ? 16 : 12,
+              fontWeight: isZeroValue ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 检查数值是否为零
+  bool _isZeroValue(String value) {
+    // 处理 "0/100" 这样的格式
+    if (value.contains('/')) {
+      String firstPart = value.split('/')[0];
+      return firstPart.trim() == '0' || firstPart.trim() == '0.0';
+    }
+    // 处理单独的数值
+    return value.trim() == '0' || value.trim() == '0.0';
+  }
+
+  // 构建背包物品
+  Widget _buildInventoryItem(Item item) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade800,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: _getItemBorderColor(item.type),
+          width: 1,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Center(
+            child: Image.asset(
+              item.image,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+            ),
+          ),
+          if (item.count > 1)
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${item.count}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // 构建生存时间显示
+  Widget _buildSurvivalTime() {
+    // 使用在初始化时计算的固定生存时间
+    final survivalTimeText = _finalSurvivalTime;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: Colors.blue.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        '生存时间: $survivalTimeText',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  // 根据物品类型获取边框颜色
+  Color _getItemBorderColor(String type) {
+    switch (type) {
+      case 'food':
+        return Colors.green.withOpacity(0.6);
+      case 'tool':
+        return Colors.blue.withOpacity(0.6);
+      case 'weapon':
+        return Colors.red.withOpacity(0.6);
+      default:
+        return Colors.grey.withOpacity(0.6);
+    }
+  }
+  
+  // 计算并保存固定的生存时间
+  void _calculateFinalSurvivalTime() {
+    final gameState = ref.read(optimizedGameStateProvider);
+    // 如果游戏已结束且有结束时间，使用结束时间；否则使用当前时间
+    final endTime = gameState.isGameOver && gameState.gameEndTime != null 
+        ? gameState.gameEndTime! 
+        : DateTime.now();
+    final survivalDuration = endTime.difference(gameState.gameStartTime);
+    _finalSurvivalTime = GameTime.formatSurvivalTime(survivalDuration.inMilliseconds);
   }
 }

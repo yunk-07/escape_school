@@ -208,6 +208,14 @@ class OptimizedGameState {
   final Point<int>? currentExploringChest;        // 当前正在探索的宝箱位置
   final double chestExplorationProgress;          // 宝箱探索进度 (0.0 - 1.0)
   final DateTime? chestExplorationStartTime;      // 宝箱探索开始时间
+  
+  // 游戏时间相关状态
+  final DateTime gameStartTime;                   // 游戏开始时间
+  final DateTime? gameEndTime;                    // 游戏结束时间
+  
+  // 死亡时数据快照
+  final Map<String, dynamic>? deathTimeStats;     // 死亡时的角色状态快照
+  final List<Item>? deathTimeInventory;           // 死亡时的背包物品快照
 
   const OptimizedGameState({
     required this.characterStats,
@@ -250,6 +258,10 @@ class OptimizedGameState {
     this.currentExploringChest,
     this.chestExplorationProgress = 0.0,
     this.chestExplorationStartTime,
+    required this.gameStartTime,
+    this.gameEndTime,
+    this.deathTimeStats,
+    this.deathTimeInventory,
   });
 
   OptimizedGameState copyWith({
@@ -293,6 +305,10 @@ class OptimizedGameState {
     Point<int>? currentExploringChest,
     double? chestExplorationProgress,
     DateTime? chestExplorationStartTime,
+    DateTime? gameStartTime,
+    DateTime? gameEndTime,
+    Map<String, dynamic>? deathTimeStats,
+    List<Item>? deathTimeInventory,
   }) {
     return OptimizedGameState(
       characterStats: characterStats ?? this.characterStats,
@@ -335,6 +351,10 @@ class OptimizedGameState {
       currentExploringChest: currentExploringChest ?? this.currentExploringChest,
       chestExplorationProgress: chestExplorationProgress ?? this.chestExplorationProgress,
       chestExplorationStartTime: chestExplorationStartTime ?? this.chestExplorationStartTime,
+      gameStartTime: gameStartTime ?? this.gameStartTime,
+      gameEndTime: gameEndTime ?? this.gameEndTime,
+      deathTimeStats: deathTimeStats ?? this.deathTimeStats,
+      deathTimeInventory: deathTimeInventory ?? this.deathTimeInventory,
     );
   }
 }
@@ -431,6 +451,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       deathReason: '',
       characterSkills: _initializeCharacterSkills(characterData['name']),
       skillStates: _initializeSkillStates(characterData['name']),
+      gameStartTime: DateTime.now(),
+      gameEndTime: null,
     ),
   ) {
     _initializeGame();
@@ -1818,9 +1840,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       BroadcastMessageType.system,
     );
     
+    // 保存死亡时的数据快照
+    final deathTimeStats = Map<String, dynamic>.from(state.characterStats);
+    final deathTimeInventory = List<Item>.from(state.playerInventory);
+    
     state = state.copyWith(
       isGameOver: true,
       deathReason: reason,
+      gameEndTime: DateTime.now(),
+      deathTimeStats: deathTimeStats,
+      deathTimeInventory: deathTimeInventory,
     );
     
     // 停止所有计时器
@@ -2107,6 +2136,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 重置状态到初始值
     final currentCharacterStats = state.characterStats;
+    final characterName = currentCharacterStats['name'] as String?;
     state = OptimizedGameState(
       characterStats: _createInitialCharacterStats(currentCharacterStats),
       playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
@@ -2125,6 +2155,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       showShop: false,
       isGameOver: false,
       deathReason: '',
+      characterSkills: _initializeCharacterSkills(characterName),
+      skillStates: _initializeSkillStates(characterName),
+      gameStartTime: DateTime.now(),
+      gameEndTime: null,
     );
     
     // 重新初始化游戏
