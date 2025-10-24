@@ -42,4 +42,14 @@ final List<Map<String, dynamic>> manData = const [
     'food': 20,
   },
 
+{
+    'name': '开发者',
+    'image': 'images/man/sleep.png',
+    'gold': 1000,
+    'hp': 1000,
+    'san': 1000,
+    'description': '睡觉何尝不是战斗的方式？',
+    'moveSpeed': 200.0,  // 移动速度：70像素/秒
+    'food': 200,
+  },
 ];

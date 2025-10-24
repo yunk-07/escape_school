@@ -34,8 +34,8 @@ class Shop {
 
   void refreshItems() {
     final random = Random();
-    // 设置下一次刷新时间（90秒±30秒随机浮动）
-    refreshInterval = Duration(seconds: 90 + random.nextInt(61) - 30);
+    // 只在刷新间隔未明确设置时才重新计算（90秒±30秒随机浮动）
+    // 如果已经设置了自定义刷新间隔，则保持不变
 
     // 1. 随机保留1个未售完商品（如果有）
     List<ShopItem> remainingItems = [];
@@ -68,6 +68,24 @@ class Shop {
 
     print('商店刷新完成 - 时间: ${DateTime.now()}, 商品数: ${items.length}');
     notifyListeners();
+  }
+
+  // 获取下次刷新时间
+  DateTime getNextRefreshTime() {
+    return lastRefreshTime.add(refreshInterval);
+  }
+
+  // 获取距离下次刷新的剩余时间
+  Duration getTimeUntilNextRefresh() {
+    final nextRefreshTime = getNextRefreshTime();
+    final now = DateTime.now();
+    final remaining = nextRefreshTime.difference(now);
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  // 检查是否需要刷新
+  bool shouldRefresh() {
+    return DateTime.now().isAfter(getNextRefreshTime());
   }
 
   // 添加监听机制

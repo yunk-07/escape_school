@@ -28,7 +28,6 @@ class _DynamicDamageEffectState extends ConsumerState<DynamicDamageEffect>
     with SingleTickerProviderStateMixin {
   AnimationController? _controller;
   Animation<double>? _opacityAnimation;
-  Animation<double>? _scaleAnimation;
   DamageEvent? _currentEvent;
   bool _isAnimating = false;
 
@@ -100,17 +99,6 @@ class _DynamicDamageEffectState extends ConsumerState<DynamicDamageEffect>
       reverseCurve: const Interval(0.2, 1.0, curve: Curves.easeInQuad), // 平缓消失
     ));
 
-    // 缩放动画：轻微的脉冲效果，模拟屏幕震动感
-    final scaleIntensity = 1.0 + (event.intensity / 100.0) * 0.02; // 1.0 - 1.02，减小缩放幅度
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: scaleIntensity,
-    ).animate(CurvedAnimation(
-      parent: _controller!,
-      curve: const Interval(0.0, 0.3, curve: Curves.elasticOut), // 弹性效果
-      reverseCurve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
-    ));
-
     // 开始动画
     _controller!.forward();
   }
@@ -154,39 +142,45 @@ class _DynamicDamageEffectState extends ConsumerState<DynamicDamageEffect>
       builder: (context, child) {
         final event = _currentEvent!;
         final opacity = _opacityAnimation?.value ?? 0.0;
-        final scale = _scaleAnimation?.value ?? 1.0;
         final edgeThickness = _calculateEdgeThickness(event);
         final edgeOpacity = _calculateEdgeOpacity(event);
         final blurRadius = _calculateBlurRadius(event);
 
-        // 使用Container包装，避免嵌套Stack导致的ParentDataWidget错误
-        return Container(
-          decoration: opacity > 0.0 ? BoxDecoration(
-            // 使用边框创建屏幕边缘红边效果
-            border: Border.all(
-              color: Colors.red.withOpacity(edgeOpacity * opacity),
-              width: edgeThickness,
-            ),
-            // 添加内阴影效果，让红边向内渐变
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withOpacity(edgeOpacity * opacity * 0.8),
-                blurRadius: blurRadius,
-                spreadRadius: -edgeThickness / 2, // 负值创建内阴影效果
-                offset: Offset.zero,
+        // 使用Stack和IgnorePointer确保不阻挡触摸事件
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // 子组件（完全不受影响，可以正常接收触摸事件）
+            widget.child,
+            // 红边效果（完全忽略触摸事件，只作为视觉效果）
+            if (opacity > 0.0)
+              IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    // 使用边框创建屏幕边缘红边效果
+                    border: Border.all(
+                      color: Colors.red.withOpacity(edgeOpacity * opacity),
+                      width: edgeThickness,
+                    ),
+                    // 添加内阴影效果，让红边向内渐变
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(edgeOpacity * opacity * 0.8),
+                        blurRadius: blurRadius,
+                        spreadRadius: -edgeThickness / 2, // 负值创建内阴影效果
+                        offset: Offset.zero,
+                      ),
+                      BoxShadow(
+                        color: Colors.red.withOpacity(edgeOpacity * opacity * 0.4),
+                        blurRadius: blurRadius * 2,
+                        spreadRadius: -edgeThickness / 4,
+                        offset: Offset.zero,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              BoxShadow(
-                color: Colors.red.withOpacity(edgeOpacity * opacity * 0.4),
-                blurRadius: blurRadius * 2,
-                spreadRadius: -edgeThickness / 4,
-                offset: Offset.zero,
-              ),
-            ],
-          ) : null,
-          child: Transform.scale(
-            scale: scale,
-            child: widget.child,
-          ),
+          ],
         );
       },
     );

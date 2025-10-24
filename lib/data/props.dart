@@ -54,7 +54,7 @@ final List<Item> allItems = [
     name: '熟鱼',
     image: 'images/items/fish02.png',
     description: '30年阳寿换来一条煮熟的鱼',
-    effects: {'hp': -30,'food':50,'san':20},
+    effects: {'hp': -5,'food':50,'san':20},
     type: 'potion',
     availableInShop: true,
     basePrice: 12,

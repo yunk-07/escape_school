@@ -14,7 +14,7 @@ import 'package:escape_from_school/game/optimized_game_state.dart';
 import 'package:escape_from_school/game/gameOver.dart';
 import 'package:escape_from_school/game/inventory_page.dart';
 import 'package:escape_from_school/game/joystick.dart';
-import 'package:escape_from_school/game/damage_effect.dart';
+
 import 'package:escape_from_school/game/hp_listener.dart';
 import 'package:escape_from_school/game/smooth_vision.dart';
 import 'package:escape_from_school/game/enhanced_vision.dart';
@@ -36,11 +36,15 @@ class OptimizedBoardPage extends StatefulWidget {
   State<OptimizedBoardPage> createState() => _OptimizedBoardPageState();
 }
 
-class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
+class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTickerProviderStateMixin {
   late OptimizedGameStateNotifier gameStateNotifier;
   final Map<String, ui.Image> terrainImages = {};
   ui.Image? characterImage;
   bool _hasNavigatedToGameOver = false; // 防止重复导航到游戏结束页面
+  
+  // 视野边界闪烁动画控制器
+  AnimationController? _visionBorderFlashController;
+  Animation<double>? _visionBorderFlashAnimation;
 
   @override
   void initState() {
@@ -48,6 +52,21 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     
     // 初始化游戏状态管理器 - 使用完整的角色数据
     gameStateNotifier = OptimizedGameStateNotifier(widget.characterStats);
+
+    // 初始化视野边界闪烁动画控制器
+    _visionBorderFlashController = AnimationController(
+      duration: const Duration(milliseconds: 400), // 0.4秒闪烁
+      vsync: this,
+    );
+    
+    // 创建闪烁动画（从1.0到0.3再回到1.0）
+    _visionBorderFlashAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.3,
+    ).animate(CurvedAnimation(
+      parent: _visionBorderFlashController!,
+      curve: Curves.easeInOut,
+    ));
 
     // 预加载地形图片和角色图片
     _preloadImages();
@@ -109,6 +128,17 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
             child: Consumer(
               builder: (context, ref, child) {
               final gameState = ref.watch(optimizedGameStateProvider);
+              final damageEvent = ref.watch(damageEventProvider);
+              
+              // 监听伤害事件，触发视野边界闪烁动画
+              if (damageEvent != null && _visionBorderFlashController != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && _visionBorderFlashController != null) {
+                    _visionBorderFlashController!.reset();
+                    _visionBorderFlashController!.forward();
+                  }
+                });
+              }
             
               // 检查游戏结束状态
               if (gameState.isGameOver && !_hasNavigatedToGameOver) {
@@ -544,6 +574,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
     );
   }
 
+
+
   // 构建播报框（设置按钮左边）
   Widget _buildBroadcastBox(OptimizedGameState gameState) {
     // 清理过期消息
@@ -859,6 +891,9 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   @override
   void dispose() {
+    // 清理动画控制器
+    _visionBorderFlashController?.dispose();
+    
     // 安全地 dispose gameStateNotifier
     try {
       if (gameStateNotifier.mounted) {
@@ -883,15 +918,21 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
           child: Consumer(
             builder: (context, ref, child) {
               final damageEvent = ref.watch(damageEventProvider);
-              return CustomPaint(
-                painter: _GameAreaPainter(
-                  gameState: gameState,
-                  terrainImages: terrainImages,
-                  characterImage: characterImage,
-                  smoothVisionManager: gameStateNotifier.smoothVisionManager,
-                  damageEvent: damageEvent,
-                ),
-                size: Size.infinite,
+              return AnimatedBuilder(
+                animation: _visionBorderFlashAnimation ?? const AlwaysStoppedAnimation(1.0),
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: _GameAreaPainter(
+                      gameState: gameState,
+                      terrainImages: terrainImages,
+                      characterImage: characterImage,
+                      smoothVisionManager: gameStateNotifier.smoothVisionManager,
+                      damageEvent: damageEvent,
+                      visionBorderFlashValue: _visionBorderFlashAnimation?.value ?? 1.0,
+                    ),
+                    size: Size.infinite,
+                  );
+                },
               );
             },
           ),
@@ -983,9 +1024,9 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
 
   // 构建精神值环形图（左上角）- 立体效果
   Widget _buildSanityCircle(OptimizedGameState gameState) {
-    final double currentSan = (gameState.characterStats['san'] ?? 0).toDouble();
-    final double maxSan = (gameState.characterStats['maxSan'] ?? 100).toDouble();
-    final double percentage = (currentSan / maxSan).clamp(0.0, double.infinity); // 允许显示超过100%的理智值
+    final double currentSan = (gameState.characterStats['san'] ?? 0).toDouble().clamp(0, 250);
+    final double maxSan = 250.0; // 精神值上限固定为250
+    final double percentage = (currentSan / maxSan).clamp(0.0, 1.0); // 限制在100%以内
     
     return Positioned(
       top: 40,
@@ -1729,8 +1770,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
                        Icons.favorite, Colors.red, stats['hp'] / stats['maxHp']),
           
           // 理智值
-          _buildStatRow('理智值', '${stats['san']}/${stats['maxSan']}', 
-                       Icons.psychology, Colors.blue, (stats['san'] / stats['maxSan']).clamp(0.0, double.infinity)), // 允许显示超过100%
+          _buildStatRow('理智值', '${(stats['san'] as num).toDouble().clamp(0, 250).toInt()}/250', 
+                       Icons.psychology, Colors.blue, ((stats['san'] as num).toDouble().clamp(0, 250) / 250.0).clamp(0.0, 1.0)), // 精神值上限250，限制在100%以内
           
           // 移动速度
           _buildStatRow('移动速度', '${stats['moveSpeed']?.toInt() ?? 100}', 
@@ -1877,6 +1918,19 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> {
   // 构建游戏页面
   Widget _buildGamePage(OptimizedGameState gameState) {
     return HPListener(
+      onDamageDetected: (event) {
+        // 触发伤害事件到provider
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            try {
+              final container = ProviderScope.containerOf(context);
+              container.read(damageEventProvider.notifier).triggerDamage(event);
+            } catch (e) {
+              print('触发伤害事件时出错: $e');
+            }
+          }
+        });
+      },
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -2030,6 +2084,7 @@ class _GameAreaPainter extends CustomPainter {
   final ui.Image? characterImage;
   final SmoothVisionManager? smoothVisionManager;
   final DamageEvent? damageEvent;
+  final double visionBorderFlashValue; // 视野边界闪烁动画值
 
   _GameAreaPainter({
     required this.gameState,
@@ -2037,6 +2092,7 @@ class _GameAreaPainter extends CustomPainter {
     this.characterImage,
     this.smoothVisionManager,
     this.damageEvent,
+    this.visionBorderFlashValue = 1.0, // 默认值为1.0（不闪烁）
   });
 
   @override
@@ -2278,8 +2334,8 @@ class _GameAreaPainter extends CustomPainter {
   /// 绘制圆形视野边界效果
   void _drawCircularVisionBoundary(Canvas canvas, Size size, double playerX, double playerY, double tileSize) {
     // 获取当前精神值来计算动态视野半径
-    final currentSanity = (gameState.characterStats['san'] ?? 100).toDouble();
-    final maxSanity = (gameState.characterStats['maxSan'] ?? 100).toDouble();
+    final currentSanity = (gameState.characterStats['san'] ?? 100).toDouble().clamp(0, 250);
+    final maxSanity = 250.0; // 精神值上限固定为250
     
     // 使用与EnhancedVisionSystem相同的绝对数值计算逻辑
     int currentViewRadius;
@@ -2306,8 +2362,8 @@ class _GameAreaPainter extends CustomPainter {
     currentViewRadius = currentViewRadius.clamp(1, 999).toInt();
     final double visionRadius = currentViewRadius * tileSize;
     
-    // 计算精神值百分比用于视觉效果（保持原有的视觉效果计算）
-    final sanityPercentage = (currentSanity / maxSanity).clamp(0.0, double.infinity);
+    // 计算精神值百分比用于视觉效果，限制在0.0到1.0之间
+    final sanityPercentage = (currentSanity / maxSanity).clamp(0.0, 1.0);
     
     // 绘制多层雾效，创建更自然的视野过渡
     _drawMultiLayerFog(canvas, size, playerX, playerY, visionRadius, sanityPercentage);
@@ -2384,7 +2440,7 @@ class _GameAreaPainter extends CustomPainter {
     // 检查是否有伤害事件（受伤状态）
     final isDamaged = damageEvent != null;
     
-    // 主边界线（受伤时强制变红，否则根据精神值调整颜色）
+    // 主边界线（只有受伤时才变红，否则保持蓝色）
     Color borderColor;
     double borderOpacity;
     double strokeWidth;
@@ -2393,17 +2449,14 @@ class _GameAreaPainter extends CustomPainter {
       // 受伤时：视野边界变为红色，根据伤害强度调整透明度和粗细
       final damageIntensity = damageEvent!.intensity / 100.0; // 标准化到0-1
       borderColor = Colors.red;
-      borderOpacity = 0.7 + damageIntensity * 0.3; // 0.7-1.0的透明度
+      // 应用闪烁动画效果：透明度会在0.7-1.0之间闪烁
+      borderOpacity = (0.7 + damageIntensity * 0.3) * visionBorderFlashValue;
       strokeWidth = 3.0 + damageIntensity * 3.0; // 3.0-6.0的线宽
     } else {
-      // 正常状态：根据精神值在红色和蓝色之间插值
-      borderColor = Color.lerp(
-        Colors.red, // 低精神值时的红色边界
-        Colors.blue, // 高精神值时的蓝色边界
-        sanityPercentage,
-      )!;
-      borderOpacity = sanityPercentage <= 0.5 ? 0.6 : 0.3;
-      strokeWidth = 2.0 + (1.0 - sanityPercentage) * 2.0; // 精神值越低，边界线越粗
+      // 正常状态：始终保持蓝色边界，不受精神值影响
+      borderColor = Colors.blue;
+      borderOpacity = 0.4; // 固定透明度
+      strokeWidth = 2.0; // 固定线宽
     }
     
     final Paint borderPaint = Paint()
@@ -2438,40 +2491,7 @@ class _GameAreaPainter extends CustomPainter {
       borderPaint,
     );
     
-    // 脉动效果（低精神值时更明显）
-    if (sanityPercentage < 0.5) {
-      final double pulseIntensity = (1.0 - sanityPercentage * 2.0);
-      final Paint pulsePaint = Paint()
-        ..color = Colors.red.withOpacity(0.3 * pulseIntensity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.0 * pulseIntensity;
-      
-      final Rect pulseRect = Rect.fromCircle(
-        center: Offset(playerX, playerY),
-        radius: visionRadius + 5 * pulseIntensity,
-      );
-      
-      // 使用与主弧形相同的间隙角度
-      final double gapAngle = math.pi / 6; // 30度的间隙
-      
-      // 左侧脉动弧形
-      canvas.drawArc(
-        pulseRect,
-        -math.pi / 2 + gapAngle / 2,
-        math.pi - gapAngle,
-        false,
-        pulsePaint,
-      );
-      
-      // 右侧脉动弧形
-      canvas.drawArc(
-        pulseRect,
-        math.pi / 2 + gapAngle / 2,
-        math.pi - gapAngle,
-        false,
-        pulsePaint,
-      );
-    }
+    // 脉动效果已移除，不再与精神值相关
     
     // 内部光晕效果
     final Paint glowPaint = Paint()
@@ -2684,8 +2704,13 @@ class _GameAreaPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+  bool shouldRepaint(covariant _GameAreaPainter oldDelegate) {
+    return gameState != oldDelegate.gameState ||
+           terrainImages != oldDelegate.terrainImages ||
+           characterImage != oldDelegate.characterImage ||
+           smoothVisionManager != oldDelegate.smoothVisionManager ||
+           damageEvent != oldDelegate.damageEvent ||
+           visionBorderFlashValue != oldDelegate.visionBorderFlashValue;
   }
 }
 

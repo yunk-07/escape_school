@@ -8,6 +8,7 @@
  * - 美化的现代UI设计
  */
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'optimized_game_state.dart';
@@ -27,6 +28,13 @@ final playerGoldProvider = Provider<int>((ref) {
   return ref.watch(optimizedGameStateProvider.select((state) => 
     (state.characterStats['gold'] ?? 0).toInt()));
 }, dependencies: [optimizedGameStateProvider]);
+
+/// 商店刷新时间选择器 - 监听商店刷新时间变化
+final shopRefreshTimeProvider = Provider<Duration?>((ref) {
+  final shop = ref.watch(shopDataProvider);
+  if (shop == null) return null;
+  return shop.getTimeUntilNextRefresh();
+}, dependencies: [shopDataProvider]);
 
 /// 商店特定状态选择器 - 组合精确的状态选择器
 final shopStateProvider = Provider<ShopState>((ref) {
@@ -180,7 +188,7 @@ class _ShopContent extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 左侧：商店标题
+          // 左侧：商店标题和刷新时间
           Row(
             children: [
               Container(
@@ -197,20 +205,28 @@ class _ShopContent extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                '商店',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black54,
-                      offset: Offset(1, 1),
-                      blurRadius: 3,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '商店',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          offset: Offset(1, 1),
+                          blurRadius: 3,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  // 刷新时间倒计时
+                  _buildRefreshTimer(ref),
+                ],
               ),
             ],
           ),
@@ -600,6 +616,85 @@ class _ShopContent extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建刷新时间倒计时显示
+  Widget _buildRefreshTimer(WidgetRef ref) {
+    return const ShopRefreshTimer();
+  }
+}
+
+/// 商店刷新时间倒计时组件
+class ShopRefreshTimer extends ConsumerStatefulWidget {
+  const ShopRefreshTimer({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<ShopRefreshTimer> createState() => _ShopRefreshTimerState();
+}
+
+class _ShopRefreshTimerState extends ConsumerState<ShopRefreshTimer> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // 启动定时器，每秒更新一次
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          // 强制重建组件以更新倒计时
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shop = ref.watch(shopDataProvider);
+    if (shop == null) {
+      return const SizedBox.shrink();
+    }
+
+    final timeUntilRefresh = shop.getTimeUntilNextRefresh();
+    final minutes = timeUntilRefresh.inMinutes;
+    final seconds = timeUntilRefresh.inSeconds % 60;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.refresh,
+            color: Colors.white.withOpacity(0.8),
+            size: 12,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '刷新: ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

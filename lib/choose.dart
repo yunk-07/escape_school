@@ -353,8 +353,8 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
             'name': widget.character['name'], // 添加name字段用于技能初始化
             'hp': (widget.character['hp'] as num).toDouble(),
             'maxHp': (widget.character['hp'] as num).toDouble(),
-            'san': (widget.character['san'] as num).toDouble(),
-            'maxSan': (widget.character['san'] as num).toDouble(),
+            'san': (widget.character['san'] as num).toDouble().clamp(0, 250),
+            'maxSan': 250.0, // 精神值上限固定为250
             'moveSpeed': widget.character['moveSpeed'],
             'gold': (widget.character['gold'] as num).toDouble(),
             'food': (widget.character['food'] as num).toDouble(),
@@ -595,7 +595,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                                           children: [
                                             Expanded(child: _buildCompactStatItem('生命', widget.character['hp'], const Color(0xFFFF4444))),
                                             const SizedBox(width: 4),
-                                            Expanded(child: _buildCompactStatItem('精神', widget.character['san'], const Color(0xFF44AAFF))),
+                                            Expanded(child: _buildCompactStatItem('精神', (widget.character['san'] as num).toDouble().clamp(0, 250), const Color(0xFF44AAFF))),
                                           ],
                                         ),
                                       ),
@@ -800,7 +800,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
       case '精神':
         return {
           'color': const Color(0xFF44AAFF), // 蓝色
-          'maxValue': 100.0,
+          'maxValue': 250.0,
         };
       case '速度':
         return {
@@ -824,10 +824,8 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
   Widget _buildCompactStatItem(String label, dynamic value, Color color) {
     final numValue = (value is num) ? value.toDouble() : double.tryParse(value.toString()) ?? 0.0;
     final maxValue = _getMaxValueForAttribute(label);
-    // 对于精神值，允许超过100%显示，其他属性保持原有限制
-    final progress = label == '精神' 
-        ? (numValue / maxValue).clamp(0.0, double.infinity) 
-        : (numValue / maxValue).clamp(0.0, 1.0);
+    // 所有属性都限制在100%以内，防止进度条爆表
+    final progress = (numValue / maxValue).clamp(0.0, 1.0);
     
     return Container(
       height: 42,
@@ -982,7 +980,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
       case '生命':
         return 100.0;
       case '精神':
-        return 100.0;
+        return 250.0;
       case '速度':
         return 200.0;
       case '饱食':

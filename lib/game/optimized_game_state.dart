@@ -176,6 +176,10 @@ class OptimizedGameState {
   final bool isWaitingForMovement;      // 是否正在等待玩家移动以开始冷却
   final DateTime? unstuckActivatedTime; // 脱离卡死激活时间
   
+  // 游戏开始无碰撞模式相关状态
+  final bool isInitialNoClipMode;       // 是否处于游戏开始的初始无碰撞模式
+  final bool hasUsedJoystick;           // 是否已经使用过摇杆
+  
   // 移动距离计算相关状态
   final OptimizedPlayerPosition? lastPosition;  // 上一次位置，用于计算移动距离
   final double accumulatedDistance;             // 累积移动距离
@@ -216,6 +220,8 @@ class OptimizedGameState {
   // 死亡时数据快照
   final Map<String, dynamic>? deathTimeStats;     // 死亡时的角色状态快照
   final List<Item>? deathTimeInventory;           // 死亡时的背包物品快照
+  
+
 
   const OptimizedGameState({
     required this.characterStats,
@@ -239,6 +245,8 @@ class OptimizedGameState {
     this.unstuckCooldownEnd,
     this.isWaitingForMovement = false,
     this.unstuckActivatedTime,
+    this.isInitialNoClipMode = true,
+    this.hasUsedJoystick = false,
     this.lastPosition,
     this.accumulatedDistance = 0.0,
     this.lastHp,
@@ -286,6 +294,8 @@ class OptimizedGameState {
     DateTime? unstuckCooldownEnd,
     bool? isWaitingForMovement,
     DateTime? unstuckActivatedTime,
+    bool? isInitialNoClipMode,
+    bool? hasUsedJoystick,
     OptimizedPlayerPosition? lastPosition,
     double? accumulatedDistance,
     double? lastHp,
@@ -332,6 +342,8 @@ class OptimizedGameState {
       unstuckCooldownEnd: unstuckCooldownEnd ?? this.unstuckCooldownEnd,
       isWaitingForMovement: isWaitingForMovement ?? this.isWaitingForMovement,
       unstuckActivatedTime: unstuckActivatedTime ?? this.unstuckActivatedTime,
+      isInitialNoClipMode: isInitialNoClipMode ?? this.isInitialNoClipMode,
+      hasUsedJoystick: hasUsedJoystick ?? this.hasUsedJoystick,
       lastPosition: lastPosition ?? this.lastPosition,
       accumulatedDistance: accumulatedDistance ?? this.accumulatedDistance,
       lastHp: lastHp ?? this.lastHp,
@@ -412,6 +424,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _deathCheckTimer; // 独立的死亡判定定时器
   Timer? _itemUsageTimer; // 物品使用进度定时器
   Timer? _chestExplorationTimer; // 宝箱探索进度定时器
+  Timer? _shopRefreshTimer; // 商店刷新检查定时器
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
@@ -474,6 +487,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startSkillCooldownTimer(); // 启动技能冷却定时器
     _startGameLoopTimer(); // 启动独立的游戏循环定时器
     _startDeathCheckTimer(); // 启动独立的死亡判定定时器
+    _startShopRefreshTimer(); // 启动商店刷新检查定时器
     _updateVision();
   }
 
@@ -852,6 +866,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
   }
 
+  /// 启动商店刷新检查定时器
+  void _startShopRefreshTimer() {
+    _shopRefreshTimer = Timer.periodic(
+      const Duration(seconds: 1), // 每秒检查一次商店是否需要刷新
+      (timer) {
+        _checkShopRefresh();
+      }
+    );
+  }
+
   /// 独立的游戏循环更新，确保UI定期刷新
   void _updateGameLoop() {
     // 强制触发UI更新，确保技能倒计时、视野等元素能够实时显示
@@ -862,6 +886,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     state = state.copyWith(
       lastAnimationFrame: currentTime,
     );
+  }
+
+  /// 检查商店是否需要刷新
+  void _checkShopRefresh() {
+    final shop = state.schoolShop;
+    if (shop != null && shop.shouldRefresh()) {
+      // 商店需要刷新，调用刷新方法
+      shop.refreshItems();
+      // 更新状态以触发UI刷新
+      state = state.copyWith(schoolShop: shop);
+      print('🔄 商店自动刷新触发 - 时间: ${DateTime.now()}');
+    }
   }
 
   /// 更新脱离卡死状态
@@ -1189,11 +1225,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 精确的碰撞检测 - 优化贴墙移动体验
   bool _canMoveToPosition(double x, double y) {
-    // 检查是否处于无视地形模式
-    if (state.isNoClipMode) {
+    // 检查是否处于无视地形模式（包括初始无碰撞模式和脱离卡死模式）
+    if (state.isNoClipMode || state.isInitialNoClipMode) {
       final now = DateTime.now();
-      // 检查无视地形模式是否已过期
-      if (state.noClipEndTime != null && now.isAfter(state.noClipEndTime!)) {
+      
+      // 检查脱离卡死的无视地形模式是否已过期
+      if (state.isNoClipMode && state.noClipEndTime != null && now.isAfter(state.noClipEndTime!)) {
         // 无视地形模式已过期，关闭该模式
         state = state.copyWith(
           isNoClipMode: false,
@@ -1259,6 +1296,31 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 如果正在使用物品或探索宝箱，禁止移动
     if (state.isUsingItem || state.isExploringChest) {
       return;
+    }
+    
+    // 检查是否首次使用摇杆，如果是则启动初始无碰撞模式的倒计时
+    if (state.isInitialNoClipMode && !state.hasUsedJoystick && intensity > 0.1) {
+      final now = DateTime.now();
+      final endTime = now.add(const Duration(seconds: 1));
+      
+      // 标记已使用摇杆，并设置一秒后结束初始无碰撞模式
+      state = state.copyWith(
+        hasUsedJoystick: true,
+        noClipEndTime: endTime,
+      );
+      
+      // 启动定时器，一秒后关闭初始无碰撞模式
+      Timer(const Duration(seconds: 1), () {
+        if (state.isInitialNoClipMode) {
+          state = state.copyWith(
+            isInitialNoClipMode: false,
+            noClipEndTime: null,
+          );
+          print('初始无碰撞模式已结束');
+        }
+      });
+      
+      print('玩家开始使用摇杆，初始无碰撞模式将在1秒后结束');
     }
     
     final movement = state.movementState;
@@ -1452,8 +1514,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return suitablePositions;
   }
 
+  /// 获取固定的测试宝箱位置（三个相邻的宝箱）
+
+
   /// 随机生成宝箱位置
   List<Point<int>> _generateRandomChestPositions({int chestCount = 5}) {
+    
     final random = math.Random();
     final suitablePositions = _getChestSuitablePositions();
     final chestPositions = <Point<int>>[];
@@ -1493,6 +1559,54 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final newChestPositions = _generateRandomChestPositions(chestCount: 5);
     state = state.copyWith(chestPositions: newChestPositions);
     print('宝箱位置已刷新，新位置: ${newChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}');
+  }
+
+  /// 智能补充宝箱：只在宝箱数量不足时添加新宝箱
+  void _replenishChestsIfNeeded() {
+    final currentChestCount = state.chestPositions.length;
+    final targetChestCount = 5;
+    
+    // 如果当前宝箱数量已经足够，不需要补充
+    if (currentChestCount >= targetChestCount) {
+      print('宝箱数量充足 ($currentChestCount/$targetChestCount)，无需补充');
+      return;
+    }
+    
+    // 计算需要补充的宝箱数量
+    final needToAdd = targetChestCount - currentChestCount;
+    print('当前宝箱数量: $currentChestCount，目标数量: $targetChestCount，需要补充: $needToAdd');
+    
+    // 获取当前已存在的宝箱位置
+    final existingPositions = Set<Point<int>>.from(state.chestPositions);
+    
+    // 生成新的宝箱位置，避免与现有位置重复
+    final suitablePositions = _getChestSuitablePositions();
+    final availablePositions = suitablePositions.where((pos) => !existingPositions.contains(pos)).toList();
+    
+    if (availablePositions.isEmpty) {
+      print('警告：没有可用的位置来补充宝箱');
+      return;
+    }
+    
+    // 随机选择新的宝箱位置
+    final random = math.Random();
+    final newPositions = <Point<int>>[];
+    final maxNewChests = math.min(needToAdd, availablePositions.length);
+    
+    for (int i = 0; i < maxNewChests; i++) {
+      final randomIndex = random.nextInt(availablePositions.length);
+      final newPosition = availablePositions.removeAt(randomIndex);
+      newPositions.add(newPosition);
+    }
+    
+    // 更新宝箱位置列表
+    final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
+    updatedChestPositions.addAll(newPositions);
+    
+    state = state.copyWith(chestPositions: updatedChestPositions);
+    
+    print('补充了 ${newPositions.length} 个宝箱，新位置: ${newPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}');
+    print('当前所有宝箱位置: ${updatedChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}');
   }
 
   /// 购买商品
@@ -1663,8 +1777,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     addBroadcastMessage('打开宝箱获得：$itemNames', BroadcastMessageType.item, duration: const Duration(seconds: 3));
     print('_completeChestExploration - 显示消息: 打开宝箱获得：$itemNames');
     
-    // 自动刷新宝箱位置，保持地图上始终有宝箱
-    _refreshChestPositions();
+    // 智能补充宝箱：只在宝箱数量不足时添加新宝箱
+    _replenishChestsIfNeeded();
   }
   
   /// 完成物品使用，应用效果
@@ -1699,7 +1813,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
         case 'san':
           final currentSan = character['san'] ?? 100;
-          final newSan = (currentSan + value).clamp(0, double.infinity); // 移除上限限制，允许突破上限
+          final newSan = (currentSan + value).clamp(0, 250); // 精神值上限限制为250
           character['san'] = newSan;
           hasEffect = true;
           break;
@@ -1886,7 +2000,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, double.infinity); // 只限制下限，允许突破上限
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, 250); // 精神值上限限制为250
           }
           break;
           
@@ -1898,7 +2012,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机扣除0.8-2精神值
             final sanDeduction = 0.8 + random.nextDouble() * 1.2;
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, double.infinity); // 只限制下限，允许突破上限
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, 250); // 精神值上限限制为250
           }
           break;
           
@@ -1910,7 +2024,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, double.infinity); // 只限制下限，允许突破上限
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, 250); // 精神值上限限制为250
             
             // 随机扣除0-0.5生命值
             final hpDeduction = random.nextDouble() * 0.5;
@@ -1926,7 +2040,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             
             // 随机恢复0-0.5精神值
             final sanRecovery = random.nextDouble() * 0.5;
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) + sanRecovery).clamp(0, double.infinity); // 允许恢复时突破上限
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) + sanRecovery).clamp(0, 250); // 精神值上限限制为250
           }
           break;
           
@@ -2364,8 +2478,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
         case 'sanity':
           final currentSan = (newStats['san'] ?? 0).toDouble();
-          final maxSan = (newStats['maxSan'] ?? 100).toDouble();
-          final newSan = (currentSan + value).clamp(0, double.infinity); // 允许技能恢复时突破上限
+          final maxSan = 250.0; // 精神值上限固定为250
+          final newSan = (currentSan + value).clamp(0, 250); // 精神值上限限制为250
           newStats['san'] = newSan;
           messages.add('恢复精神值 +$value (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
           break;
@@ -2439,8 +2553,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 随机精神值 1-10
     final sanGain = random.nextInt(10) + 1;
     final currentSan = (newStats['san'] ?? 0).toDouble();
-    final maxSan = (newStats['maxSan'] ?? 100).toDouble();
-    final newSan = (currentSan + sanGain).clamp(0, double.infinity); // 允许恢复时突破上限
+    final maxSan = 250.0; // 精神值上限固定为250
+    final newSan = (currentSan + sanGain).clamp(0, 250); // 精神值上限限制为250
     newStats['san'] = newSan;
     messages.add('恢复精神值 +$sanGain (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
     
@@ -2604,6 +2718,35 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return state.characterSkills;
   }
 
+
+
+  /// 获取物品使用剩余时间（秒）
+  double getItemUsageRemainingTime() {
+    if (!state.isUsingItem || state.currentUsingItem == null || state.itemUsageStartTime == null) {
+      return 0.0;
+    }
+    
+    final item = state.currentUsingItem!;
+    final totalDuration = Duration(milliseconds: item.usageTime);
+    final elapsed = DateTime.now().difference(state.itemUsageStartTime!);
+    final remaining = totalDuration - elapsed;
+    
+    return remaining.inMilliseconds > 0 ? remaining.inMilliseconds / 1000.0 : 0.0;
+  }
+
+  /// 获取宝箱探索剩余时间（秒）
+  double getChestExplorationRemainingTime() {
+    if (!state.isExploringChest || state.chestExplorationStartTime == null) {
+      return 0.0;
+    }
+    
+    const totalDuration = Duration(seconds: 3); // 宝箱探索需要3秒
+    final elapsed = DateTime.now().difference(state.chestExplorationStartTime!);
+    final remaining = totalDuration - elapsed;
+    
+    return remaining.inMilliseconds > 0 ? remaining.inMilliseconds / 1000.0 : 0.0;
+  }
+
   @override
   void dispose() {
     _movementTimer?.cancel();
@@ -2616,6 +2759,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _deathCheckTimer?.cancel();
     _itemUsageTimer?.cancel();
     _chestExplorationTimer?.cancel();
+    _shopRefreshTimer?.cancel();
     super.dispose();
   }
 }
