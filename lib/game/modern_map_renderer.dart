@@ -23,6 +23,7 @@ class ModernMapRenderer extends StatefulWidget {
   final CharacterConfig characterConfig;
   final VoidCallback? onOpenChest;
   final VoidCallback? onOpenShop;
+  final Map<Point<int>, List<dynamic>> groundItems;
 
   const ModernMapRenderer({
     Key? key,
@@ -39,6 +40,7 @@ class ModernMapRenderer extends StatefulWidget {
     required this.characterConfig,
     this.onOpenChest,
     this.onOpenShop,
+    required this.groundItems,
   }) : super(key: key);
 
   @override
@@ -139,6 +141,7 @@ class _ModernMapRendererState extends State<ModernMapRenderer> {
               characterConfig: widget.characterConfig,
               loadedImages: _loadedImages,
               tileSize: tileSize,
+              groundItems: widget.groundItems,
             ),
             size: Size(screenWidth, screenHeight),
           ),
@@ -162,6 +165,7 @@ class MapPainter extends CustomPainter {
   final CharacterConfig characterConfig;
   final Map<String, ui.Image> loadedImages;
   final double tileSize;
+  final Map<Point<int>, List<dynamic>> groundItems;
 
   late final Paint _tilePaint;
   late final Paint _gridPaint;
@@ -183,6 +187,7 @@ class MapPainter extends CustomPainter {
     required this.characterConfig,
     required this.loadedImages,
     required this.tileSize,
+    required this.groundItems,
   }) {
     _tilePaint = Paint()..style = PaintingStyle.fill;
     _gridPaint = Paint()
@@ -245,6 +250,109 @@ class MapPainter extends CustomPainter {
           );
         }
       }
+    }
+
+    // 绘制地面物品
+    for (final entry in groundItems.entries) {
+      final position = entry.key;
+      final items = entry.value;
+      
+      if (position.x >= startX && position.x < endX &&
+          position.y >= startY && position.y < endY &&
+          visibleTiles.contains(position) && items.isNotEmpty) {
+        final screenX = (position.x - startX) * tileSize - offsetX;
+        final screenY = (position.y - startY) * tileSize - offsetY;
+        
+        // 绘制第一个物品（如果有多个物品，只显示第一个）
+        final item = items.first;
+        
+        // 尝试使用物品图片
+        if (item.image.isNotEmpty && loadedImages.containsKey(item.image)) {
+          final image = loadedImages[item.image]!;
+          
+          // 计算保持宽高比的显示尺寸（稍小一些，表示是地面物品）
+          final imageAspectRatio = image.width / image.height;
+          double displayWidth, displayHeight;
+          final itemSize = tileSize * 0.6; // 地面物品比正常尺寸小一些
+          
+          if (imageAspectRatio > 1.0) {
+            displayWidth = itemSize;
+            displayHeight = itemSize / imageAspectRatio;
+          } else {
+            displayHeight = itemSize;
+            displayWidth = itemSize * imageAspectRatio;
+          }
+          
+          // 居中显示
+          final centerX = screenX + tileSize / 2;
+          final centerY = screenY + tileSize / 2;
+          final drawX = centerX - displayWidth / 2;
+          final drawY = centerY - displayHeight / 2;
+          
+          final rect = Rect.fromLTWH(drawX, drawY, displayWidth, displayHeight);
+          canvas.drawImageRect(
+            image,
+            Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+            rect,
+            Paint()..colorFilter = ColorFilter.mode(
+              Colors.white.withOpacity(0.8), // 稍微透明，表示是地面物品
+              BlendMode.modulate,
+            ),
+          );
+        } else {
+          // 后备方案：绘制小圆点
+          final paint = Paint()
+            ..color = _getItemTypeColor(item.type).withOpacity(0.8)
+            ..style = PaintingStyle.fill;
+          
+          canvas.drawCircle(
+            Offset(screenX + tileSize * 0.5, screenY + tileSize * 0.5),
+            tileSize * 0.15,
+            paint,
+          );
+        }
+        
+        // 如果有多个物品，显示数量
+        if (items.length > 1) {
+          final textPainter = TextPainter(
+            text: TextSpan(
+              text: '${items.length}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          );
+          textPainter.layout();
+          
+          // 在物品右上角显示数量
+          textPainter.paint(
+            canvas,
+            Offset(
+              screenX + tileSize * 0.7,
+              screenY + tileSize * 0.1,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  /// 根据物品类型获取颜色
+  Color _getItemTypeColor(String itemType) {
+    switch (itemType) {
+      case 'food':
+        return Colors.green;
+      case 'tool':
+        return Colors.blue;
+      case 'weapon':
+        return Colors.red;
+      case 'book':
+        return Colors.purple;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -467,6 +575,7 @@ class MapPainter extends CustomPainter {
            oldDelegate.playerY != playerY ||
            oldDelegate.visibleTiles != visibleTiles ||
            oldDelegate.chestPositions != chestPositions ||
-           oldDelegate.schoolShop != schoolShop;
+           oldDelegate.schoolShop != schoolShop ||
+           oldDelegate.groundItems != groundItems;
   }
 }

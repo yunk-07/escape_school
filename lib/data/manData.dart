@@ -20,6 +20,7 @@ final List<Map<String, dynamic>> manData = const [
     'description': '猜猜今天吃什么？',
     'moveSpeed': 90.0,  // 移动速度：90像素/秒
     'food': 10,
+    'maxOxygen': 10.0,  // 最大氧气值
   },
   {
     'name': '已经困了',
@@ -30,6 +31,7 @@ final List<Map<String, dynamic>> manData = const [
     'description': '睡觉何尝不是战斗的方式？',
     'moveSpeed': 70.0,  // 移动速度：70像素/秒
     'food': 20,
+    'maxOxygen': 10.0,  // 最大氧气值
   },
   {
     'name': '速度之王',
@@ -38,8 +40,9 @@ final List<Map<String, dynamic>> manData = const [
     'hp': 100,
     'san': 80,
     'description': '睡觉何尝不是战斗的方式？',
-    'moveSpeed': 200.0,  // 移动速度：70像素/秒
+    'moveSpeed': 200.0,  // 移动速度：200像素/秒
     'food': 20,
+    'maxOxygen': 10.0,  // 最大氧气值
   },
 
 {
@@ -49,7 +52,8 @@ final List<Map<String, dynamic>> manData = const [
     'hp': 1000,
     'san': 1000,
     'description': '睡觉何尝不是战斗的方式？',
-    'moveSpeed': 200.0,  // 移动速度：70像素/秒
+    'moveSpeed': 200.0,  // 移动速度：200像素/秒
     'food': 200,
+    'maxOxygen': 15.0,  // 最大氧气值（开发者有更多氧气）
   },
 ];

@@ -11,6 +11,7 @@ class Item {
   final bool availableInShop; // 新增：是否在商店出售
   final int basePrice;       // 新增：基础价格
   final int usageTime;       // 新增：使用时间（毫秒）
+  final int level;           // 新增：物品等级（1-7）
 
   Item({
     required this.id,
@@ -23,6 +24,7 @@ class Item {
     this.availableInShop = false, // 默认不在商店出售
     this.basePrice = 0,
     this.usageTime = 2000, // 默认使用时间2秒
+    this.level = 1, // 默认等级1（无色）
   });
 }
 
@@ -37,6 +39,7 @@ final List<Item> allItems = [
     availableInShop: false,
     basePrice: 16,
     usageTime: 3000, // 汉堡需要3秒食用
+    level: 3, // 紫色等级
   ),
   Item(
     id: 'fish01',
@@ -48,6 +51,7 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 8,
     usageTime: 2500, // 半生不熟鱼需要2.5秒食用
+    level: 2, // 绿色等级
   ),
   Item(
     id: 'fish02',
@@ -59,6 +63,7 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 12,
     usageTime: 2000, // 熟鱼需要2秒食用
+    level: 3, // 蓝色等级
   ),
   Item(
     id: 'fish03',
@@ -70,6 +75,7 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 8,
     usageTime: 1500, // 尘封鱼很难吃，快速吞下只需1.5秒
+    level: 1, // 无色等级
   ),
   Item(
       id: 'book01',
@@ -81,5 +87,29 @@ final List<Item> allItems = [
       availableInShop: true,
       basePrice: 0,
       usageTime: 5000, // 阅读书籍需要5秒
+      level: 0, 
+  ),
+  Item(
+    id: 'shit',
+    name: '不可名之物', 
+    image: 'images/items/shit.png', 
+    description: '或许我们真的可以尝试一下', 
+    effects: {'san':-30,'hp':-10,'food':20,},
+    level: 5,
+    availableInShop: false,
+    usageTime: 5000
+    ),
+
+  Item(
+    id: 'energy_bar',
+    name: '能量棒',
+    image: 'images/items/oxbang.png',
+    description: '高能量营养棒，能够快速恢复体力和精神状态',
+    effects: {'san': 10, 'oxygenBonus': 1, 'food': 10, 'hp': 5},
+    type: 'potion',
+    level: 3, // 蓝色品质
+    availableInShop: true,
+    basePrice: 80,
+    usageTime: 6000, // 6秒使用时间
   ),
 ];

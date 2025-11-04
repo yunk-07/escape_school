@@ -118,16 +118,13 @@ class SmoothVisionManager {
           case TileVisibility.fullyVisible:
             state.setFullyVisible();
             break;
-          case TileVisibility.partiallyVisible:
-            state.setPartiallyVisible();
-            break;
           case TileVisibility.visibleWithFogDecoration:
             state.setVisibleWithFogDecoration();
             break;
+          case TileVisibility.partiallyVisible:
           case TileVisibility.partiallyVisibleWithFogDecoration:
-            state.setPartiallyVisibleWithFogDecoration();
-            break;
           case TileVisibility.notVisible:
+            // 被遮挡的瓦片和不可见的瓦片都设置为不可见
             state.setInvisible();
             break;
         }

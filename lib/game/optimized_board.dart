@@ -21,6 +21,8 @@ import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/shop_view.dart';
 import 'package:escape_from_school/game/item_usage_progress.dart';
 import 'package:escape_from_school/game/chest_exploration_progress.dart';
+import 'package:escape_from_school/game/oxygen_system.dart';
+import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -59,10 +61,10 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
       vsync: this,
     );
     
-    // 创建闪烁动画（从1.0到0.3再回到1.0）
+    // 创建颜色变化动画（从蓝色到红色再回到蓝色）
     _visionBorderFlashAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.3,
+      begin: 0.0, // 0.0 = 蓝色，1.0 = 红色
+      end: 1.0,
     ).animate(CurvedAnimation(
       parent: _visionBorderFlashController!,
       curve: Curves.easeInOut,
@@ -87,6 +89,28 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
     } catch (e) {
       print('Error loading terrain images: $e');
       // 如果加载失败，继续使用颜色渲染
+    }
+
+    // 加载物品图片
+    final itemImagePaths = [
+      'images/items/hanbao.png',
+      'images/items/fish01.png',
+      'images/items/fish02.png',
+      'images/items/fish03.png',
+      'images/items/book.png',
+    ];
+    
+    try {
+      for (String imagePath in itemImagePaths) {
+        final ByteData data = await rootBundle.load(imagePath);
+        final Uint8List bytes = data.buffer.asUint8List();
+        final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+        final ui.FrameInfo frameInfo = await codec.getNextFrame();
+        terrainImages[imagePath] = frameInfo.image; // 使用完整路径作为key
+      }
+    } catch (e) {
+      print('Error loading item images: $e');
+      // 如果加载失败，将使用回退图标
     }
 
     // 加载角色图片
@@ -130,12 +154,19 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
               final gameState = ref.watch(optimizedGameStateProvider);
               final damageEvent = ref.watch(damageEventProvider);
               
-              // 监听伤害事件，触发视野边界闪烁动画
+              // 监听伤害事件，触发视野边界颜色变化动画
               if (damageEvent != null && _visionBorderFlashController != null) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted && _visionBorderFlashController != null) {
+                    // 停止当前动画（如果正在运行），确保新动画能够打断旧动画
+                    _visionBorderFlashController!.stop();
                     _visionBorderFlashController!.reset();
-                    _visionBorderFlashController!.forward();
+                    // 执行往返动画：从蓝色变红色再变回蓝色
+                    _visionBorderFlashController!.forward().then((_) {
+                      if (mounted && _visionBorderFlashController != null) {
+                        _visionBorderFlashController!.reverse();
+                      }
+                    });
                   }
                 });
               }
@@ -1017,6 +1048,61 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
         if (isShopVisible) {
           // 打开商店
           gameStateNotifier.toggleShop();
+        }
+      }
+    }
+    
+    // 检查地面物品点击
+    for (final entry in gameState.groundItems.entries) {
+      final itemPos = entry.key;
+      final items = entry.value;
+      
+      if (items.isEmpty) continue;
+      
+      final double itemScreenX = mapOffsetX + (itemPos.x * tileSize);
+      final double itemScreenY = mapOffsetY + (itemPos.y * tileSize);
+      
+      // 检查点击是否在物品区域内
+      final Rect itemRect = Rect.fromLTWH(itemScreenX, itemScreenY, tileSize, tileSize);
+      if (itemRect.contains(localPosition)) {
+        // 检查物品是否可见
+        final math.Point<int> itemPoint = math.Point(itemPos.x, itemPos.y);
+        bool isItemVisible = false;
+        
+        if (gameStateNotifier.smoothVisionManager != null) {
+          final opacity = gameStateNotifier.smoothVisionManager!.getTileOpacity(itemPoint);
+          isItemVisible = opacity > 0.0;
+        } else {
+          isItemVisible = gameState.visibleTiles.contains(itemPoint);
+        }
+        
+        if (isItemVisible) {
+          // 检查玩家是否在拾取范围内（相邻格子或同一格子）
+          final double playerX = gameState.playerPosition.x;
+          final double playerY = gameState.playerPosition.y;
+          final double distance = math.sqrt(
+            math.pow(playerX - itemPos.x, 2) + math.pow(playerY - itemPos.y, 2)
+          );
+          
+          // 拾取范围为1.5格（允许对角线拾取）
+          if (distance <= 1.5) {
+            // 拾取第一个物品
+            final itemToPickup = items.first;
+            final success = gameStateNotifier.pickupItemFromGround(itemPos, itemToPickup);
+            
+            if (success) {
+              print('成功拾取物品: ${itemToPickup.name}');
+            } else {
+              print('拾取失败，可能是背包已满');
+            }
+            return; // 找到点击的物品后退出循环
+          } else {
+            // 显示距离太远的提示
+            gameStateNotifier.addBroadcastMessage(
+              '距离太远，无法拾取',
+              BroadcastMessageType.system,
+            );
+          }
         }
       }
     }
@@ -1966,6 +2052,53 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
                 // 宝箱探索进度条（动态显示）
                 const ChestExplorationProgress(),
                 
+                // 氧气恢复进度条（动态显示）
+                Consumer(
+                  builder: (context, ref, child) {
+                    final gameState = ref.watch(optimizedGameStateProvider);
+                    if (gameState.oxygenRecoveryManager?.isRecovering == true) {
+                      return Positioned(
+                        top: 250, // 在宝箱探索进度条下方（宝箱进度条top: 200 + height: 40 + 间距: 10）
+                        right: 80, // 与其他进度条右对齐
+                        width: 200, // 与其他进度条同宽
+                        child: OxygenRecoveryProgress(
+                          startOxygen: gameState.oxygenRecoveryManager!.startOxygen,
+                          targetOxygen: gameState.oxygenRecoveryManager!.targetOxygen,
+                          duration: gameState.oxygenRecoveryManager!.duration,
+                          onProgress: gameState.oxygenRecoveryManager!.onProgress,
+                          onComplete: () {
+                            gameState.oxygenRecoveryManager!.completeRecovery();
+                          },
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+                
+                // 氧气条（显示在生命值条上方）
+                Consumer(
+                  builder: (context, ref, child) {
+                    final gameState = ref.watch(optimizedGameStateProvider);
+                    if (gameState.oxygenSystem?.shouldShowOxygenBar == true) {
+                      return Positioned(
+                        bottom: 120, // 在生命值条(bottom: 80)上方40像素
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: OxygenBar(
+                            oxygenSystem: gameState.oxygenSystem!,
+                            width: 180, // 与生命值条相同宽度
+                            height: 16,  // 与生命值条相同高度
+                            margin: EdgeInsets.zero, // 移除默认边距
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+                
               ],
             ),
           ),
@@ -2279,6 +2412,44 @@ class _GameAreaPainter extends CustomPainter {
       }
     }
     
+    // 绘制地面物品
+    for (final entry in gameState.groundItems.entries) {
+      final position = entry.key;
+      final items = entry.value;
+      
+      if (items.isNotEmpty) {
+        final double itemX = mapOffsetX + (position.x * tileSize);
+        final double itemY = mapOffsetY + (position.y * tileSize);
+        
+        // 只在屏幕范围内且可见时绘制地面物品
+        if (itemX > -tileSize && itemX < size.width && 
+            itemY > -tileSize && itemY < size.height) {
+          
+          final math.Point<int> itemPoint = math.Point(position.x, position.y);
+          double itemOpacity = 1.0;
+          
+          if (smoothVisionManager != null) {
+            itemOpacity = smoothVisionManager!.getTileOpacity(itemPoint);
+            if (itemOpacity <= 0.0) {
+              // 地面物品不可见，跳过绘制
+              continue;
+            }
+          } else {
+            // 回退到原始的可见性检查
+            final bool isVisible = gameState.visibleTiles.contains(itemPoint);
+            if (!isVisible) {
+              continue;
+            }
+          }
+          
+          _drawGroundItems(canvas, itemX, itemY, tileSize, items, itemOpacity);
+        }
+      }
+    }
+    
+    // 绘制鬼
+    _drawGhosts(canvas, mapOffsetX, mapOffsetY, tileSize, size);
+    
     // 绘制玩家角色
     if (characterImage != null) {
       // 使用角色贴图
@@ -2440,20 +2611,20 @@ class _GameAreaPainter extends CustomPainter {
     // 检查是否有伤害事件（受伤状态）
     final isDamaged = damageEvent != null;
     
-    // 主边界线（只有受伤时才变红，否则保持蓝色）
+    // 主边界线颜色和样式
     Color borderColor;
     double borderOpacity;
     double strokeWidth;
     
     if (isDamaged) {
-      // 受伤时：视野边界变为红色，根据伤害强度调整透明度和粗细
+      // 受伤时：根据动画值在蓝色和红色之间插值
       final damageIntensity = damageEvent!.intensity / 100.0; // 标准化到0-1
-      borderColor = Colors.red;
-      // 应用闪烁动画效果：透明度会在0.7-1.0之间闪烁
-      borderOpacity = (0.7 + damageIntensity * 0.3) * visionBorderFlashValue;
+      // 使用动画值进行颜色插值：0.0=蓝色，1.0=红色
+      borderColor = Color.lerp(Colors.blue, Colors.red, visionBorderFlashValue) ?? Colors.red;
+      borderOpacity = 0.7 + damageIntensity * 0.3; // 固定透明度，不再闪烁
       strokeWidth = 3.0 + damageIntensity * 3.0; // 3.0-6.0的线宽
     } else {
-      // 正常状态：始终保持蓝色边界，不受精神值影响
+      // 正常状态：始终保持蓝色边界
       borderColor = Colors.blue;
       borderOpacity = 0.4; // 固定透明度
       strokeWidth = 2.0; // 固定线宽
@@ -2670,6 +2841,151 @@ class _GameAreaPainter extends CustomPainter {
     canvas.drawRect(chestRect, glowPaint);
   }
 
+  /// 绘制地面物品
+  void _drawGroundItems(Canvas canvas, double itemX, double itemY, double tileSize, List<dynamic> items, double opacity) {
+    if (items.isEmpty) return;
+    
+    // 绘制第一个物品（如果有多个物品，只显示第一个）
+    final item = items.first;
+    
+    // 地面物品比正常尺寸小一些
+    final double itemSize = tileSize * 0.6;
+    final double centerX = itemX + tileSize / 2;
+    final double centerY = itemY + tileSize / 2;
+    final double drawX = centerX - itemSize / 2;
+    final double drawY = centerY - itemSize / 2;
+    
+    final Rect itemRect = Rect.fromLTWH(drawX, drawY, itemSize, itemSize);
+    
+    // 尝试使用物品图片
+    if (item.image != null && item.image.isNotEmpty && terrainImages.containsKey(item.image)) {
+      final ui.Image? itemImage = terrainImages[item.image];
+      if (itemImage != null) {
+        final Rect srcRect = Rect.fromLTWH(0, 0, itemImage.width.toDouble(), itemImage.height.toDouble());
+        final Paint imagePaint = Paint()
+          ..color = Colors.white.withOpacity(opacity * 0.8); // 稍微透明，表示是地面物品
+        canvas.drawImageRect(itemImage, srcRect, itemRect, imagePaint);
+      } else {
+        _drawItemFallback(canvas, itemRect, item, opacity);
+      }
+    } else {
+      _drawItemFallback(canvas, itemRect, item, opacity);
+    }
+    
+    // 如果有多个物品，显示数量
+    if (items.length > 1) {
+      final Paint textBackgroundPaint = Paint()
+        ..color = Colors.black.withOpacity(0.7 * opacity);
+      
+      // 绘制数量背景圆圈
+      final double badgeRadius = tileSize * 0.12;
+      final Offset badgeCenter = Offset(
+        itemX + tileSize * 0.8,
+        itemY + tileSize * 0.2,
+      );
+      canvas.drawCircle(badgeCenter, badgeRadius, textBackgroundPaint);
+      
+      // 绘制数量文字
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '${items.length}',
+          style: TextStyle(
+            color: Colors.white.withOpacity(opacity),
+            fontSize: tileSize * 0.15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      
+      // 居中绘制文字
+      textPainter.paint(
+        canvas,
+        Offset(
+          badgeCenter.dx - textPainter.width / 2,
+          badgeCenter.dy - textPainter.height / 2,
+        ),
+      );
+    }
+    
+    // 绘制微弱的发光效果，表示可拾取
+    final Paint glowPaint = Paint()
+      ..color = _getItemTypeColor(item.type ?? '').withOpacity(0.2 * opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRect(itemRect, glowPaint);
+  }
+
+  /// 绘制物品后备方案（当没有图片时）
+  void _drawItemFallback(Canvas canvas, Rect itemRect, dynamic item, double opacity) {
+    final Paint itemPaint = Paint()
+      ..color = _getItemTypeColor(item.type ?? '').withOpacity(opacity * 0.8)
+      ..style = PaintingStyle.fill;
+    
+    // 根据物品类型绘制不同形状
+    switch (item.type) {
+      case 'food':
+        // 绘制圆形（食物）
+        canvas.drawCircle(itemRect.center, itemRect.width * 0.3, itemPaint);
+        break;
+      case 'tool':
+        // 绘制矩形（工具）
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: itemRect.center,
+            width: itemRect.width * 0.6,
+            height: itemRect.height * 0.4,
+          ),
+          itemPaint,
+        );
+        break;
+      case 'weapon':
+        // 绘制菱形（武器）
+        final Path weaponPath = Path();
+        weaponPath.moveTo(itemRect.center.dx, itemRect.top + itemRect.height * 0.1);
+        weaponPath.lineTo(itemRect.right - itemRect.width * 0.1, itemRect.center.dy);
+        weaponPath.lineTo(itemRect.center.dx, itemRect.bottom - itemRect.height * 0.1);
+        weaponPath.lineTo(itemRect.left + itemRect.width * 0.1, itemRect.center.dy);
+        weaponPath.close();
+        canvas.drawPath(weaponPath, itemPaint);
+        break;
+      case 'book':
+        // 绘制矩形（书籍）
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: itemRect.center,
+              width: itemRect.width * 0.5,
+              height: itemRect.height * 0.7,
+            ),
+            const Radius.circular(2),
+          ),
+          itemPaint,
+        );
+        break;
+      default:
+        // 默认绘制小圆点
+        canvas.drawCircle(itemRect.center, itemRect.width * 0.2, itemPaint);
+    }
+  }
+
+  /// 根据物品类型获取颜色
+  Color _getItemTypeColor(String itemType) {
+    switch (itemType) {
+      case 'food':
+        return Colors.green;
+      case 'tool':
+        return Colors.blue;
+      case 'weapon':
+        return Colors.red;
+      case 'book':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
   /// 绘制雾霾装饰效果（如果该瓦片需要雾霾装饰）
   void _drawFogDecorationIfNeeded(Canvas canvas, math.Point<int> tilePoint, Rect tileRect, double tileOpacity) {
     // 获取瓦片的可见性状态
@@ -2700,6 +3016,145 @@ class _GameAreaPainter extends CustomPainter {
         final double y = tileRect.top + (tileRect.height * (i ~/ 3) / 3) + (dotSize * ((i + 1) % 2));
         canvas.drawCircle(Offset(x, y), dotSize, noisePaint);
       }
+    }
+  }
+
+  /// 绘制鬼
+  void _drawGhosts(Canvas canvas, double mapOffsetX, double mapOffsetY, double tileSize, Size size) {
+    for (final ghost in gameState.ghostManager.ghosts) {
+      if (ghost.position == null) continue;
+      
+      final double ghostX = mapOffsetX + (ghost.position!.x * tileSize);
+      final double ghostY = mapOffsetY + (ghost.position!.y * tileSize);
+      
+      // 只在屏幕范围内绘制鬼
+      if (ghostX > -tileSize && ghostX < size.width && 
+          ghostY > -tileSize && ghostY < size.height) {
+        
+        final math.Point<int> ghostPoint = ghost.position!.toPoint();
+        double ghostOpacity = 1.0;
+        
+        // 检查鬼是否在可见范围内
+        if (smoothVisionManager != null) {
+          ghostOpacity = smoothVisionManager!.getTileOpacity(ghostPoint);
+          if (ghostOpacity <= 0.0) {
+            // 鬼不可见，跳过绘制
+            continue;
+          }
+        } else {
+          // 回退到原始的可见性检查
+          final bool isVisible = gameState.visibleTiles.contains(ghostPoint);
+          if (!isVisible) {
+            continue;
+          }
+        }
+        
+        _drawGhost(canvas, ghost, ghostX, ghostY, tileSize, ghostOpacity);
+      }
+    }
+  }
+
+  /// 绘制单个鬼
+  void _drawGhost(Canvas canvas, dynamic ghost, double ghostX, double ghostY, double tileSize, double opacity) {
+    final double ghostSize = tileSize * 0.9; // 鬼的大小为瓦片大小的90%
+    final Rect ghostRect = Rect.fromCenter(
+      center: Offset(ghostX + tileSize / 2, ghostY + tileSize / 2),
+      width: ghostSize,
+      height: ghostSize,
+    );
+    
+    // 根据鬼的状态设置颜色和透明度
+    Color ghostColor = ghost.color;
+    double finalOpacity = opacity;
+    
+    if (ghost.isInCooldown) {
+      // 冷却状态下变暗
+      ghostColor = ghostColor.withOpacity(0.5);
+      finalOpacity *= 0.5;
+    } else if (ghost.isChasing) {
+      // 追逐状态下发红光
+      ghostColor = Colors.red;
+    } else if (ghost.isFleeing) {
+      // 逃跑状态下变蓝
+      ghostColor = Colors.blue;
+    }
+    
+    // 绘制鬼的主体（圆形）
+    final Paint ghostPaint = Paint()
+      ..color = ghostColor.withOpacity(finalOpacity)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(
+      ghostRect.center,
+      ghostSize / 2,
+      ghostPaint,
+    );
+    
+    // 绘制鬼的边框
+    final Paint borderPaint = Paint()
+      ..color = Colors.black.withOpacity(finalOpacity * 0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    canvas.drawCircle(
+      ghostRect.center,
+      ghostSize / 2,
+      borderPaint,
+    );
+    
+    // 绘制鬼的眼睛
+    final double eyeSize = ghostSize * 0.15;
+    final Paint eyePaint = Paint()
+      ..color = Colors.white.withOpacity(finalOpacity)
+      ..style = PaintingStyle.fill;
+    
+    // 左眼
+    canvas.drawCircle(
+      Offset(ghostRect.center.dx - ghostSize * 0.2, ghostRect.center.dy - ghostSize * 0.1),
+      eyeSize,
+      eyePaint,
+    );
+    
+    // 右眼
+    canvas.drawCircle(
+      Offset(ghostRect.center.dx + ghostSize * 0.2, ghostRect.center.dy - ghostSize * 0.1),
+      eyeSize,
+      eyePaint,
+    );
+    
+    // 绘制眼珠
+    final Paint pupilPaint = Paint()
+      ..color = Colors.black.withOpacity(finalOpacity)
+      ..style = PaintingStyle.fill;
+    
+    final double pupilSize = eyeSize * 0.6;
+    
+    // 左眼珠
+    canvas.drawCircle(
+      Offset(ghostRect.center.dx - ghostSize * 0.2, ghostRect.center.dy - ghostSize * 0.1),
+      pupilSize,
+      pupilPaint,
+    );
+    
+    // 右眼珠
+    canvas.drawCircle(
+      Offset(ghostRect.center.dx + ghostSize * 0.2, ghostRect.center.dy - ghostSize * 0.1),
+      pupilSize,
+      pupilPaint,
+    );
+    
+    // 如果鬼在追逐状态，绘制警告效果
+    if (ghost.isChasing) {
+      final Paint warningPaint = Paint()
+        ..color = Colors.red.withOpacity(finalOpacity * 0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0;
+      
+      canvas.drawCircle(
+        ghostRect.center,
+        ghostSize / 2 + 5,
+        warningPaint,
+      );
     }
   }
 

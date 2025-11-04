@@ -87,7 +87,7 @@ class EnhancedVisionSystem {
   }
 
   /// 获取玩家视野内的所有瓦片及其可见性级别
-  Map<Point<int>, TileVisibility> getVisibleTilesWithLevel(Point<int> playerPos, {double sanityValue = 100.0, double maxSanity = 100.0}) {
+  Map<Point<int>, TileVisibility> getVisibleTilesWithLevel(Point<int> playerPos, {double sanityValue = 100.0, double maxSanity = 100.0, double? oxygenVisionMultiplier}) {
     // 首先检查玩家位置是否有效
     if (playerPos.x < 0 || playerPos.x >= map[0].length ||
         playerPos.y < 0 || playerPos.y >= map.length) {
@@ -102,7 +102,12 @@ class EnhancedVisionSystem {
     final result = <Point<int>, TileVisibility>{};
     
     // 根据精神值计算动态视野半径
-    final currentViewRadius = calculateViewRadius(sanityValue, maxSanity);
+    final baseRadius = calculateViewRadius(sanityValue, maxSanity);
+    
+    // 应用氧气系统的视野修正
+    final currentViewRadius = oxygenVisionMultiplier != null 
+        ? (baseRadius * oxygenVisionMultiplier).round()
+        : baseRadius;
     
     // 玩家当前位置总是完全可见的
     result[playerPos] = TileVisibility.fullyVisible;
@@ -123,28 +128,21 @@ class EnhancedVisionSystem {
       final distance = _getDistance(playerPos, tile);
       final isDirectlyVisible = directlyVisibleTiles.contains(tile);
       
-      if (distance <= currentViewRadius) {
-        // 在实际视野范围内的瓦片
+      if (distance <= currentViewRadius && isDirectlyVisible) {
+        // 只有在实际视野范围内且直接可见（无遮挡）的瓦片才可见
         
         // 检查是否应该添加雾霾装饰效果
         bool shouldHaveFogDecoration = _shouldHaveFogDecoration(tile, playerPos);
         
         if (shouldHaveFogDecoration) {
           // 添加雾霾装饰效果
-          if (isDirectlyVisible) {
-            result[tile] = TileVisibility.visibleWithFogDecoration;
-          } else {
-            result[tile] = TileVisibility.partiallyVisibleWithFogDecoration;
-          }
+          result[tile] = TileVisibility.visibleWithFogDecoration;
         } else {
           // 正常显示
-          if (isDirectlyVisible) {
-            result[tile] = TileVisibility.fullyVisible;
-          } else {
-            result[tile] = TileVisibility.partiallyVisible;
-          }
+          result[tile] = TileVisibility.fullyVisible;
         }
       }
+      // 被遮挡的瓦片或超出视野范围的瓦片保持不可见（不添加到result中）
       // 超出视野范围的瓦片保持不可见（不添加到result中）
     }
     

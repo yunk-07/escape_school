@@ -16,6 +16,9 @@ import 'package:escape_from_school/game/vision.dart';
 import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/ghost.dart';
 import 'package:escape_from_school/game/smooth_vision.dart';
+import 'package:escape_from_school/game/item_spawner.dart';
+import 'package:escape_from_school/game/oxygen_system.dart';
+import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
 
 /// 游戏页面类型枚举
 enum GamePage {
@@ -87,6 +90,11 @@ class OptimizedPlayerPosition {
 
   @override
   int get hashCode => x.hashCode ^ y.hashCode ^ facingRight.hashCode;
+  
+  /// 转换为Point<int>，用于地图坐标
+  Point<int> toPoint() {
+    return Point<int>(x.round(), y.round());
+  }
 }
 
 /// 优化的移动状态类
@@ -158,6 +166,9 @@ class OptimizedGameState {
   final List<List<String>> map;
   final List<Point<int>> chestPositions;
   final List<Item> playerInventory;
+  final int inventoryCapacity;                    // 背包容量
+  final int maxInventoryCapacity;                 // 最大背包容量（用于扩容）
+  final Map<Point<int>, List<Item>> groundItems;  // 地面物品，按位置存储
   final Set<Point<int>> visibleTiles;
   final List<List<bool>> visibleMap;
   final bool showInventory;
@@ -221,6 +232,14 @@ class OptimizedGameState {
   final Map<String, dynamic>? deathTimeStats;     // 死亡时的角色状态快照
   final List<Item>? deathTimeInventory;           // 死亡时的背包物品快照
   
+  // 氧气系统相关状态
+  final OxygenSystem? oxygenSystem;               // 氧气系统实例
+  final bool isInWater;                           // 是否在水中
+  final double currentOxygen;                     // 当前氧气值
+  final double maxOxygen;                         // 基础最大氧气值
+  final double oxygenBonus;                       // 氧气增强值（通过道具获得）
+  final OxygenRecoveryManager? oxygenRecoveryManager; // 氧气恢复管理器
+  
 
 
   const OptimizedGameState({
@@ -230,6 +249,9 @@ class OptimizedGameState {
     required this.map,
     required this.chestPositions,
     required this.playerInventory,
+    this.inventoryCapacity = 20,                    // 默认背包容量20格
+    this.maxInventoryCapacity = 100,                // 最大可扩容到100格
+    this.groundItems = const {},                    // 初始化为空的地面物品映射
     required this.visibleTiles,
     required this.visibleMap,
     required this.ghostManager,
@@ -270,6 +292,12 @@ class OptimizedGameState {
     this.gameEndTime,
     this.deathTimeStats,
     this.deathTimeInventory,
+    this.oxygenSystem,
+    this.isInWater = false,
+    this.currentOxygen = 10.0,
+    this.maxOxygen = 10.0,
+    this.oxygenBonus = 0.0,
+    this.oxygenRecoveryManager,
   });
 
   OptimizedGameState copyWith({
@@ -279,6 +307,9 @@ class OptimizedGameState {
     List<List<String>>? map,
     List<Point<int>>? chestPositions,
     List<Item>? playerInventory,
+    int? inventoryCapacity,
+    int? maxInventoryCapacity,
+    Map<Point<int>, List<Item>>? groundItems,
     Set<Point<int>>? visibleTiles,
     List<List<bool>>? visibleMap,
     GhostManager? ghostManager,
@@ -319,6 +350,12 @@ class OptimizedGameState {
     DateTime? gameEndTime,
     Map<String, dynamic>? deathTimeStats,
     List<Item>? deathTimeInventory,
+    OxygenSystem? oxygenSystem,
+    bool? isInWater,
+    double? currentOxygen,
+    double? maxOxygen,
+    double? oxygenBonus,
+    OxygenRecoveryManager? oxygenRecoveryManager,
   }) {
     return OptimizedGameState(
       characterStats: characterStats ?? this.characterStats,
@@ -327,6 +364,9 @@ class OptimizedGameState {
       map: map ?? this.map,
       chestPositions: chestPositions ?? this.chestPositions,
       playerInventory: playerInventory ?? this.playerInventory,
+      inventoryCapacity: inventoryCapacity ?? this.inventoryCapacity,
+      maxInventoryCapacity: maxInventoryCapacity ?? this.maxInventoryCapacity,
+      groundItems: groundItems ?? this.groundItems,
       visibleTiles: visibleTiles ?? this.visibleTiles,
       visibleMap: visibleMap ?? this.visibleMap,
       ghostManager: ghostManager ?? this.ghostManager,
@@ -367,8 +407,17 @@ class OptimizedGameState {
       gameEndTime: gameEndTime ?? this.gameEndTime,
       deathTimeStats: deathTimeStats ?? this.deathTimeStats,
       deathTimeInventory: deathTimeInventory ?? this.deathTimeInventory,
+      oxygenSystem: oxygenSystem ?? this.oxygenSystem,
+      isInWater: isInWater ?? this.isInWater,
+      currentOxygen: currentOxygen ?? this.currentOxygen,
+      maxOxygen: maxOxygen ?? this.maxOxygen,
+      oxygenBonus: oxygenBonus ?? this.oxygenBonus,
+      oxygenRecoveryManager: oxygenRecoveryManager ?? this.oxygenRecoveryManager,
     );
   }
+
+  /// 获取实际的最大氧气值（基础值 + 增强值）
+  double get actualMaxOxygen => maxOxygen + oxygenBonus;
 }
 
 /// 创建初始角色状态的辅助方法
@@ -425,9 +474,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _itemUsageTimer; // 物品使用进度定时器
   Timer? _chestExplorationTimer; // 宝箱探索进度定时器
   Timer? _shopRefreshTimer; // 商店刷新检查定时器
+  Timer? _itemSpawnTimer; // 物品刷新定时器
+  Timer? _ghostUpdateTimer; // 鬼更新定时器
+  Timer? _ghostSpawnTimer; // 鬼生成定时器
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
+  OxygenSystem? _oxygenSystem; // 氧气系统
   
   // 状态更新锁，防止竞争条件
   bool _isUpdatingStats = false;
@@ -466,6 +519,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       skillStates: _initializeSkillStates(characterData['name']),
       gameStartTime: DateTime.now(),
       gameEndTime: null,
+      maxOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+      currentOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+      oxygenRecoveryManager: OxygenRecoveryManager(),
     ),
   ) {
     _initializeGame();
@@ -475,6 +531,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _visionSystem = VisionSystem(map: MapData.testMap);
     _enhancedVisionSystem = EnhancedVisionSystem(map: MapData.testMap); // 初始化增强版视野系统
     _smoothVisionManager = SmoothVisionManager(); // 初始化平滑视野管理器
+    _initializeOxygenSystem(); // 初始化氧气系统
     _initializeShop();
     _initializeGhosts();
     _setRandomPlayerSpawn();
@@ -488,35 +545,99 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startGameLoopTimer(); // 启动独立的游戏循环定时器
     _startDeathCheckTimer(); // 启动独立的死亡判定定时器
     _startShopRefreshTimer(); // 启动商店刷新检查定时器
+    _startItemSpawnTimer(); // 启动物品刷新定时器
+    _startGhostUpdateTimer(); // 启动鬼的更新定时器
+    _startGhostSpawnTimer(); // 启动鬼的生成定时器
     _updateVision();
   }
 
   /// 初始化鬼
   void _initializeGhosts() {
     final walkablePositions = _getWalkablePositions();
-    if (walkablePositions.isNotEmpty) {
-      // 先在地图中心附近添加一个普通鬼
-      final mapCenterX = state.map[0].length ~/ 2;
-      final mapCenterY = state.map.length ~/ 2;
-      final ghostPosition = Point(mapCenterX, mapCenterY);
+    if (walkablePositions.isEmpty) return;
+    
+    final playerPosition = state.playerPosition.toPoint();
+    print('👻 开始初始化鬼 - 玩家位置: (${playerPosition.x}, ${playerPosition.y})');
+    
+    // 清空现有的鬼
+    state.ghostManager.clearAllGhosts();
+    
+    // 初始化不同类型的鬼
+    final ghostTypes = [
+      {'type': NormalGhost, 'count': 2, 'name': '普通鬼'},
+      {'type': FastGhost, 'count': 1, 'name': '快速鬼'},
+      {'type': StrongGhost, 'count': 1, 'name': '强力鬼'},
+      {'type': TricksterGhost, 'count': 1, 'name': '诡计鬼'},
+    ];
+    
+    int totalSpawned = 0;
+    
+    for (final ghostConfig in ghostTypes) {
+      final ghostType = ghostConfig['type'] as Type;
+      final count = ghostConfig['count'] as int;
+      final name = ghostConfig['name'] as String;
       
-      // 确保鬼的位置是可行走的
-      Point<int> validGhostPosition = ghostPosition;
-      if (state.map[ghostPosition.y][ghostPosition.x] == 'wall' || 
-          state.map[ghostPosition.y][ghostPosition.x] == 'water') {
-        // 如果中心位置不可行走，找一个附近的可行走位置
-        for (final pos in walkablePositions) {
-          final distance = _calculateDistance(pos, ghostPosition);
-          if (distance < 10) {
-            validGhostPosition = pos;
-            break;
+      for (int i = 0; i < count; i++) {
+        final spawnPosition = _findSafeGhostSpawnPosition(walkablePositions, playerPosition);
+        if (spawnPosition != null) {
+          Ghost newGhost;
+          final ghostPosition = GhostPosition(x: spawnPosition.x.toDouble(), y: spawnPosition.y.toDouble());
+          
+          switch (ghostType) {
+            case NormalGhost:
+              newGhost = NormalGhost(position: ghostPosition);
+              break;
+            case FastGhost:
+              newGhost = FastGhost(position: ghostPosition);
+              break;
+            case StrongGhost:
+              newGhost = StrongGhost(position: ghostPosition);
+              break;
+            case TricksterGhost:
+              newGhost = TricksterGhost(position: ghostPosition);
+              break;
+            default:
+              newGhost = NormalGhost(position: ghostPosition);
           }
+          
+          state.ghostManager.addGhost(newGhost);
+          totalSpawned++;
+          
+          print('👻 生成 $name 于位置 (${spawnPosition.x}, ${spawnPosition.y})');
+        } else {
+          print('⚠️ 无法为 $name 找到安全的生成位置');
         }
       }
-      
-      final ghost = NormalGhost(position: validGhostPosition);
-      state.ghostManager.addGhost(ghost);
     }
+    
+    print('👻 鬼初始化完成 - 总共生成了 $totalSpawned 个鬼');
+  }
+
+  /// 寻找安全的鬼生成位置
+  Point<int>? _findSafeGhostSpawnPosition(List<Point<int>> walkablePositions, Point<int> playerPosition) {
+    // 过滤掉玩家附近的位置（至少距离15格）
+    final safePositions = walkablePositions.where((pos) {
+      final distance = _calculateDistance(pos, playerPosition);
+      return distance >= 15;
+    }).toList();
+    
+    if (safePositions.isEmpty) {
+      // 如果没有足够远的位置，降低要求到10格
+      final fallbackPositions = walkablePositions.where((pos) {
+        final distance = _calculateDistance(pos, playerPosition);
+        return distance >= 10;
+      }).toList();
+      
+      if (fallbackPositions.isNotEmpty) {
+        final random = Random();
+        return fallbackPositions[random.nextInt(fallbackPositions.length)];
+      }
+      return null;
+    }
+    
+    // 从安全位置中随机选择一个
+    final random = Random();
+    return safePositions[random.nextInt(safePositions.length)];
   }
 
   /// 获取所有可行走的位置
@@ -718,7 +839,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 检查与鬼的距离
     for (final ghost in state.ghostManager.ghosts) {
       if (ghost.position != null) {
-        final distance = _calculateDistance(position, ghost.position!);
+        final distance = _calculateDistance(position, ghost.position!.toPoint());
         if (distance < minDistance || distance > maxDistance) {
           return false;
         }
@@ -740,7 +861,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
       for (final ghost in state.ghostManager.ghosts) {
         if (ghost.position != null) {
-          totalDistance += _calculateDistance(position, ghost.position!);
+          totalDistance += _calculateDistance(position, ghost.position!.toPoint());
           ghostCount++;
         }
       }
@@ -881,6 +1002,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 强制触发UI更新，确保技能倒计时、视野等元素能够实时显示
     final currentTime = DateTime.now().millisecondsSinceEpoch;
     
+    // 更新氧气系统
+    _updateOxygenSystem();
+    
     // 通过更新动画帧计数器来强制触发UI刷新
     // 这确保了即使玩家不移动，UI也会定期更新
     state = state.copyWith(
@@ -897,6 +1021,233 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 更新状态以触发UI刷新
       state = state.copyWith(schoolShop: shop);
       print('🔄 商店自动刷新触发 - 时间: ${DateTime.now()}');
+    }
+  }
+
+  /// 启动物品刷新定时器
+  void _startItemSpawnTimer() {
+    // 首次刷新延迟30秒，之后根据ItemSpawner的间隔设置
+    final initialDelay = Duration(seconds: ItemSpawner.getNextSpawnInterval());
+    
+    print('🎁 物品刷新系统启动 - 首次刷新将在${initialDelay.inSeconds}秒后进行 - 时间: ${DateTime.now()}');
+    
+    Timer(initialDelay, () {
+      _trySpawnItem();
+      _scheduleNextItemSpawn();
+    });
+  }
+
+  /// 安排下次物品刷新
+  void _scheduleNextItemSpawn() {
+    final nextInterval = Duration(seconds: ItemSpawner.getNextSpawnInterval());
+    
+    print('⏰ 安排下次物品刷新 - 将在${nextInterval.inSeconds}秒后进行 - 时间: ${DateTime.now()}');
+    
+    _itemSpawnTimer = Timer(nextInterval, () {
+      _trySpawnItem();
+      _scheduleNextItemSpawn(); // 递归安排下次刷新
+    });
+  }
+
+  /// 尝试刷新一个物品到地图上
+  void _trySpawnItem() {
+    final playerPosition = state.playerPosition.toPoint();
+    final chestPositions = state.chestPositions;
+    final existingGroundItems = state.groundItems;
+    
+    // 尝试刷新物品
+    final spawnResult = ItemSpawner.trySpawnItem(
+      playerPosition,
+      chestPositions,
+      existingGroundItems,
+    );
+    
+    if (spawnResult != null) {
+      final position = spawnResult.key;
+      final item = spawnResult.value;
+      
+      // 更新地面物品状态
+      final updatedGroundItems = Map<Point<int>, List<Item>>.from(existingGroundItems);
+      updatedGroundItems[position] = [item];
+      
+      // 更新游戏状态
+      state = state.copyWith(groundItems: updatedGroundItems);
+      
+      // 添加刷新成功的播报消息
+      addBroadcastMessage(
+        '发现了 ${item.name} (${ItemSpawner.getLevelDisplayName(item.level)})',
+        BroadcastMessageType.item,
+      );
+      
+      print('🎁 物品刷新成功: ${item.name} (等级${item.level}) 位置(${position.x}, ${position.y}) - 时间: ${DateTime.now()}');
+    }
+  }
+
+  /// 启动鬼更新定时器
+  void _startGhostUpdateTimer() {
+    _ghostUpdateTimer = Timer.periodic(
+      const Duration(milliseconds: 100), // 每100ms更新一次鬼的状态，提高移动流畅度
+      (timer) {
+        _updateGhosts();
+      }
+    );
+    print('👻 鬼更新系统启动 - 更新间隔: 100ms - 时间: ${DateTime.now()}');
+  }
+
+  /// 更新所有鬼的状态
+  void _updateGhosts() {
+    final playerPosition = state.playerPosition.toPoint();
+    final ghostCount = state.ghostManager.ghosts.length;
+    
+    // 更新所有鬼的状态
+    state.ghostManager.updateAll(
+      playerPosition,
+      _onPlayerAttackedByGhost,
+      _onGhostDetectPlayer,
+    );
+    
+    // 强制触发UI更新以显示鬼的新位置
+    state = state.copyWith(
+      lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  /// 当鬼攻击玩家时的回调
+  void _onPlayerAttackedByGhost(Map<String, int> effects) {
+    print('👻 鬼攻击玩家! 效果: $effects');
+    
+    // 应用攻击效果到玩家
+    _safeUpdateCharacterStats((stats) {
+      final updatedStats = Map<String, dynamic>.from(stats);
+      
+      effects.forEach((key, value) {
+        if (updatedStats.containsKey(key)) {
+          final currentValue = updatedStats[key] as num;
+          updatedStats[key] = (currentValue + value).clamp(0, double.infinity);
+        }
+      });
+      
+      return updatedStats;
+    }, '鬼攻击效果');
+    
+    // 添加播报消息
+    addBroadcastMessage(
+      '被鬼攻击了！',
+      BroadcastMessageType.damage,
+    );
+  }
+
+  /// 当鬼检测到玩家时的回调
+  void _onGhostDetectPlayer() {
+    print('👻 鬼发现了玩家!');
+    
+    // 添加播报消息
+    addBroadcastMessage(
+      '鬼发现了你！',
+      BroadcastMessageType.system,
+    );
+  }
+
+  /// 启动鬼生成定时器
+  void _startGhostSpawnTimer() {
+    // 每60秒检查一次是否需要生成新的鬼
+    _ghostSpawnTimer = Timer.periodic(
+      const Duration(seconds: 60),
+      (timer) {
+        _checkAndSpawnGhosts();
+      }
+    );
+    print('👻 鬼生成系统启动 - 检查间隔: 60秒 - 时间: ${DateTime.now()}');
+  }
+
+  /// 检查并生成新的鬼
+  void _checkAndSpawnGhosts() {
+    final currentGhostCount = state.ghostManager.ghosts.length;
+    const maxGhosts = 8; // 最大鬼数量
+    const minGhosts = 3; // 最小鬼数量
+    
+    print('👻 检查鬼数量 - 当前: $currentGhostCount, 最大: $maxGhosts, 最小: $minGhosts');
+    
+    if (currentGhostCount < minGhosts) {
+      // 如果鬼数量太少，生成新的鬼
+      final spawnCount = minGhosts - currentGhostCount;
+      _spawnRandomGhosts(spawnCount);
+    } else if (currentGhostCount < maxGhosts) {
+      // 随机决定是否生成新的鬼（30%概率）
+      final random = Random();
+      if (random.nextDouble() < 0.3) {
+        _spawnRandomGhosts(1);
+      }
+    }
+  }
+
+  /// 生成随机类型的鬼
+  void _spawnRandomGhosts(int count) {
+    final walkablePositions = _getWalkablePositions();
+    if (walkablePositions.isEmpty) return;
+    
+    final playerPosition = state.playerPosition.toPoint();
+    final random = Random();
+    
+    // 定义鬼类型权重
+    final ghostTypeWeights = [
+      {'type': NormalGhost, 'weight': 40, 'name': '普通鬼'},
+      {'type': FastGhost, 'weight': 25, 'name': '快速鬼'},
+      {'type': StrongGhost, 'weight': 20, 'name': '强力鬼'},
+      {'type': TricksterGhost, 'weight': 15, 'name': '诡计鬼'},
+    ];
+    
+    for (int i = 0; i < count; i++) {
+      final spawnPosition = _findSafeGhostSpawnPosition(walkablePositions, playerPosition);
+      if (spawnPosition != null) {
+        // 根据权重随机选择鬼类型
+        final totalWeight = ghostTypeWeights.fold<int>(0, (sum, item) => sum + (item['weight'] as int));
+        final randomValue = random.nextInt(totalWeight);
+        
+        int currentWeight = 0;
+        Type selectedType = NormalGhost;
+        String selectedName = '普通鬼';
+        
+        for (final ghostConfig in ghostTypeWeights) {
+          currentWeight += ghostConfig['weight'] as int;
+          if (randomValue < currentWeight) {
+            selectedType = ghostConfig['type'] as Type;
+            selectedName = ghostConfig['name'] as String;
+            break;
+          }
+        }
+        
+        // 创建鬼
+        Ghost newGhost;
+        final ghostPosition = GhostPosition(x: spawnPosition.x.toDouble(), y: spawnPosition.y.toDouble());
+        switch (selectedType) {
+          case NormalGhost:
+            newGhost = NormalGhost(position: ghostPosition);
+            break;
+          case FastGhost:
+            newGhost = FastGhost(position: ghostPosition);
+            break;
+          case StrongGhost:
+            newGhost = StrongGhost(position: ghostPosition);
+            break;
+          case TricksterGhost:
+            newGhost = TricksterGhost(position: ghostPosition);
+            break;
+          default:
+            newGhost = NormalGhost(position: ghostPosition);
+        }
+        
+        state.ghostManager.addGhost(newGhost);
+        print('👻 动态生成 $selectedName 于位置 (${spawnPosition.x}, ${spawnPosition.y})');
+        
+        // 添加播报消息
+        addBroadcastMessage(
+          '新的鬼出现了！',
+          BroadcastMessageType.system,
+        );
+      } else {
+        print('⚠️ 无法找到安全的鬼生成位置');
+      }
     }
   }
 
@@ -925,6 +1276,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 安全更新角色状态，防止竞争条件
   void _safeUpdateCharacterStats(Map<String, dynamic> Function(Map<String, dynamic>) updateFunction, String debugInfo) {
+    // 检查是否已经被 dispose
+    if (!mounted) {
+      print('_safeUpdateCharacterStats: OptimizedGameStateNotifier 已被 dispose，跳过状态更新');
+      return;
+    }
+    
     if (_isUpdatingStats) {
       return;
     }
@@ -994,6 +1351,33 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }, '饥饿系统扣血');
   }
 
+  /// 计算修正后的移动速度（考虑水中和饱食度影响）
+  double _getModifiedMoveSpeed() {
+    final baseSpeed = state.characterStats['moveSpeed'] ?? 100.0;
+    double modifiedSpeed = baseSpeed;
+    
+    // 水中移动速度降低10%
+    if (_oxygenSystem?.isUnderwater == true) {
+      modifiedSpeed *= 0.9; // 降低10%
+      print('移动速度：水中移动，速度降低10% -> ${modifiedSpeed.toStringAsFixed(1)}');
+    }
+    
+    // 饱食度影响移动速度
+    final currentFood = state.characterStats['food'] ?? 0;
+    final maxFood = 100; // 假设最大饱食度为100
+    final foodPercentage = (currentFood / maxFood).clamp(0.0, 1.0);
+    
+    // 当饱食度低于50%时开始影响移动速度
+    if (foodPercentage < 0.5) {
+      // 饱食度从50%到0%，移动速度从100%线性降低到50%
+      final hungerSpeedMultiplier = 0.5 + (foodPercentage * 1.0); // 0.5 到 1.0
+      modifiedSpeed *= hungerSpeedMultiplier;
+      print('移动速度：饱食度影响，当前饱食度${foodPercentage.toStringAsFixed(2)}，速度倍数${hungerSpeedMultiplier.toStringAsFixed(2)} -> ${modifiedSpeed.toStringAsFixed(1)}');
+    }
+    
+    return modifiedSpeed;
+  }
+
   /// 优化的移动更新
   void _updateMovement() {
     final movement = state.movementState;
@@ -1006,9 +1390,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       return;
     }
     
-    // 计算基于玩家移动速度的最大速度（缓存计算结果）
-    final baseSpeed = state.characterStats['moveSpeed'] ?? 100.0;
-    final currentMaxSpeed = (baseSpeed / 20.0).clamp(0.1, double.infinity); // 移除上限，只保留最小值0.1防止零速度
+    // 计算基于玩家移动速度的最大速度（使用修正后的速度）
+    final modifiedSpeed = _getModifiedMoveSpeed();
+    final currentMaxSpeed = (modifiedSpeed / 20.0).clamp(0.1, double.infinity); // 移除上限，只保留最小值0.1防止零速度
     
     // 计算目标速度
     final targetVelocityX = movement.joystickX * currentMaxSpeed * movement.joystickIntensity;
@@ -1157,16 +1541,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     try {
-      // 使用增强版视野系统获取带有可见性级别的瓦片（传递精神值）
+      // 使用增强版视野系统获取带有可见性级别的瓦片（传递精神值和氧气视野修正）
       final tilesWithVisibility = _enhancedVisionSystem.getVisibleTilesWithLevel(
         playerGridPosition,
         sanityValue: currentSanity,
         maxSanity: maxSanity,
+        oxygenVisionMultiplier: _oxygenSystem?.visionFactor,
       );
       
-      // 提取完全可见的瓦片用于兼容性
+      // 提取完全可见的瓦片用于兼容性（包括有雾霾装饰的可见瓦片）
       final newVisibleTiles = tilesWithVisibility.entries
-          .where((entry) => entry.value == TileVisibility.fullyVisible)
+          .where((entry) => entry.value == TileVisibility.fullyVisible || 
+                           entry.value == TileVisibility.visibleWithFogDecoration)
           .map((entry) => entry.key)
           .toSet();
       
@@ -1619,6 +2005,32 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       return false; // 金币不足或库存不足
     }
     
+    // 检查背包容量
+    if (state.playerInventory.length >= state.inventoryCapacity) {
+      // 背包已满，将物品掉落到玩家位置
+      _dropItemToGround(shopItem.item, state.playerPosition.toPoint());
+      
+      // 扣除金币（即使物品掉落也要扣钱）
+      final updatedCharacter = Map<String, dynamic>.from(character);
+      updatedCharacter['gold'] = currentMoney - shopItem.currentPrice;
+      
+      // 减少商品库存
+      shopItem.stock--;
+      
+      // 更新状态
+      state = state.copyWith(
+        characterStats: updatedCharacter,
+      );
+      
+      // 添加背包已满的播报消息
+      addBroadcastMessage(
+        '背包已满，${shopItem.item.name} 掉落在地上',
+        BroadcastMessageType.item,
+      );
+      
+      return true; // 购买成功但物品掉落
+    }
+    
     // 扣除金币
     final updatedCharacter = Map<String, dynamic>.from(character);
     updatedCharacter['gold'] = currentMoney - shopItem.currentPrice;
@@ -1643,6 +2055,219 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
     
     return true; // 购买成功
+  }
+
+  /// 将物品掉落到地面
+  void _dropItemToGround(Item item, Point<int> position) {
+    final currentGroundItems = Map<Point<int>, List<Item>>.from(state.groundItems);
+    
+    // 如果该位置已有物品，添加到列表中；否则创建新列表
+    if (currentGroundItems.containsKey(position)) {
+      currentGroundItems[position]!.add(item);
+    } else {
+      currentGroundItems[position] = [item];
+    }
+    
+    // 更新状态
+    state = state.copyWith(groundItems: currentGroundItems);
+  }
+
+  /// 从地面拾取物品
+  bool pickupItemFromGround(Point<int> position, Item item) {
+    // 检查背包容量
+    if (state.playerInventory.length >= state.inventoryCapacity) {
+      addBroadcastMessage(
+        '背包已满',
+        BroadcastMessageType.item,
+      );
+      return false;
+    }
+    
+    final currentGroundItems = Map<Point<int>, List<Item>>.from(state.groundItems);
+    
+    // 检查该位置是否有物品
+    if (!currentGroundItems.containsKey(position)) {
+      return false;
+    }
+    
+    final itemsAtPosition = currentGroundItems[position]!;
+    final itemIndex = itemsAtPosition.indexWhere((i) => i.id == item.id);
+    
+    if (itemIndex == -1) {
+      return false; // 物品不在该位置
+    }
+    
+    // 从地面移除物品
+    itemsAtPosition.removeAt(itemIndex);
+    
+    // 如果该位置没有物品了，移除该位置
+    if (itemsAtPosition.isEmpty) {
+      currentGroundItems.remove(position);
+    }
+    
+    // 添加物品到背包
+    final newInventory = List<Item>.from(state.playerInventory);
+    newInventory.add(item);
+    
+    // 更新状态
+    state = state.copyWith(
+      playerInventory: newInventory,
+      groundItems: currentGroundItems,
+    );
+    
+    // 添加拾取成功的播报消息
+    addBroadcastMessage(
+      '拾取了 ${item.name}',
+      BroadcastMessageType.item,
+    );
+    
+    return true;
+  }
+
+  /// 移动背包中的物品到指定位置
+  bool moveItemInInventory(int fromIndex, int toIndex) {
+    // 检查索引是否有效
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= state.inventoryCapacity) {
+      return false;
+    }
+    
+    // 检查源位置是否有效（必须在当前物品范围内）
+    if (fromIndex >= state.playerInventory.length) {
+      return false;
+    }
+    
+    // 如果源位置和目标位置相同，不需要移动
+    if (fromIndex == toIndex) {
+      return true;
+    }
+    
+    // 创建一个固定大小的稀疏数组来表示背包格子
+    final inventoryGrid = <Item?>[...List.filled(state.inventoryCapacity, null)];
+    
+    // 将现有物品按顺序放入网格的前面位置
+    for (int i = 0; i < state.playerInventory.length; i++) {
+      inventoryGrid[i] = state.playerInventory[i];
+    }
+    
+    // 获取要移动的物品
+    final itemToMove = inventoryGrid[fromIndex];
+    if (itemToMove == null) {
+      return false;
+    }
+    
+    // 执行移动操作
+    if (toIndex < state.playerInventory.length && inventoryGrid[toIndex] != null) {
+      // 目标位置有物品，交换位置
+      final targetItem = inventoryGrid[toIndex];
+      inventoryGrid[fromIndex] = targetItem;
+      inventoryGrid[toIndex] = itemToMove;
+    } else {
+      // 目标位置是空格子，直接移动
+      inventoryGrid[fromIndex] = null;
+      inventoryGrid[toIndex] = itemToMove;
+    }
+    
+    // 重新整理背包，移除空位并保持物品顺序
+    final newInventory = <Item>[];
+    for (int i = 0; i < inventoryGrid.length; i++) {
+      if (inventoryGrid[i] != null) {
+        newInventory.add(inventoryGrid[i]!);
+      }
+    }
+    
+    // 更新背包状态
+    state = state.copyWith(playerInventory: newInventory);
+    
+    return true;
+  }
+  
+  /// 将物品添加到背包的指定位置（用于拖拽到空格子）
+  bool insertItemAtPosition(Item item, int targetIndex) {
+    final inventory = List<Item>.from(state.playerInventory);
+    
+    // 检查背包容量
+    if (inventory.length >= state.inventoryCapacity) {
+      return false;
+    }
+    
+    // 检查目标位置是否有效
+    if (targetIndex < 0 || targetIndex >= state.inventoryCapacity) {
+      return false;
+    }
+    
+    // 如果目标位置超出当前物品数量，直接添加到末尾
+    if (targetIndex >= inventory.length) {
+      inventory.add(item);
+    } else {
+      // 在指定位置插入物品，其他物品后移
+      inventory.insert(targetIndex, item);
+    }
+    
+    // 更新背包状态
+    state = state.copyWith(playerInventory: inventory);
+    
+    return true;
+  }
+
+  /// 丢弃背包中的物品到地面
+  bool dropItemFromInventory(Item item) {
+    // 检查物品是否在背包中
+    final inventory = List<Item>.from(state.playerInventory);
+    final itemIndex = inventory.indexWhere((i) => i.id == item.id);
+    
+    if (itemIndex == -1) {
+      return false; // 物品不在背包中
+    }
+    
+    // 从背包中移除物品
+    final itemToDrop = inventory[itemIndex];
+    
+    // 如果物品数量大于1，只丢弃一个
+    if (itemToDrop.count > 1) {
+      inventory[itemIndex] = Item(
+        id: itemToDrop.id,
+        name: itemToDrop.name,
+        image: itemToDrop.image,
+        description: itemToDrop.description,
+        effects: itemToDrop.effects,
+        type: itemToDrop.type,
+        count: itemToDrop.count - 1,
+        availableInShop: itemToDrop.availableInShop,
+        basePrice: itemToDrop.basePrice,
+        usageTime: itemToDrop.usageTime,
+      );
+      
+      // 创建要丢弃的单个物品
+      final singleItem = Item(
+        id: itemToDrop.id,
+        name: itemToDrop.name,
+        image: itemToDrop.image,
+        description: itemToDrop.description,
+        effects: itemToDrop.effects,
+        type: itemToDrop.type,
+        count: 1,
+        availableInShop: itemToDrop.availableInShop,
+        basePrice: itemToDrop.basePrice,
+        usageTime: itemToDrop.usageTime,
+      );
+      
+      _dropItemToGround(singleItem, state.playerPosition.toPoint());
+    } else {
+      // 移除整个物品
+      inventory.removeAt(itemIndex);
+      _dropItemToGround(itemToDrop, state.playerPosition.toPoint());
+    }
+    
+    // 更新背包状态
+    state = state.copyWith(playerInventory: inventory);
+    
+    // 添加丢弃物品的播报消息
+    addBroadcastMessage(
+      '丢弃了 ${item.name}',
+      BroadcastMessageType.item,
+    );
+    
+    return true;
   }
 
   /// 开始使用物品（启动进度条）
@@ -1827,6 +2452,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final currentGold = character['gold'] ?? 0;
           final newGold = (currentGold + value).clamp(0, 999999);
           character['gold'] = newGold;
+          hasEffect = true;
+          break;
+        case 'oxygenBonus':
+          // 记录增加氧气上限前的当前氧气值
+          final currentOxygenBeforeBonus = state.currentOxygen;
+          // 增加氧气上限
+          increaseOxygenCapacity(value.toDouble());
+          // 检查是否需要启动氧气恢复进度条
+          final newMaxOxygen = state.actualMaxOxygen;
+          if (currentOxygenBeforeBonus < newMaxOxygen) {
+            _startOxygenRecovery(currentOxygenBeforeBonus, newMaxOxygen);
+          }
           hasEffect = true;
           break;
       }
@@ -2235,6 +2872,122 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 如果不是不可通行的地块，则认为是可移动的
     // 这包括：grass, path, woods, exit, door, shop, chest 等
     return !impassableTiles.contains(tile);
+  }
+
+  /// 检查指定位置是否是水瓦片
+  bool _isWaterTile(int x, int y) {
+    if (x < 0 || x >= state.map[0].length || y < 0 || y >= state.map.length) {
+      return false;
+    }
+    return state.map[y][x] == 'water';
+  }
+
+  /// 初始化氧气系统
+  void _initializeOxygenSystem() {
+    _oxygenSystem = OxygenSystem(
+      maxOxygen: state.actualMaxOxygen,
+      onHealthDamage: (damage) {
+        // 检查是否已经被 dispose
+        if (!mounted) {
+          print('氧气系统：OptimizedGameStateNotifier 已被 dispose，跳过伤害处理');
+          return;
+        }
+        
+        print('氧气系统：收到伤害回调 $damage');
+        // 氧气耗尽时扣除生命值 - 参考饱食度扣血方案
+        _safeUpdateCharacterStats((currentStats) {
+          print('氧气系统：当前统计数据 $currentStats');
+          final currentHp = currentStats['hp'] ?? 0;
+          print('氧气系统：当前生命值 $currentHp');
+          
+          // 当氧气耗尽且生命值大于0时，扣除生命值
+          if (currentHp > 0) {
+            final damageAmount = damage.toDouble(); // 氧气扣血量
+            final newHp = (currentHp - damageAmount).clamp(0, currentStats['maxHp'] ?? 100);
+            
+            print('氧气系统：计算新生命值 $newHp (原值: $currentHp, 伤害: $damageAmount)');
+            
+            // 检测生命值变化并触发伤害效果
+            final hpChanged = currentHp != newHp;
+            
+            if (hpChanged) {
+              print('氧气系统：生命值发生变化，更新状态');
+              // 更新生命值
+              final updatedStats = Map<String, dynamic>.from(currentStats);
+              updatedStats['hp'] = newHp.toDouble();
+              
+              // 更新其他状态，触发伤害效果
+              state = state.copyWith(
+                lastHp: currentHp.toDouble(),
+                shouldShowDamageEffect: true,
+                lastDamageAmount: damageAmount,
+              );
+              
+              // 添加氧气伤害播报消息
+              addBroadcastMessage(
+                '氧气耗尽！生命值 -${damageAmount.toStringAsFixed(1)}',
+                BroadcastMessageType.damage,
+              );
+              
+              // 检查是否死亡
+              if (newHp <= 0) {
+                triggerGameOver('溺水而死');
+              }
+              
+              return updatedStats;
+            } else {
+              print('氧气系统：生命值未发生变化');
+            }
+          } else {
+            print('氧气系统：生命值已为0，不扣血');
+          }
+          
+          // 没有变化，返回原状态
+          return currentStats;
+        }, '氧气耗尽伤害');
+      },
+      onVisionChange: (visionMultiplier) {
+        // 检查是否已经被 dispose
+        if (!mounted) {
+          print('氧气系统：OptimizedGameStateNotifier 已被 dispose，跳过视野变化处理');
+          return;
+        }
+        
+        // 水中视野变化时更新视野系统
+        _updateVision();
+      },
+    );
+    
+    // 更新游戏状态中的氧气系统引用
+    state = state.copyWith(oxygenSystem: _oxygenSystem);
+  }
+
+  /// 更新氧气系统状态
+  void _updateOxygenSystem() {
+    if (_oxygenSystem == null) return;
+    
+    final playerPos = state.playerPosition.toPoint();
+    final isInWater = _isWaterTile(playerPos.x, playerPos.y);
+    
+    // 检查玩家是否进入或离开水中
+    if (isInWater != state.isInWater) {
+      if (isInWater) {
+        _oxygenSystem!.enterWater();
+      } else {
+        _oxygenSystem!.exitWater();
+      }
+      
+      // 更新游戏状态
+      state = state.copyWith(
+        isInWater: isInWater,
+        currentOxygen: _oxygenSystem!.currentOxygen,
+      );
+    } else {
+      // 无论在水中还是陆地上，都要同步氧气值（确保背包界面显示正确）
+      state = state.copyWith(
+        currentOxygen: _oxygenSystem!.currentOxygen,
+      );
+    }
   }
 
   /// 重置游戏状态
@@ -2760,7 +3513,52 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _itemUsageTimer?.cancel();
     _chestExplorationTimer?.cancel();
     _shopRefreshTimer?.cancel();
+    _itemSpawnTimer?.cancel();
+    _ghostUpdateTimer?.cancel();
+    _ghostSpawnTimer?.cancel();
     super.dispose();
+  }
+
+  /// 启动氧气恢复进度条
+  void _startOxygenRecovery(double fromOxygen, double toOxygen) {
+    // 首先启动氧气系统的内置恢复机制
+    _oxygenSystem?.forceStartRecovery();
+    
+    // 启动氧气恢复管理器（视觉进度条）
+    state.oxygenRecoveryManager?.startRecovery(
+      startOxygen: fromOxygen,
+      targetOxygen: toOxygen,
+      duration: const Duration(seconds: 3), // 3秒恢复时间
+      onProgress: (currentOxygen) {
+        // 更新游戏状态中的当前氧气值
+        state = state.copyWith(currentOxygen: currentOxygen);
+        // 同步到氧气系统（如果存在）
+        _oxygenSystem?.setCurrentOxygen(currentOxygen);
+      },
+    );
+    
+    // 设置恢复完成后的回调
+    Timer(const Duration(seconds: 3), () {
+      // 恢复完成，确保氧气值达到上限
+      state = state.copyWith(currentOxygen: toOxygen);
+      _oxygenSystem?.setCurrentOxygen(toOxygen);
+      state.oxygenRecoveryManager?.completeRecovery();
+    });
+  }
+
+  /// 增加氧气上限
+  void increaseOxygenCapacity(double amount) {
+    state = state.copyWith(
+      oxygenBonus: state.oxygenBonus + amount,
+    );
+    
+    // 更新氧气系统的最大氧气值（setMaxOxygen会自动处理当前氧气值的调整）
+    _oxygenSystem?.setMaxOxygen(state.actualMaxOxygen);
+    
+    // 同步游戏状态中的当前氧气值
+    state = state.copyWith(
+      currentOxygen: _oxygenSystem?.currentOxygen ?? state.currentOxygen,
+    );
   }
 }
 
