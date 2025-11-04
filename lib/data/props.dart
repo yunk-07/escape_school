@@ -95,7 +95,7 @@ final List<Item> allItems = [
     image: 'images/items/shit.png', 
     description: '或许我们真的可以尝试一下', 
     effects: {'san':-30,'hp':-10,'food':20,},
-    level: 5,
+    level: 3,
     availableInShop: false,
     usageTime: 5000
     ),
@@ -107,9 +107,57 @@ final List<Item> allItems = [
     description: '高能量营养棒，能够快速恢复体力和精神状态',
     effects: {'san': 10, 'oxygenBonus': 1, 'food': 10, 'hp': 5},
     type: 'potion',
-    level: 3, // 蓝色品质
+    level: 4,
     availableInShop: true,
-    basePrice: 80,
+    basePrice: 20,
     usageTime: 6000, // 6秒使用时间
+  ),
+  Item(
+    id: 'corn',
+    name: '玉米',
+    image: 'images/items/corn.png',
+    description: '应该煮了？',
+    effects: {'san': 10, 'food': 20, 'hp': 1},
+    type: 'potion',
+    level: 3,
+    availableInShop: true,
+    basePrice: 10,
+    usageTime: 6000, // 6秒使用时间
+  ),
+  Item(
+    id: 'bread',
+    name: '面包',
+    image: 'images/items/bread.png',
+    description: '还好不是十万马克',
+    effects: {'san': 1, 'food': 40, 'hp': 1},
+    type: 'potion',
+    level: 4,
+    availableInShop: true,
+    basePrice: 20,
+    usageTime: 6000, // 6秒使用时间
+  ),
+  Item(
+    id: 'bread',
+    name: '面包',
+    image: 'images/items/bread.png',
+    description: '还真是十万马克',
+    effects: {'san': 100, 'food': 100, 'hp': 20},
+    type: 'potion',
+    level: 5,
+    availableInShop: true,
+    basePrice: 100,
+    usageTime: 1000, // 1秒使用时间
+  ),
+  Item(
+    id: 'carrot',
+    name: '胡萝卜',
+    image: 'images/items/carrot.png',
+    description: '我吃吃吃',
+    effects: {'san': 20, 'food': 5,},
+    type: 'potion',
+    level: 3,
+    availableInShop: true,
+    basePrice: 9,
+    usageTime: 3000, // 3秒使用时间
   ),
 ];

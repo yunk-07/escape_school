@@ -1866,21 +1866,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 获取宝箱随机物品
   List<Item> _getRandomChestItems() {
-    final random = math.Random();
-    final items = <Item>[];
-    
-    // 随机获得1-3个物品
-    final itemCount = 1 + random.nextInt(3);
-    
-    for (int i = 0; i < itemCount; i++) {
-      // 从所有物品中随机选择
-      if (allItems.isNotEmpty) {
-        final randomItem = allItems[random.nextInt(allItems.length)];
-        items.add(randomItem);
-      }
-    }
-    
-    return items;
+    // 使用 ItemSpawner 的概率系统生成宝箱物品
+    return ItemSpawner.generateChestItems(minItems: 1, maxItems: 3);
   }
 
   /// 获取适合放置宝箱的位置（只在草地和路径上）

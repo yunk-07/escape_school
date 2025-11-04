@@ -23,6 +23,7 @@ import 'package:escape_from_school/game/item_usage_progress.dart';
 import 'package:escape_from_school/game/chest_exploration_progress.dart';
 import 'package:escape_from_school/game/oxygen_system.dart';
 import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
+import 'package:escape_from_school/game/music.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -38,7 +39,165 @@ class OptimizedBoardPage extends StatefulWidget {
   State<OptimizedBoardPage> createState() => _OptimizedBoardPageState();
 }
 
-class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTickerProviderStateMixin {
+// 顶层心电图绘制器（与精神值联动）
+class SanityECGPainter extends CustomPainter {
+  final double phase;
+  final double san; // 0-250
+  final double hpRatio; // 0-1
+  final double oxygenRatio; // 0-1
+  final double moveFactor; // 0-1
+  final double castingFactor; // 0-1
+  final double damagePulse; // 0-1
+  final bool isInWater;
+  final double proximityFactor; // 0-1 距离鬼的危险接近度（近=1，远=0）
+  SanityECGPainter({
+    required this.phase,
+    required this.san,
+    required this.hpRatio,
+    required this.oxygenRatio,
+    required this.moveFactor,
+    required this.castingFactor,
+    required this.damagePulse,
+    required this.isInWater,
+    required this.proximityFactor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()
+      ..color = Colors.transparent
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    // 科技感网格线（青色微光）
+    final gridPaint = Paint()
+      ..color = Colors.cyanAccent.withOpacity(0.18)
+      ..strokeWidth = 0.7;
+    for (double x = 0; x < size.width; x += 14) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (double y = 0; y < size.height; y += 12) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    // 中心轴线稍亮
+    final axisPaint = Paint()
+      ..color = Colors.cyanAccent.withOpacity(0.35)
+      ..strokeWidth = 1.0;
+    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), axisPaint);
+
+    // 归一化指标
+    final sanityRatio = (san / 250.0).clamp(0.0, 1.0);
+    final double hpR = hpRatio.clamp(0.0, 1.0);
+    final double o2R = oxygenRatio.clamp(0.0, 1.0);
+    final double moveR = moveFactor.clamp(0.0, 1.0);
+    final double castR = castingFactor.clamp(0.0, 1.0);
+    final double dmgP = damagePulse.clamp(0.0, 1.0);
+
+    // 全新模式：心率主要受“鬼接近度”驱动，其他因素弱化或不参与
+    double hrBpm = 60
+        + 90 * proximityFactor // 鬼越近越心跳加速
+        + 10 * dmgP            // 受伤脉冲仍有轻微影响
+        + (isInWater ? 5 : 0); // 水中轻微提升
+    hrBpm = hrBpm.clamp(50, 165);
+
+    // 振幅：低SAN与低O2增加振幅与不稳定性
+    final double baseAmp = 6.0 + (1.0 - sanityRatio) * 4.0 + (1.0 - o2R) * 2.0; // ~6-12
+
+    // 尖峰间隔：心率越高，尖峰越密集
+    final double spikeInterval = 42.0 * (60.0 / hrBpm); // 基于60bpm的缩放
+    final double spikeWidth = 8.0;
+    final double spikeHeight = baseAmp * (2.0 + (1.0 - hpR) * 0.6 + dmgP * 0.8);
+
+    // 颜色：完全以接近度为主驱动，越近越偏危险红
+    final double stress = proximityFactor;
+    final Color calmColor = Colors.greenAccent;
+    final Color techColor = Colors.cyanAccent;
+    final Color alertColor = Colors.orangeAccent;
+    final Color dangerColor = Colors.redAccent;
+    final Color waveColor = (stress < 0.33)
+        ? Color.lerp(calmColor, techColor, 0.6)!
+        : (stress < 0.66)
+            ? Color.lerp(techColor, alertColor, (stress - 0.33) / 0.33)!
+            : Color.lerp(alertColor, dangerColor, (stress - 0.66) / 0.34)!;
+
+    final wavePaint = Paint()
+      ..color = waveColor
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    // ECG样式：平缓段 + 尖峰（间隔与心率相关）
+    final double mid = size.height / 2;
+
+    double x = 0.0;
+    double y = mid;
+    path.moveTo(x, y);
+
+    while (x <= size.width) {
+      // 平缓段：正弦 + 轻微抖动，低O2和低SAN增加不稳定性
+      final jitter = proximityFactor * 0.8; // 接近越高，抖动越明显
+      final noise = math.sin((x * 0.12) + phase * 1.7) * baseAmp * 0.15 * jitter;
+      final smoothY = mid + math.sin((x / size.width) * math.pi * 2 + phase) * baseAmp * 0.6 + noise;
+
+      // 是否绘制尖峰
+      final double offsetPhase = (phase * 30) % spikeInterval;
+      final double distToSpike = ((x + offsetPhase) % spikeInterval);
+      if (distToSpike < 1.0) {
+        // 上升
+        path.lineTo(x + spikeWidth * 0.2, mid - spikeHeight);
+        // 回落到下方
+        path.lineTo(x + spikeWidth * 0.6, mid + spikeHeight * 0.6);
+        // 回到平缓线
+        path.lineTo(x + spikeWidth, smoothY);
+        x += spikeWidth;
+        y = smoothY;
+      } else {
+        final double nextX = x + 2.0;
+        final double nextY = smoothY;
+        path.lineTo(nextX, nextY);
+        x = nextX;
+        y = nextY;
+      }
+    }
+
+    // 光晕（科技感）：叠加两层虚化效果
+    final glow1 = Paint()
+      ..color = waveColor.withOpacity(0.25)
+      ..strokeWidth = 6.0
+      ..style = PaintingStyle.stroke;
+    final glow2 = Paint()
+      ..color = waveColor.withOpacity(0.12)
+      ..strokeWidth = 10.0
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(path, glow2);
+    canvas.drawPath(path, glow1);
+    canvas.drawPath(path, wavePaint);
+
+    // 扫描线（向右移动的淡青色线）
+    final double phaseNorm = (phase % (math.pi * 2)) / (math.pi * 2);
+    final double scanX = phaseNorm * size.width;
+    final scanPaint = Paint()
+      ..color = Colors.cyanAccent.withOpacity(0.15)
+      ..strokeWidth = 2.0;
+    canvas.drawLine(Offset(scanX, 0), Offset(scanX, size.height), scanPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant SanityECGPainter oldDelegate) {
+    return oldDelegate.phase != phase ||
+        oldDelegate.san != san ||
+        oldDelegate.hpRatio != hpRatio ||
+        oldDelegate.oxygenRatio != oxygenRatio ||
+        oldDelegate.moveFactor != moveFactor ||
+        oldDelegate.castingFactor != castingFactor ||
+        oldDelegate.damagePulse != damagePulse ||
+        oldDelegate.isInWater != isInWater ||
+        oldDelegate.proximityFactor != proximityFactor;
+  }
+}
+
+class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProviderStateMixin {
   late OptimizedGameStateNotifier gameStateNotifier;
   final Map<String, ui.Image> terrainImages = {};
   ui.Image? characterImage;
@@ -47,6 +206,9 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
   // 视野边界闪烁动画控制器
   AnimationController? _visionBorderFlashController;
   Animation<double>? _visionBorderFlashAnimation;
+  // 心电图动画控制器
+  AnimationController? _ecgController;
+  double _ecgPhase = 0.0;
 
   @override
   void initState() {
@@ -69,6 +231,17 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
       parent: _visionBorderFlashController!,
       curve: Curves.easeInOut,
     ));
+
+    // 初始化心电图动画控制器（循环刷新）
+    _ecgController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..addListener(() {
+      setState(() {
+        _ecgPhase = (_ecgPhase + 0.04) % (math.pi * 2);
+      });
+    });
+    _ecgController!.repeat();
 
     // 预加载地形图片和角色图片
     _preloadImages();
@@ -255,36 +428,240 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
   void _showExitConfirmDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey.shade900,
-          title: const Text(
-            '退出游戏',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Text(
-            '确定要退出游戏吗？',
-            style: TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                '取消',
-                style: TextStyle(color: Colors.grey),
-              ),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            constraints: BoxConstraints(
+              maxWidth: 420,
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // 关闭对话框
-                _exitToMainMenu(context);
-              },
-              child: const Text(
-                '退出',
-                style: TextStyle(color: Colors.red),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.grey.shade900,
+                  Colors.grey.shade800,
+                  Colors.grey.shade900,
+                ],
+                stops: const [0.0, 0.5, 1.0],
               ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.12),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.6),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.06),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 顶部标题栏
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.grey.shade800.withOpacity(0.35),
+                        Colors.grey.shade700.withOpacity(0.25),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(18),
+                      topRight: Radius.circular(18),
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withOpacity(0.06),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.exit_to_app,
+                          color: Colors.white70,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          '确认退出',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 内容区域
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        '确定要退出游戏吗？',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '将返回主菜单。未保存的进度可能会丢失。',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 操作按钮
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.grey.shade800,
+                                Colors.grey.shade700,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => Navigator.of(context).pop(),
+                              borderRadius: BorderRadius.circular(10),
+                              child: const Center(
+                                child: Text(
+                                  '取消',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.grey.shade700,
+                                Colors.grey.shade600,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.3),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.25),
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                _exitToMainMenu(context);
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: const Center(
+                                child: Text(
+                                  '退出游戏',
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -924,6 +1301,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
   void dispose() {
     // 清理动画控制器
     _visionBorderFlashController?.dispose();
+    _ecgController?.dispose();
     
     // 安全地 dispose gameStateNotifier
     try {
@@ -1212,6 +1590,117 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
       ),
     );
   }
+
+  // 构建精神值右侧心电图（实时）
+  Widget _buildSanityECG(OptimizedGameState gameState) {
+    final stats = gameState.characterStats;
+    final double currentSan = (stats['san'] ?? 0).toDouble().clamp(0, 250);
+    final double hp = (stats['hp'] ?? 0).toDouble();
+    final double maxHp = (stats['maxHp'] ?? 100).toDouble();
+    final double hpRatio = maxHp > 0 ? (hp / maxHp).clamp(0.0, 1.0) : 0.0;
+    final double o2Ratio = (gameState.actualMaxOxygen > 0)
+        ? (gameState.currentOxygen / gameState.actualMaxOxygen).clamp(0.0, 1.0)
+        : 1.0;
+    final double moveSpeed = ((stats['moveSpeed'] ?? 1.0) as num).toDouble();
+    // 将移动速度映射到0-1（假设1-3为常见范围）
+    final double moveFactor = ((moveSpeed - 1.0) / 2.0).clamp(0.0, 1.0);
+    final double castingFactor = gameState.currentCastingSkillId != null ? 1.0 : 0.0;
+    final double damagePulse = (gameState.shouldShowDamageEffect == true)
+        ? (gameState.lastDamageAmount.clamp(0.0, 50.0) / 50.0).clamp(0.2, 1.0)
+        : 0.0;
+    final bool isInWater = gameState.isInWater;
+
+    // 计算最近可见鬼与玩家的距离并映射为接近度因子（0-1）
+    final playerGrid = gameState.playerPosition.toPoint();
+    double minGhostDistance = double.infinity;
+    for (final ghost in gameState.ghostManager.ghosts) {
+      if (ghost.position != null && !ghost.isInvisible) {
+        final gp = ghost.position!.toPoint();
+        final dx = (playerGrid.x - gp.x).toDouble();
+        final dy = (playerGrid.y - gp.y).toDouble();
+        final d = math.sqrt(dx * dx + dy * dy);
+        if (d < minGhostDistance) minGhostDistance = d;
+      }
+    }
+    const double dangerRange = 25.0; // 在25格内开始显著影响心跳
+    final double proximityFactor = minGhostDistance.isFinite
+        ? ((dangerRange - minGhostDistance) / dangerRange).clamp(0.0, 1.0)
+        : 0.0;
+    // 根据接近度触发心跳音效（平时静音，靠近时响起并加速）
+    MusicManager().updateHeartbeat(proximityFactor);
+    return Positioned(
+      top: 50,
+      left: 110,
+      child: Container(
+        width: 160,
+        height: 72,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.black.withOpacity(0.88),
+              Colors.grey.shade900.withOpacity(0.92),
+            ],
+          ),
+          border: Border.all(color: Colors.cyanAccent.withOpacity(0.35), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.cyanAccent.withOpacity(0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 0),
+              spreadRadius: 2,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 10,
+              offset: const Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: SanityECGPainter(
+                  phase: _ecgPhase,
+                  san: currentSan,
+                  hpRatio: hpRatio,
+                  oxygenRatio: o2Ratio,
+                  moveFactor: moveFactor,
+                  castingFactor: castingFactor,
+                  damagePulse: damagePulse,
+                  isInWater: isInWater,
+                  proximityFactor: proximityFactor,
+                ),
+              ),
+            ),
+            // HUD 标签（右上角）
+            Positioned(
+              top: 6,
+              right: 8,
+              child: Row(
+                children: [
+                  Icon(Icons.show_chart, color: Colors.cyanAccent, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    'ECG',
+                    style: TextStyle(
+                      color: Colors.cyanAccent.withOpacity(0.8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   // 构建底部状态条（生命值和饱食度）
   Widget _buildBottomStatusBars(OptimizedGameState gameState) {
@@ -2030,6 +2519,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with SingleTick
               
                 // 精神值环形图（左上角）
                 _buildSanityCircle(gameState),
+                // 心电图（紧邻精神值右侧）
+                _buildSanityECG(gameState),
                 
                 // 生命值和饱食度条（下方居中）
                 _buildBottomStatusBars(gameState),
@@ -3022,8 +3513,10 @@ class _GameAreaPainter extends CustomPainter {
   /// 绘制鬼
   void _drawGhosts(Canvas canvas, double mapOffsetX, double mapOffsetY, double tileSize, Size size) {
     for (final ghost in gameState.ghostManager.ghosts) {
+      // 隐形状态下不绘制
+      if (ghost.isInvisible) continue;
       if (ghost.position == null) continue;
-      
+
       final double ghostX = mapOffsetX + (ghost.position!.x * tileSize);
       final double ghostY = mapOffsetY + (ghost.position!.y * tileSize);
       

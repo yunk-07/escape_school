@@ -233,6 +233,7 @@ abstract class Ghost {
   int remainingAttacks;     // 剩余攻击次数
   bool isInCooldown = false;
   bool isChasing = false;
+  bool isInvisible = false; // 冷却期间不可见
   
   // 新的位置和移动系统
   GhostPosition? position;  // 精确位置
@@ -440,6 +441,8 @@ class GhostManager {
       Function()? onGhostDetect,
       ) {
     for (final ghost in _ghosts) {
+      // 冷却期间处于隐形状态的鬼不进行更新（不移动、不攻击）
+      if (ghost.isInvisible) continue;
       _updateGhost(ghost, playerPosition, onPlayerAttacked, onGhostDetect);
     }
   }
@@ -876,14 +879,16 @@ class GhostManager {
 
   // 新增方法：开始鬼的冷却和逃跑
   void _startGhostCooldown(Ghost ghost) {
+    // 修改：攻击完成后直接进入隐形冷却，不再现场逃跑。
     ghost.isInCooldown = true;
-    ghost.isFleeing = true;
+    ghost.isInvisible = true;
+    ghost.isFleeing = false;
     ghost.isChasing = false;
 
-    _setFleeDestination(ghost);
-
     Future.delayed(Duration(seconds: ghost.cooldownTime), () {
+      // 冷却结束后重新显示并重置攻击次数
       ghost.isInCooldown = false;
+      ghost.isInvisible = false;
       ghost.isFleeing = false;
       ghost.resetAttacks();
     });

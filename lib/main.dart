@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'choose.dart';
+import 'package:escape_from_school/game/music.dart';
 import 'eff02.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await MusicManager().initialize();
   runApp(
     const ProviderScope(
       child: MyApp(),

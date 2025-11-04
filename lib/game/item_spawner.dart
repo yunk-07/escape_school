@@ -11,13 +11,14 @@ class ItemSpawner {
   static final Random _random = Random();
   
   // 物品等级对应的刷新概率（百分比）
+  // 等级越高，概率越低，呈指数递减
   static const Map<int, double> _levelProbabilities = {
-    0: 25.0,  // 无色物品 - 25%
-    1: 20.0,  // 白色物品 - 20%
-    2: 15.0,  // 绿色物品 - 15%
-    3: 10.0,  // 蓝色物品 - 10%
-    4: 5.0,   // 紫色物品 - 5%
-    5: 1.0,   // 橙色物品 - 1% (最高品质)
+    0: 40.0,  // 无色物品 - 40% (最常见)
+    1: 30.0,  // 白色物品 - 30% (常见)
+    2: 15.0,  // 绿色物品 - 15% (不常见)
+    3: 8.0,   // 蓝色物品 - 8% (稀有)
+    4: 3.0,   // 紫色物品 - 3% (非常稀有)
+    5: 0.5,   // 橙色物品 - 0.5% (传说级稀有)
   };
   
   // 刷新间隔设置（秒）
@@ -217,5 +218,59 @@ class ItemSpawner {
     print('刷新间隔: ${_baseSpawnInterval}±${_spawnVariation}秒');
     print('地图最大物品数: $_maxItemsOnMap');
     print('========================');
+  }
+
+  /// 为宝箱选择随机物品（使用相同的等级概率系统）
+  /// 宝箱中的物品概率稍微向高等级倾斜
+  static Item? selectRandomChestItem() {
+    final chestItems = allItems.where((item) => item.level >= 0).toList();
+    if (chestItems.isEmpty) return null;
+    
+    // 宝箱使用修改后的概率权重（高等级物品概率稍微提高）
+     final chestProbabilities = <int, double>{
+       0: 30.0,  // 无色物品 - 30% (降低)
+       1: 25.0,  // 白色物品 - 25% (降低)
+       2: 20.0,  // 绿色物品 - 20% (提高)
+       3: 12.0,  // 蓝色物品 - 12% (提高)
+       4: 5.0,   // 紫色物品 - 5% (提高)
+       5: 1.0,   // 橙色物品 - 1% (提高)
+     };
+    
+    // 计算总权重
+    double totalWeight = 0.0;
+    for (final item in chestItems) {
+      totalWeight += chestProbabilities[item.level] ?? 1.0;
+    }
+    
+    if (totalWeight <= 0) return null;
+    
+    // 生成随机数并选择物品
+    final randomValue = _random.nextDouble() * totalWeight;
+    double currentWeight = 0.0;
+    
+    for (final item in chestItems) {
+      currentWeight += chestProbabilities[item.level] ?? 1.0;
+      if (randomValue <= currentWeight) {
+        return item;
+      }
+    }
+    
+    // 后备方案：返回最后一个物品
+    return chestItems.last;
+  }
+
+  /// 为宝箱生成多个随机物品
+  static List<Item> generateChestItems({int minItems = 1, int maxItems = 3}) {
+    final items = <Item>[];
+    final itemCount = minItems + _random.nextInt(maxItems - minItems + 1);
+    
+    for (int i = 0; i < itemCount; i++) {
+      final item = selectRandomChestItem();
+      if (item != null) {
+        items.add(item);
+      }
+    }
+    
+    return items;
   }
 }

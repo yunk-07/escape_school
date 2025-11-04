@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:escape_from_school/game/optimized_game_state.dart';
 import 'package:escape_from_school/data/props.dart';
+import 'package:escape_from_school/game/music.dart';
 
 /// 背包页面组件 - 原布局风格
 class InventoryPage extends ConsumerStatefulWidget {
@@ -270,6 +271,25 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
 
   /// 构建角色属性统计
   Widget _buildCharacterStats(Map<String, dynamic> stats) {
+    // 计算最近鬼距离并映射为接近度因子（0-1）
+    final gameState = ref.watch(optimizedGameStateProvider);
+    final playerGrid = gameState.playerPosition.toPoint();
+    double minGhostDistance = double.infinity;
+    for (final ghost in gameState.ghostManager.ghosts) {
+      if (ghost.position != null && !ghost.isInvisible) {
+        final gp = ghost.position!.toPoint();
+        final dx = (playerGrid.x - gp.x).toDouble();
+        final dy = (playerGrid.y - gp.y).toDouble();
+        final d = math.sqrt(dx * dx + dy * dy);
+        if (d < minGhostDistance) minGhostDistance = d;
+      }
+    }
+    const double dangerRange = 25.0; // 在25格内开始显著影响心跳
+    final double proximityFactor = minGhostDistance.isFinite
+        ? ((dangerRange - minGhostDistance) / dangerRange).clamp(0.0, 1.0)
+        : 0.0;
+    // 背包打开时也根据接近度触发/更新心跳音效
+    MusicManager().updateHeartbeat(proximityFactor);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -298,6 +318,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 height: 50,
                 healthPercentage: _calculateHealthPercentage(stats),
                 stressLevel: _calculateStressLevel(stats),
+                proximityFactor: proximityFactor,
               ),
             ],
           ),
@@ -1129,6 +1150,7 @@ class ECGWidget extends StatefulWidget {
   final double height;
   final double healthPercentage; // 健康百分比 (0.0 - 1.0)
   final double stressLevel; // 压力水平 (0.0 - 1.0)
+  final double proximityFactor; // 鬼接近度 (0.0 - 1.0)
 
   const ECGWidget({
     Key? key,
@@ -1136,6 +1158,7 @@ class ECGWidget extends StatefulWidget {
     this.height = 60,
     required this.healthPercentage,
     required this.stressLevel,
+    this.proximityFactor = 0.0,
   }) : super(key: key);
 
   @override
@@ -1179,7 +1202,8 @@ class _ECGWidgetState extends State<ECGWidget>
   void didUpdateWidget(ECGWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.healthPercentage != widget.healthPercentage ||
-        oldWidget.stressLevel != widget.stressLevel) {
+        oldWidget.stressLevel != widget.stressLevel ||
+        oldWidget.proximityFactor != widget.proximityFactor) {
       _generateECGPoints();
       
       // 更新动画速度
@@ -1191,13 +1215,11 @@ class _ECGWidgetState extends State<ECGWidget>
   }
 
   Duration _getAnimationDuration() {
-    // 健康状态越差，心率越快（动画越快）
-    // 压力越大，心率越不规律
-    final baseSpeed = 2000; // 基础速度（毫秒）
-    final healthFactor = (1.0 - widget.healthPercentage) * 0.5 + 0.5; // 0.5 - 1.0
-    final stressFactor = widget.stressLevel * 0.3 + 0.7; // 0.7 - 1.0
-    
-    final speed = (baseSpeed * healthFactor * stressFactor).round();
+    // 新模式：心率主要由鬼接近度驱动（越近越快）
+    const int baseSpeed = 2000; // ms，远离鬼时的速度
+    const int minSpeed = 800;   // ms，鬼靠近时的最快速度
+    final double p = widget.proximityFactor.clamp(0.0, 1.0);
+    final int speed = (baseSpeed - (baseSpeed - minSpeed) * p).round();
     return Duration(milliseconds: speed);
   }
 
@@ -1221,11 +1243,11 @@ class _ECGWidgetState extends State<ECGWidget>
         point += 0.15 * widget.healthPercentage;
       }
       
-      // 添加压力导致的不规律性
-      if (widget.stressLevel > 0.3) {
-        final noise = (math.Random().nextDouble() - 0.5) * widget.stressLevel * 0.1;
-        point += noise;
-      }
+      // 新模式抖动：以鬼接近度为主，压力为辅
+      final double jitterBase = widget.proximityFactor * 0.15;
+      final double jitterStress = widget.stressLevel * 0.05;
+      final noise = (math.Random().nextDouble() - 0.5) * (jitterBase + jitterStress);
+      point += noise;
       
       // 确保点在合理范围内
       point = point.clamp(0.0, 1.0);
@@ -1234,16 +1256,12 @@ class _ECGWidgetState extends State<ECGWidget>
   }
 
   Color _getECGColor() {
-    // 根据健康状态和压力水平确定颜色
-    if (widget.healthPercentage > 0.7 && widget.stressLevel < 0.3) {
-      return Colors.green; // 健康状态
-    } else if (widget.healthPercentage > 0.4 && widget.stressLevel < 0.6) {
-      return Colors.yellow; // 一般状态
-    } else if (widget.healthPercentage > 0.2) {
-      return Colors.orange; // 警告状态
-    } else {
-      return Colors.red; // 危险状态
-    }
+    // 新模式：颜色主要由鬼接近度决定（越近越偏红）
+    final p = widget.proximityFactor.clamp(0.0, 1.0);
+    if (p < 0.33) return Colors.green;
+    if (p < 0.66) return Colors.yellow;
+    if (p < 0.85) return Colors.orange;
+    return Colors.red;
   }
 
   @override
