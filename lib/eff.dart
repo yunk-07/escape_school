@@ -100,25 +100,23 @@ class _ParticleEffectState extends State<ParticleEffect>
           return Positioned(
             left: particle.position.dx - particle.size / 2,
             top: particle.position.dy - particle.size / 2,
-            child: Opacity(
-              // 修复2: 确保传递的是double类型
-              opacity: opacity,
-              child: Transform.scale(
-                scale: 1 + progress * 3,
-                child: Container(
-                  width: particle.size,
-                  height: particle.size,
-                  decoration: BoxDecoration(
-                    color: particle.color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: particle.color.withOpacity(opacity * 0.7),
-                        blurRadius: blurRadius,
-                        spreadRadius: blurRadius / 2,
-                      ),
-                    ],
-                  ),
+            // Impeller 修复：移除外层 Opacity，改用颜色 alpha 实现淡入淡出
+            // 避免对含阴影/模糊内容应用继承透明度导致报错
+            child: Transform.scale(
+              scale: 1 + progress * 3,
+              child: Container(
+                width: particle.size,
+                height: particle.size,
+                decoration: BoxDecoration(
+                  color: particle.color.withOpacity(opacity),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: particle.color.withOpacity(opacity * 0.7),
+                      blurRadius: blurRadius,
+                      spreadRadius: blurRadius / 2,
+                    ),
+                  ],
                 ),
               ),
             ),

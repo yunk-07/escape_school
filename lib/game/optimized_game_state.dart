@@ -477,6 +477,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _itemSpawnTimer; // 物品刷新定时器
   Timer? _ghostUpdateTimer; // 鬼更新定时器
   Timer? _ghostSpawnTimer; // 鬼生成定时器
+  Timer? _oxygenRecoveryTimer; // 氧气恢复完成回调定时器（关键：需在 dispose 中取消）
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
@@ -1030,9 +1031,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final initialDelay = Duration(seconds: ItemSpawner.getNextSpawnInterval());
     
     print('🎁 物品刷新系统启动 - 首次刷新将在${initialDelay.inSeconds}秒后进行 - 时间: ${DateTime.now()}');
-    
-    Timer(initialDelay, () {
+    // 关键区域：首次定时器作为成员存储，确保在 dispose 时可取消
+    _itemSpawnTimer = Timer(initialDelay, () {
+      // 关键区域：在 Notifier 被销毁后避免继续更新状态
+      if (!mounted) return;
       _trySpawnItem();
+      if (!mounted) return;
       _scheduleNextItemSpawn();
     });
   }
@@ -1043,8 +1047,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     print('⏰ 安排下次物品刷新 - 将在${nextInterval.inSeconds}秒后进行 - 时间: ${DateTime.now()}');
     
+    // 关键区域：递归定时器在回调开始检查 mounted，避免 dispose 后调用
     _itemSpawnTimer = Timer(nextInterval, () {
+      if (!mounted) return;
       _trySpawnItem();
+      if (!mounted) return;
       _scheduleNextItemSpawn(); // 递归安排下次刷新
     });
   }
@@ -1696,7 +1703,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       );
       
       // 启动定时器，一秒后关闭初始无碰撞模式
+      // 关键区域：在定时器回调开始检查 mounted，避免销毁后触发
       Timer(const Duration(seconds: 1), () {
+        if (!mounted) return;
         if (state.isInitialNoClipMode) {
           state = state.copyWith(
             isInitialNoClipMode: false,
@@ -3152,7 +3161,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
     
     // 设置技能执行完成的定时器
+    // 关键区域：在定时器回调开始检查 mounted，避免销毁后触发
     Timer(Duration(seconds: skill.castTimeSeconds), () {
+      if (!mounted) return;
       _completeSkillExecution(skill);
     });
   }
@@ -3503,6 +3514,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _itemSpawnTimer?.cancel();
     _ghostUpdateTimer?.cancel();
     _ghostSpawnTimer?.cancel();
+    _oxygenRecoveryTimer?.cancel(); // 关键区域：取消匿名恢复完成定时器，避免 dispose 后仍更新状态
     super.dispose();
   }
 
@@ -3517,6 +3529,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       targetOxygen: toOxygen,
       duration: const Duration(seconds: 3), // 3秒恢复时间
       onProgress: (currentOxygen) {
+        // 关键区域：在 Notifier 被销毁后避免继续更新状态
+        if (!mounted) return;
         // 更新游戏状态中的当前氧气值
         state = state.copyWith(currentOxygen: currentOxygen);
         // 同步到氧气系统（如果存在）
@@ -3524,8 +3538,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       },
     );
     
-    // 设置恢复完成后的回调
-    Timer(const Duration(seconds: 3), () {
+    // 设置恢复完成后的回调（关键：改为成员定时器并在 dispose 中取消）
+    _oxygenRecoveryTimer?.cancel();
+    _oxygenRecoveryTimer = Timer(const Duration(seconds: 3), () {
+      // 关键区域：在 Notifier 被销毁后避免继续更新状态
+      if (!mounted) return;
       // 恢复完成，确保氧气值达到上限
       state = state.copyWith(currentOxygen: toOxygen);
       _oxygenSystem?.setCurrentOxygen(toOxygen);

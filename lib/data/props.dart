@@ -113,6 +113,30 @@ final List<Item> allItems = [
     usageTime: 6000, // 6秒使用时间
   ),
   Item(
+    id: 'energy_bar2',
+    name: '能量棒',
+    image: 'images/items/hpbang.png',
+    description: '高能量营养棒，能够快速恢复体力和精神状态',
+    effects: {'san': 10, 'hp': 20, 'food': 10},
+    type: 'potion',
+    level: 4,
+    availableInShop: true,
+    basePrice: 20,
+    usageTime: 6000, // 6秒使用时间
+  ),
+  Item(
+    id: 'energy_bar3',
+    name: '能量棒',
+    image: 'images/items/fobang.png',
+    description: '高能量营养棒，能够快速恢复体力和精神状态',
+    effects: {'san': 10, 'hp': 2, 'food': 40},
+    type: 'potion',
+    level: 4,
+    availableInShop: true,
+    basePrice: 20,
+    usageTime: 6000, // 6秒使用时间
+  ),
+  Item(
     id: 'corn',
     name: '玉米',
     image: 'images/items/corn.png',
@@ -159,5 +183,17 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 9,
     usageTime: 3000, // 3秒使用时间
+  ),
+  Item(
+    id: 'allbang',
+    name: '奇怪的粉末',
+    image: 'images/items/allbang.png',
+    description: '吃了会有什么效果？',
+    effects: {'san': 40, 'food': 1,'hp':-1,'moveSpeed':-1,'oxygenBonus':-1},
+    type: 'potion',
+    level: 4,
+    availableInShop: false,
+    basePrice: 1,
+    usageTime: 500, // 0.5秒使用时间
   ),
 ];

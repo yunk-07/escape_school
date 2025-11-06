@@ -295,9 +295,23 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                     offset: Offset(0, _buttonSlideAnimation.value),
                                     child: Transform.scale(
                                       scale: _buttonScaleAnimation.value,
-                                      child: Opacity(
-                                        opacity: _buttonFadeAnimation.value,
-                                        child: _buildStartButton(isLandscape),
+                                      // Impeller 修复：避免使用 Opacity 包裹（按钮包含渐变与阴影），
+                                      // 采用叠加遮罩实现淡入，规避继承透明度传播导致的报错。
+                                      child: Stack(
+                                        children: [
+                                          _buildStartButton(isLandscape),
+                                          Positioned.fill(
+                                            child: IgnorePointer(
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  // 与按钮圆角保持一致，避免遮罩外溢
+                                                  borderRadius: BorderRadius.circular(15),
+                                                  color: Colors.black.withOpacity(1.0 - _buttonFadeAnimation.value),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   );

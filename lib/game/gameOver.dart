@@ -223,63 +223,77 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                 child: AnimatedBuilder(
                   animation: Listenable.merge([_fadeAnimation, _scaleAnimation, _glitchAnimation]),
                   builder: (context, child) {
-                  return Opacity(
-                    opacity: _fadeAnimation.value,
-                    child: Transform.scale(
+                    // Impeller 修复：避免使用 Opacity 包裹含 ShaderMask/ColorFiltered 内容，
+                    // 改为叠加黑色遮罩实现淡入，规避 Contents::SetInheritedOpacity 报错。
+                    return Transform.scale(
                       scale: _scaleAnimation.value,
-                      child: Container(
-                        width: double.infinity,
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.9,
-                          minHeight: MediaQuery.of(context).size.height * 0.6,
-                        ),
-                        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.05),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade900.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.red.withOpacity(0.6),
-                            width: 2,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.9,
+                              minHeight: MediaQuery.of(context).size.height * 0.6,
+                            ),
+                            padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.05),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade900.withOpacity(0.95),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.6),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.red.withOpacity(0.3),
+                                  blurRadius: 20,
+                                  spreadRadius: 2,
+                                ),
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.8),
+                                  blurRadius: 15,
+                                  spreadRadius: 5,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 角色头像区域
+                                _buildCharacterSection(),
+                                
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                                
+                                // 游戏结束标题
+                                _buildGameOverTitle(),
+                                
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.015),
+                                
+                                // 死亡原因
+                                _buildDeathReason(),
+                                
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.025),
+                                
+                                // 按钮区域
+                                _buildButtonSection(),
+                              ],
+                            ),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.red.withOpacity(0.3),
-                              blurRadius: 20,
-                              spreadRadius: 2,
+                          // 关键区域：遮罩淡入层，随 _fadeAnimation 从黑到透明
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  color: Colors.black.withOpacity(1.0 - _fadeAnimation.value),
+                                ),
+                              ),
                             ),
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.8),
-                              blurRadius: 15,
-                              spreadRadius: 5,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // 角色头像区域
-                            _buildCharacterSection(),
-                            
-                            SizedBox(height: MediaQuery.of(context).size.height * 0.02),
-                            
-                            // 游戏结束标题
-                            _buildGameOverTitle(),
-                            
-                            SizedBox(height: MediaQuery.of(context).size.height * 0.015),
-                            
-                            // 死亡原因
-                            _buildDeathReason(),
-                            
-                            SizedBox(height: MediaQuery.of(context).size.height * 0.025),
-                            
-                            // 按钮区域
-                            _buildButtonSection(),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ),
-                  );
+                    );
                   },
                 ),
               ),
@@ -607,46 +621,101 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   // 构建玩家死前数据区域
   Widget _buildPlayerDataSection() {
     final gameState = ref.watch(optimizedGameStateProvider);
-    // 使用死亡时的数据快照，如果没有则使用当前数据
-    final stats = gameState.deathTimeStats ?? gameState.characterStats;
+    // 关键区域：优先使用死亡快照；若缺失则回退当前状态，所有数值安全格式化
+    final snapshot = gameState.deathTimeStats;
+    final live = gameState.characterStats;
+    final stats = snapshot ?? live;
+
+    // 安全提取与格式化，保留原先展示方式
+    int _toInt(dynamic v, int d) => (v is num ? v.toInt() : d);
+    final hp = _toInt(stats['hp'], _toInt(live['hp'], 0));
+    final maxHp = _toInt(stats['maxHp'], _toInt(live['maxHp'], 100));
+    final food = _toInt(stats['food'], _toInt(live['food'], 0));
+    final san = _toInt(stats['san'], _toInt(live['san'], 0));
+    final maxSan = _toInt(stats['maxSan'], _toInt(live['maxSan'], 250));
+    final moveSpeed = _toInt(stats['moveSpeed'], _toInt(live['moveSpeed'], 100));
+    final gold = _toInt(stats['gold'], _toInt(live['gold'], 0));
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDataRow('生命值', '${stats['hp']}/${stats['maxHp']}'),
-        _buildDataRow('饱食度', '${stats['food']}'),
-        _buildDataRow('精神值', '${stats['san']}/${stats['maxSan']}'),
-        _buildDataRow('移动速度', '${stats['moveSpeed']}'),
-        _buildDataRow('金币', '${stats['gold']}'),
-      ],
+    // 关键区域：玩家数据采用统一面板样式，优化间距与可读性
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade400.withOpacity(0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '玩家数据',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildDataRow('生命值', '$hp/$maxHp'),
+          _buildDataRow('饱食度', '$food'),
+          _buildDataRow('精神值', '$san/$maxSan'),
+          _buildDataRow('移动速度', '$moveSpeed'),
+          _buildDataRow('金币', '$gold'),
+        ],
+      ),
     );
   }
 
   // 构建背包物品区域
   Widget _buildInventorySection() {
     final gameState = ref.watch(optimizedGameStateProvider);
-    // 使用死亡时的背包快照，如果没有则使用当前背包
+    // 关键区域：优先使用死亡快照；若缺失则回退当前背包，保留原先展示方式
     final inventory = gameState.deathTimeInventory ?? gameState.playerInventory;
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (inventory.isEmpty)
+    // 关键区域：背包区域采用统一面板样式，并限制高度避免溢出，支持滚动
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.shade400.withOpacity(0.25), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Text(
-            '背包为空',
+            '背包剩余物品',
             style: TextStyle(
-              color: Colors.red,
+              color: Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: inventory.map((item) => _buildInventoryItem(item)).toList(),
           ),
-      ],
+          const SizedBox(height: 8),
+          if (inventory.isEmpty)
+            const Text(
+              '背包为空',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: inventory.map((item) => _buildInventoryItem(item)).toList(),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -695,26 +764,47 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
 
   // 构建背包物品
   Widget _buildInventoryItem(Item item) {
+    // 关键区域：背包物品底色按 level 渲染，并添加图片容错以保证展示
     return Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: Colors.grey.shade800,
+        color: _getItemLevelColor(item.level).withOpacity(0.6),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: _getItemBorderColor(item.type),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: _getItemLevelColor(item.level).withOpacity(0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Stack(
         children: [
           Center(
-            child: Image.asset(
-              item.image,
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-            ),
+            child: item.image.isNotEmpty
+                ? Image.asset(
+                    item.image,
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        _getItemTypeIcon(item.type),
+                        color: Colors.white,
+                        size: 18,
+                      );
+                    },
+                  )
+                : Icon(
+                    _getItemTypeIcon(item.type),
+                    color: Colors.white,
+                    size: 18,
+                  ),
           ),
           if (item.count > 1)
             Positioned(
@@ -725,6 +815,10 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.7),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _getItemLevelColor(item.level),
+                    width: 0.5,
+                  ),
                 ),
                 child: Text(
                   '${item.count}',
@@ -779,6 +873,44 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
         return Colors.red.withOpacity(0.6);
       default:
         return Colors.grey.withOpacity(0.6);
+    }
+  }
+
+  // 关键区域：按物品等级返回底色（与背包页面一致）
+  Color _getItemLevelColor(int level) {
+    switch (level) {
+      case 1:
+        return Colors.grey.shade600; // 无色
+      case 2:
+        return Colors.green.shade400; // 绿色
+      case 3:
+        return Colors.blue.shade400; // 蓝色
+      case 4:
+        return Colors.purple.shade400; // 紫色
+      case 5:
+        return Colors.amber.shade400; // 金色
+      case 6:
+        return Colors.orange.shade400; // 橙色
+      case 7:
+        return Colors.red.shade400; // 红色
+      default:
+        return Colors.grey.shade600; // 默认无色
+    }
+  }
+
+  // 关键区域：图片容错时按类型显示图标
+  IconData _getItemTypeIcon(String type) {
+    switch (type) {
+      case 'potion':
+        return Icons.local_pharmacy;
+      case 'food':
+        return Icons.restaurant;
+      case 'tool':
+        return Icons.build;
+      case 'weapon':
+        return Icons.security;
+      default:
+        return Icons.inventory_2;
     }
   }
   

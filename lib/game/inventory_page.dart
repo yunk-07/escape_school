@@ -3,10 +3,13 @@
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show Ticker, TickerProviderStateMixin;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:escape_from_school/game/optimized_game_state.dart';
+import 'package:escape_from_school/game/time.dart'; // 关键区域：引入游戏时间格式化工具，用于显示当前游戏时间
 import 'package:escape_from_school/data/props.dart';
 import 'package:escape_from_school/game/music.dart';
+import 'package:escape_from_school/game/ui_theme.dart' as ui_theme; // 关键区域：引入统一UI主题用于属性进度条渐变
 
 /// 背包页面组件 - 原布局风格
 class InventoryPage extends ConsumerStatefulWidget {
@@ -16,9 +19,31 @@ class InventoryPage extends ConsumerStatefulWidget {
   ConsumerState<InventoryPage> createState() => _InventoryPageState();
 }
 
-class _InventoryPageState extends ConsumerState<InventoryPage> {
+class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProviderStateMixin {
   // 拖拽状态管理
   bool _isDragging = false;
+  // 关键区域：心电图相位控制（与外部样式一致，通过 Ticker 驱动）
+  Ticker? _ecgTicker;
+  double _ecgPhase = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    // 关键区域：启动 Ticker，以 60fps 左右更新相位，从而驱动心电图动画
+    _ecgTicker = createTicker((elapsed) {
+      setState(() {
+        _ecgPhase = elapsed.inMilliseconds / 1000.0; // 将毫秒换算为秒级相位
+      });
+    });
+    _ecgTicker!.start();
+  }
+
+  @override
+  void dispose() {
+    // 关键区域：释放 Ticker，防止资源泄漏
+    _ecgTicker?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +78,27 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 spreadRadius: 3,
                 offset: const Offset(0, 5),
               ),
+              // 关键区域：增加柔光外阴影，提升整体厚重感
+              BoxShadow(
+                color: Colors.blue.shade200.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 0),
+              ),
             ],
+          ),
+          // 关键区域：增加前景高光渐变，模拟上左高光与下右微光，增强立体感
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.08),
+                Colors.transparent,
+                Colors.white.withOpacity(0.03),
+              ],
+              stops: const [0.0, 0.55, 1.0],
+            ),
           ),
           child: Column(
             children: [
@@ -98,8 +143,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.blue.shade800,
-            Colors.blue.shade700,
+            Colors.blueGrey.shade800,
+            Colors.blueGrey.shade700,
           ],
         ),
         borderRadius: const BorderRadius.only(
@@ -114,6 +159,23 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           ),
         ],
       ),
+      // 关键区域：标题栏前景高光，增强整体质感
+      foregroundDecoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(8),
+          topRight: Radius.circular(8),
+        ),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.06),
+            Colors.transparent,
+            Colors.white.withOpacity(0.03),
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ),
+      ),
       child: Row(
         children: [
           // 左侧：健康模块 (对应下方角色信息面板 flex: 2)
@@ -123,9 +185,16 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.green.shade700.withOpacity(0.28),
+                    Colors.green.shade800.withOpacity(0.32),
+                  ],
+                ),
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.green.withOpacity(0.4), width: 1),
+                border: Border.all(color: Colors.greenAccent.withOpacity(0.35), width: 1),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -164,19 +233,27 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.amber.withOpacity(0.4), width: 1),
+                      // 关键区域：背包标题去除黄色，采用青蓝胶囊标签风格
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.cyan.shade700.withOpacity(0.28),
+                          Colors.cyan.shade800.withOpacity(0.32),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.cyanAccent.withOpacity(0.35), width: 1),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.inventory_2, color: Colors.amber.shade300, size: 16),
+                        Icon(Icons.inventory_2, color: Colors.cyanAccent, size: 16),
                         const SizedBox(width: 6),
                         Text(
                           '背包',
                           style: TextStyle(
-                            color: Colors.amber.shade100,
+                            color: Colors.cyanAccent.withOpacity(0.9),
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
@@ -191,6 +268,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 // 退出按钮
                 Container(
                   decoration: BoxDecoration(
+                    // 关键区域：退出按钮美化为胶囊风格，微霓虹边与柔光
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -199,26 +277,33 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                         Colors.red.shade700,
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.red.shade400.withOpacity(0.6), width: 1),
+                    // 关键区域：调整退出按钮圆角为更小值
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.redAccent.withOpacity(0.55), width: 1),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
-                        blurRadius: 4,
+                        color: Colors.red.withOpacity(0.25),
+                        blurRadius: 6,
                         offset: const Offset(0, 2),
+                      ),
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.06),
+                        blurRadius: 6,
+                        offset: const Offset(0, -1),
                       ),
                     ],
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(4),
+                      // 关键区域：与外层容器一致，圆角改小
+                      borderRadius: BorderRadius.circular(6),
                       onTap: () {
                         final notifier = ref.read(optimizedGameStateProvider.notifier);
                         notifier.toggleInventory();
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -301,51 +386,162 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 属性详情标题和心电图
+          // 关键区域：将“属性详情”替换为当前游戏时间，并统一心电图样式为外部风格
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                '属性详情',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              // 关键区域：美化游戏时间显示为胶囊标签（图标 + 渐变 + 边框）
+              // 关键区域：固定时间标签宽度，避免文本变长时挤压右侧心电图
+              Container(
+                width: 120, // 固定宽度，大小始终不变
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.blueGrey.shade900.withOpacity(0.55),
+                      Colors.blueGrey.shade800.withOpacity(0.55),
+                    ],
+                  ),
+                  border: Border.all(color: Colors.cyanAccent.withOpacity(0.25), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.cyanAccent.withOpacity(0.10),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.cyanAccent, size: 14),
+                    const SizedBox(width: 6),
+                    // 关键区域：限制时间文本不换行，超出以省略号处理，保证尺寸不变
+                    Expanded(
+                      child: Text(
+                        GameTime.formatGameTime(
+                          DateTime.now().difference(gameState.gameStartTime).inMilliseconds,
+                        ),
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              // 动态心电图组件
-              ECGWidget(
-                width: 100,
-                height: 50,
-                healthPercentage: _calculateHealthPercentage(stats),
-                stressLevel: _calculateStressLevel(stats),
-                proximityFactor: proximityFactor,
-              ),
+              // 右侧：统一外部心电图样式（科技感网格 + ECG 标签）
+              _buildInventoryECG(stats, gameState, proximityFactor),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8), // 关键区域：缩小整体间距
           
-          // 生命值 - 显示小数点后两位
-          _buildStatRow('生命值', '${_formatToTwoDigits(stats['hp'])}/${_formatToTwoDigits(stats['maxHp'])}', 
-                       Icons.favorite, Colors.red),
-          
-          // 理智值 - 显示小数点后两位
-          _buildStatRow('理智值', '${_formatToTwoDigits(stats['san'])}/${_formatToTwoDigits(stats['maxSan'])}', 
-                       Icons.psychology, Colors.blue),
-          
-          // 饱食度 - 显示小数点后两位
-          _buildStatRow('饱食度', '${_formatToTwoDigits(stats['food'])}', 
-                       Icons.restaurant, Colors.green),
-          
-          // 肺活量（氧气值）
+          // 关键区域：生命值进度条
+          _buildStatWithBar(
+            '生命值',
+            ((stats['hp'] ?? 0) as num).toDouble(),
+            ((stats['maxHp'] ?? 0) as num).toDouble(),
+            Icons.favorite,
+            Colors.red,
+          ),
+
+          // 关键区域：理智值进度条
+          _buildStatWithBar(
+            '理智值',
+            ((stats['san'] ?? 0) as num).toDouble(),
+            ((stats['maxSan'] ?? 250) as num).toDouble(),
+            Icons.psychology,
+            Colors.blue,
+          ),
+
+          // 关键区域：饱食度进度条（0~100）
+          _buildStatWithBar(
+            '饱食度',
+            ((stats['food'] ?? 0) as num).toDouble(),
+            100.0,
+            Icons.restaurant,
+            Colors.green,
+          ),
+
+          // 关键区域：肺活量（氧气值）进度条
           _buildOxygenStatRow(),
           
           // 金币 - 显示小数点后两位
           _buildStatRow('金币', '${_formatToTwoDigits(stats['gold'])}', 
                        Icons.monetization_on, Colors.yellow),
-          
-          // 移动速度 - 显示小数点后两位
-          _buildStatRow('移动速度', '${_formatToTwoDigits(stats['moveSpeed']?.toInt() ?? 100)}', 
-                       Icons.directions_run, Colors.orange),
+
+          // 关键区域：移动速度显示（原始速度删除线灰色 + 当前被削弱速度）
+          _buildMoveSpeedRow(stats),
+        ],
+      ),
+    );
+  }
+
+  /// 关键区域：通用属性行（带进度条）
+  /// 美化策略：
+  /// - 顶部为图标+标签+数值，底部为统一主题的渐变进度条
+  /// - 使用 UITheme.progressBackground / progressFill 渐变，风格与全局一致
+  Widget _buildStatWithBar(String label, double current, double max, IconData icon, Color color) {
+    final double safeMax = max <= 0 ? 1.0 : max;
+    final double ratio = (current / safeMax).clamp(0.0, 1.0);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4), // 关键区域：缩小垂直间距
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16), // 关键区域：缩小图标
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14, // 关键区域：缩小标签文字
+                  ),
+                ),
+              ),
+              Text(
+                '${_formatToTwoDigits(current)}/${_formatToTwoDigits(max)}',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14, // 关键区域：缩小数值文字
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // 关键区域：统一主题进度条
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Container(
+              height: 6, // 关键区域：缩小进度条厚度
+              decoration: BoxDecoration(
+                gradient: ui_theme.UITheme.progressBackground(),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: ratio,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: ui_theme.UITheme.progressFill(color),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -354,17 +550,17 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
   /// 构建单个属性行
   Widget _buildStatRow(String label, String value, IconData icon, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 4), // 关键区域：缩小垂直间距
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 10),
+          Icon(icon, color: color, size: 16), // 关键区域：缩小图标
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
               style: const TextStyle(
                 color: Colors.white70,
-                fontSize: 16,
+                fontSize: 14, // 关键区域：缩小标签文字
               ),
             ),
           ),
@@ -372,9 +568,69 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             value,
             style: TextStyle(
               color: color,
-              fontSize: 16,
+              fontSize: 14, // 关键区域：缩小数值文字
               fontWeight: FontWeight.bold,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 关键区域：构建“移动速度”专用行（展示原始与当前）
+  Widget _buildMoveSpeedRow(Map<String, dynamic> stats) {
+    final gameState = ref.watch(optimizedGameStateProvider);
+    // 基础速度（角色面板中的原值）
+    final double baseSpeed = ((stats['moveSpeed'] ?? 100) as num).toDouble();
+    // 水中降低10%
+    final bool isUnderwater = gameState.oxygenSystem?.isUnderwater == true;
+    double currentSpeed = isUnderwater ? baseSpeed * 0.9 : baseSpeed;
+    // 饱食度低于50%线性降低到50%
+    final double food = ((stats['food'] ?? 0) as num).toDouble();
+    const double maxFood = 100.0;
+    final double foodPct = (food / maxFood).clamp(0.0, 1.0);
+    if (foodPct < 0.5) {
+      final double hungerSpeedMultiplier = 0.5 + foodPct; // 0.5~1.0
+      currentSpeed *= hungerSpeedMultiplier;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4), // 关键区域：缩小垂直间距
+      child: Row(
+        children: [
+          const Icon(Icons.directions_run, color: Colors.orange, size: 16),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              '移动速度',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          // 原始速度（删除线灰色） + 当前速度（高亮）
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _formatToTwoDigits(baseSpeed),
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12, // 关键区域：缩小基础速度文字
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _formatToTwoDigits(currentSpeed),
+                style: const TextStyle(
+                  color: Colors.orange,
+                  fontSize: 14, // 关键区域：缩小当前速度文字
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -386,18 +642,105 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     return Consumer(
       builder: (context, WidgetRef ref, child) {
         final gameState = ref.watch(optimizedGameStateProvider);
-        final currentOxygen = gameState.currentOxygen;
         final maxOxygen = gameState.actualMaxOxygen;
-        
+        // 关键区域：根据需求调整为仅显示上限，不再显示当前值或进度条
+        // 说明：用户要求“肺活量仅显示上限”，因此这里改为使用纯文本行展示最大肺活量。
         return _buildStatRow(
-          '肺活量', 
-          '${_formatToTwoDigits(maxOxygen)}',
+          '肺活量',
+          _formatToTwoDigits(maxOxygen),
           Icons.air,
           Colors.cyan,
         );
       },
     );
   }
+
+  /// 关键区域：背包页心电图，统一外部样式（科技感网格与ECG标签），避免循环依赖，复刻绘制器
+  Widget _buildInventoryECG(Map<String, dynamic> stats, OptimizedGameState gameState, double proximityFactor) {
+    // 参数计算与外部一致
+    final double currentSan = (stats['san'] ?? 0).toDouble().clamp(0, 250);
+    final double hp = (stats['hp'] ?? 0).toDouble();
+    final double maxHp = (stats['maxHp'] ?? 100).toDouble();
+    final double hpRatio = maxHp > 0 ? (hp / maxHp).clamp(0.0, 1.0) : 0.0;
+    final double o2Ratio = (gameState.actualMaxOxygen > 0)
+        ? (gameState.currentOxygen / gameState.actualMaxOxygen).clamp(0.0, 1.0)
+        : 1.0;
+    final double moveSpeed = ((stats['moveSpeed'] ?? 1.0) as num).toDouble();
+    final double moveFactor = ((moveSpeed - 1.0) / 2.0).clamp(0.0, 1.0);
+    final double castingFactor = gameState.currentCastingSkillId != null ? 1.0 : 0.0;
+    final double damagePulse = (gameState.shouldShowDamageEffect == true)
+        ? (gameState.lastDamageAmount.clamp(0.0, 50.0) / 50.0).clamp(0.2, 1.0)
+        : 0.0;
+    final bool isInWater = gameState.isInWater;
+
+    return Container(
+      width: 120, // 关键区域：缩小心电图宽度
+      height: 54, // 关键区域：缩小心电图高度
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.black.withOpacity(0.88),
+            Colors.grey.shade900.withOpacity(0.92),
+          ],
+        ),
+        border: Border.all(color: Colors.cyanAccent.withOpacity(0.35), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.cyanAccent.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 0),
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 10,
+            offset: const Offset(2, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: InventorySanityECGPainter(
+                phase: _ecgPhase,
+                san: currentSan,
+                hpRatio: hpRatio,
+                oxygenRatio: o2Ratio,
+                moveFactor: moveFactor,
+                castingFactor: castingFactor,
+                damagePulse: damagePulse,
+                isInWater: isInWater,
+                proximityFactor: proximityFactor,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 6,
+            right: 8,
+            child: Row(
+              children: [
+                Icon(Icons.show_chart, color: Colors.cyanAccent, size: 12), // 关键区域：缩小标签图标
+                const SizedBox(width: 4),
+                Text(
+                  'ECG',
+                  style: TextStyle(
+                    color: Colors.cyanAccent.withOpacity(0.8),
+                    fontSize: 10, // 关键区域：缩小标签文字
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   /// 构建背包物品面板
   Widget _buildInventoryPanel(OptimizedGameState gameState, WidgetRef ref) {
@@ -406,14 +749,58 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 背包物品网格
+          // 背包物品网格（卡片容器包裹，增强立体与层次）
           Expanded(
             flex: 4,
-            child: _buildInventoryGrid(gameState, ref),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.blueGrey.shade900.withOpacity(0.85),
+                    Colors.black.withOpacity(0.80),
+                  ],
+                ),
+                boxShadow: const [
+                  // 关键区域：下方加深阴影，上方微亮，形成厚度感
+                  BoxShadow(
+                    color: Color(0xAA000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 10,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              // 关键区域：取消大黄框（移除琥珀色边框），保留高光与阴影增强立体感
+              // 关键区域：前景高光网格，增强质感
+              foregroundDecoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.06),
+                    Colors.transparent,
+                    Colors.white.withOpacity(0.02),
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: _buildInventoryGrid(gameState, ref),
+              ),
+            ),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // 垃圾桶拖拽区域 - 只在拖拽时显示
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
@@ -509,16 +896,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         
         return Container(
           decoration: isHovering ? BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: Colors.yellow.withOpacity(0.8),
-              width: 2,
+              // 关键区域：移除黄色高亮，改为按物品等级着色的微霓虹边
+              color: _getItemLevelColor(item.level).withOpacity(0.85),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.yellow.withOpacity(0.3),
-                blurRadius: 6,
+                color: _getItemLevelColor(item.level).withOpacity(0.25),
+                blurRadius: 8,
                 offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.06),
+                blurRadius: 6,
+                offset: const Offset(0, -1),
               ),
             ],
           ) : null,
@@ -545,19 +938,47 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 width: 40, // 缩小拖拽反馈尺寸适应10列布局
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _getItemLevelColor(item.level).withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(4),
+                  // 关键区域：拖拽反馈渐变与阴影，提升立体质感
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _getItemLevelColor(item.level).withOpacity(0.35),
+                      Colors.black.withOpacity(0.25),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: _getItemLevelColor(item.level),
-                    width: 2,
+                    color: _getItemLevelColor(item.level).withOpacity(0.9),
+                    width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _getItemLevelColor(item.level).withOpacity(0.5),
-                      blurRadius: 8,
+                      color: _getItemLevelColor(item.level).withOpacity(0.4),
+                      blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
+                    // 关键区域：顶部微光，模拟高光边缘
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, -1),
+                    ),
                   ],
+                ),
+                // 关键区域：前景高光叠加，增强质感
+                foregroundDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.09),
+                      Colors.transparent,
+                      Colors.white.withOpacity(0.03),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
                 ),
                 child: Stack(
                   children: [
@@ -635,19 +1056,47 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 children: [
                   Container(
                     decoration: BoxDecoration(
-                      color: _getItemLevelColor(item.level).withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(4),
+                      // 关键区域：统一物品格子视觉风格，使用柔和渐变与阴影
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          _getItemLevelColor(item.level).withOpacity(0.28),
+                          Colors.black.withOpacity(0.18),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: _getItemLevelColor(item.level),
+                        color: _getItemLevelColor(item.level).withOpacity(0.85),
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: _getItemLevelColor(item.level).withOpacity(0.3),
-                          blurRadius: 4,
+                          color: _getItemLevelColor(item.level).withOpacity(0.25),
+                          blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
+                        // 关键区域：顶部内阴影，增强凹凸层次
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.05),
+                          blurRadius: 6,
+                          offset: const Offset(0, -1),
+                        ),
                       ],
+                    ),
+                    // 关键区域：前景高光叠加
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withOpacity(0.08),
+                          Colors.transparent,
+                          Colors.white.withOpacity(0.03),
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      ),
                     ),
                     child: Stack(
                       children: [
@@ -716,6 +1165,14 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                             color: _getItemLevelColor(item.level),
                             width: 0.5,
                           ),
+                          boxShadow: [
+                            // 关键区域：数量徽标增加微光阴影，与等级色系保持一致
+                            BoxShadow(
+                              color: _getItemLevelColor(item.level).withOpacity(0.35),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Text(
                           '${item.count}',
@@ -753,18 +1210,51 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         
         return Container(
           decoration: BoxDecoration(
-            color: isHovering 
-                ? Colors.blue.withOpacity(0.3)
-                : Colors.black.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(4),
+            // 关键区域：空格子采用柔和渐变与微光边框，提升整体一致性
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                (isHovering ? Colors.blue : Colors.grey).withOpacity(0.18),
+                Colors.black.withOpacity(0.12),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: isHovering 
-                  ? Colors.blue.withOpacity(0.6)
-                  : Colors.grey.withOpacity(0.3),
-              width: isHovering ? 2 : 1,
+              color: (isHovering ? Colors.blue : Colors.grey).withOpacity(0.5),
+              width: isHovering ? 1.5 : 1,
+            ),
+            boxShadow: isHovering
+                ? [
+                    // 关键区域：悬停时增加柔光阴影，突出层次
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.20),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          // 关键区域：前景高光叠加，非悬停时更柔和
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(isHovering ? 0.10 : 0.06),
+                Colors.transparent,
+                Colors.white.withOpacity(isHovering ? 0.04 : 0.02),
+              ],
+              stops: const [0.0, 0.55, 1.0],
             ),
           ),
-          // 简洁风格，不显示任何图标
         );
       },
     );
@@ -776,21 +1266,63 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.grey.shade900,
+          // 关键区域：统一弹窗配色与圆角，强化质感与层次
+          backgroundColor: Colors.blueGrey.shade900.withOpacity(0.92),
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          // 关键区域：全体缩小 —— 标题/内容/按钮区内边距整体减小
+          titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.45), width: 1),
           ),
           title: Row(
             children: [
               // 物品图片
               Container(
-                width: 40,
-                height: 40,
+                // 关键区域：全体缩小 —— 缩略图尺寸
+                width: 32,
+                height: 32,
+                // 物品缩略图容器采用渐变与边框阴影，提升视觉质感
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _getItemTypeColor(item.type).withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _getItemTypeColor(item.type).withOpacity(0.25),
+                      Colors.black.withOpacity(0.25),
+                    ],
+                  ),
+                  border: Border.all(color: _getItemTypeColor(item.type).withOpacity(0.45), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getItemTypeColor(item.type).withOpacity(0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, -1),
+                    ),
+                  ],
+                ),
+                foregroundDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.12),
+                      Colors.transparent,
+                      Colors.white.withOpacity(0.04),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
                 ),
                 child: item.image.isNotEmpty
                     ? Image.asset(
@@ -800,14 +1332,16 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                           return Icon(
                             _getItemTypeIcon(item.type),
                             color: _getItemTypeColor(item.type),
-                            size: 24,
+                            // 关键区域：全体缩小 —— 回退图标尺寸
+                            size: 20,
                           );
                         },
                       )
                     : Icon(
                         _getItemTypeIcon(item.type),
                         color: _getItemTypeColor(item.type),
-                        size: 24,
+                        // 关键区域：全体缩小 —— 回退图标尺寸
+                        size: 20,
                       ),
               ),
               const SizedBox(width: 12),
@@ -819,15 +1353,18 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                       item.name,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        // 关键区域：全体缩小 —— 标题文字尺寸
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
                       ),
                     ),
                     Text(
                       '数量: $quantity',
                       style: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 12,
+                        color: Colors.cyanAccent.withOpacity(0.75),
+                        // 关键区域：全体缩小 —— 副标题文字尺寸
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -839,90 +1376,134 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 关键区域：标题与内容之间的微分隔线
+              Container(
+                height: 1,
+                margin: const EdgeInsets.only(bottom: 12),
+                color: Colors.white.withOpacity(0.06),
+              ),
               // 物品描述
-              Text(
-                item.description,
-                style: TextStyle(
-                  color: Colors.grey.shade300,
-                  fontSize: 14,
+              Container(
+                // 关键区域：全体缩小 —— 描述块内边距减小
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.05),
+                      Colors.white.withOpacity(0.02),
+                    ],
+                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+                ),
+                child: Text(
+                  item.description,
+                  style: TextStyle(
+                    color: Colors.grey.shade300,
+                    // 关键区域：全体缩小 —— 描述文字尺寸
+                    fontSize: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // 物品效果
+
+              // 关键区域：移除“使用效果”标题文本；效果列表支持滚动查看
               if (item.effects.isNotEmpty) ...[
-                const Text(
-                  '使用效果:',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 160), // 效果过多时滚动，大小保持不变
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: item.effects.entries.map((effect) {
+                        final effectName = _getEffectName(effect.key);
+                        final effectValue = effect.value;
+                        final isPositive = effectValue > 0;
+
+                        return Container(
+                          // 关键区域：全体缩小 —— 效果条内边距与间距减小
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                          margin: const EdgeInsets.symmetric(vertical: 2),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: (isPositive ? Colors.green : Colors.red).withOpacity(0.35),
+                              width: 1,
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                (isPositive ? Colors.green : Colors.red).withOpacity(0.10),
+                                Colors.black.withOpacity(0.10),
+                              ],
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _getEffectIcon(effect.key),
+                                color: isPositive ? Colors.green : Colors.red,
+                                // 关键区域：全体缩小 —— 效果图标尺寸
+                                size: 14,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '$effectName: ${isPositive ? '+' : ''}$effectValue',
+                                style: TextStyle(
+                                  color: isPositive ? Colors.green : Colors.red,
+                                  // 关键区域：全体缩小 —— 效果文字尺寸
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                ...item.effects.entries.map((effect) {
-                  final effectName = _getEffectName(effect.key);
-                  final effectValue = effect.value;
-                  final isPositive = effectValue > 0;
-                  
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getEffectIcon(effect.key),
-                          color: isPositive ? Colors.green : Colors.red,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$effectName: ${isPositive ? '+' : ''}$effectValue',
-                          style: TextStyle(
-                            color: isPositive ? Colors.green : Colors.red,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
               ],
             ],
           ),
           actions: [
+            // 关键区域：按钮样式统一为圆角与边框，保持一致风格
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                '取消',
-                style: TextStyle(color: Colors.grey.shade400),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey.shade300,
+                // 关键区域：全体缩小 —— 按钮内边距减小
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade600.withOpacity(0.5))),
               ),
+              child: const Text('取消'),
             ),
-            ElevatedButton(
+            TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 _dropItem(item, ref);
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
+              style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                backgroundColor: Colors.red.shade600,
+                // 关键区域：全体缩小 —— 按钮内边距减小
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.redAccent.withOpacity(0.55))),
               ),
               child: const Text('丢弃'),
             ),
-            ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _useItem(item, ref);
-                },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _getItemTypeColor(item.type),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _useItem(item, ref);
+              },
+              style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                backgroundColor: _getItemTypeColor(item.type),
+                // 关键区域：全体缩小 —— 按钮内边距减小
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.55))),
               ),
               child: const Text('使用'),
             ),
@@ -1380,5 +1961,154 @@ class ECGPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return true;
+  }
+}
+
+// 新文件段落说明：顶层心电图绘制器（背包页用）
+// 作用：统一背包内心电图样式与外部 SanityECGPainter 一致，避免循环导入。
+class InventorySanityECGPainter extends CustomPainter {
+  final double phase;
+  final double san; // 0-250
+  final double hpRatio; // 0-1
+  final double oxygenRatio; // 0-1
+  final double moveFactor; // 0-1
+  final double castingFactor; // 0-1
+  final double damagePulse; // 0-1
+  final bool isInWater;
+  final double proximityFactor; // 0-1
+
+  InventorySanityECGPainter({
+    required this.phase,
+    required this.san,
+    required this.hpRatio,
+    required this.oxygenRatio,
+    required this.moveFactor,
+    required this.castingFactor,
+    required this.damagePulse,
+    required this.isInWater,
+    required this.proximityFactor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()
+      ..color = Colors.transparent
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    // 科技感网格线
+    final gridPaint = Paint()
+      ..color = Colors.cyanAccent.withOpacity(0.18)
+      ..strokeWidth = 0.7;
+    for (double x = 0; x < size.width; x += 14) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (double y = 0; y < size.height; y += 12) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    // 中心轴线
+    final axisPaint = Paint()
+      ..color = Colors.cyanAccent.withOpacity(0.35)
+      ..strokeWidth = 1.0;
+    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), axisPaint);
+
+    // 归一化
+    final sanityRatio = (san / 250.0).clamp(0.0, 1.0);
+    final double hpR = hpRatio.clamp(0.0, 1.0);
+    final double o2R = oxygenRatio.clamp(0.0, 1.0);
+    final double dmgP = damagePulse.clamp(0.0, 1.0);
+
+    // 心率
+    double hrBpm = 60 + 90 * proximityFactor + 10 * dmgP + (isInWater ? 5 : 0);
+    hrBpm = hrBpm.clamp(50, 165);
+
+    // 振幅
+    final double baseAmp = 6.0 + (1.0 - sanityRatio) * 4.0 + (1.0 - o2R) * 2.0;
+
+    // 尖峰参数
+    final double spikeInterval = 42.0 * (60.0 / hrBpm);
+    final double spikeWidth = 8.0;
+    final double spikeHeight = baseAmp * (2.0 + (1.0 - hpR) * 0.6 + dmgP * 0.8);
+
+    // 颜色
+    final double stress = proximityFactor;
+    final Color calmColor = Colors.greenAccent;
+    final Color techColor = Colors.cyanAccent;
+    final Color alertColor = Colors.orangeAccent;
+    final Color dangerColor = Colors.redAccent;
+    final Color waveColor = (stress < 0.33)
+        ? Color.lerp(calmColor, techColor, 0.6)!
+        : (stress < 0.66)
+            ? Color.lerp(techColor, alertColor, (stress - 0.33) / 0.33)!
+            : Color.lerp(alertColor, dangerColor, (stress - 0.66) / 0.34)!;
+
+    final wavePaint = Paint()
+      ..color = waveColor
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    final double mid = size.height / 2;
+
+    double x = 0.0;
+    double y = mid;
+    path.moveTo(x, y);
+
+    while (x <= size.width) {
+      final jitter = proximityFactor * 0.8;
+      final noise = math.sin((x * 0.12) + phase * 1.7) * baseAmp * 0.15 * jitter;
+      final smoothY = mid + math.sin((x / size.width) * math.pi * 2 + phase) * baseAmp * 0.6 + noise;
+
+      final double offsetPhase = (phase * 30) % spikeInterval;
+      final double distToSpike = ((x + offsetPhase) % spikeInterval);
+      if (distToSpike < 1.0) {
+        path.lineTo(x + spikeWidth * 0.2, mid - spikeHeight);
+        path.lineTo(x + spikeWidth * 0.6, mid + spikeHeight * 0.6);
+        path.lineTo(x + spikeWidth, smoothY);
+        x += spikeWidth;
+        y = smoothY;
+      } else {
+        final double nextX = x + 2.0;
+        final double nextY = smoothY;
+        path.lineTo(nextX, nextY);
+        x = nextX;
+        y = nextY;
+      }
+    }
+
+    // 光晕
+    final glow1 = Paint()
+      ..color = waveColor.withOpacity(0.25)
+      ..strokeWidth = 6.0
+      ..style = PaintingStyle.stroke;
+    final glow2 = Paint()
+      ..color = waveColor.withOpacity(0.12)
+      ..strokeWidth = 10.0
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(path, glow2);
+    canvas.drawPath(path, glow1);
+    canvas.drawPath(path, wavePaint);
+
+    // 扫描线
+    final double phaseNorm = (phase % (math.pi * 2)) / (math.pi * 2);
+    final double scanX = phaseNorm * size.width;
+    final scanPaint = Paint()
+      ..color = Colors.cyanAccent.withOpacity(0.15)
+      ..strokeWidth = 2.0;
+    canvas.drawLine(Offset(scanX, 0), Offset(scanX, size.height), scanPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant InventorySanityECGPainter oldDelegate) {
+    return oldDelegate.phase != phase ||
+        oldDelegate.san != san ||
+        oldDelegate.hpRatio != hpRatio ||
+        oldDelegate.oxygenRatio != oxygenRatio ||
+        oldDelegate.moveFactor != moveFactor ||
+        oldDelegate.castingFactor != castingFactor ||
+        oldDelegate.damagePulse != damagePulse ||
+        oldDelegate.isInWater != isInWater ||
+        oldDelegate.proximityFactor != proximityFactor;
   }
 }

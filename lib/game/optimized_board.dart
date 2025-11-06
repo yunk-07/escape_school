@@ -24,6 +24,8 @@ import 'package:escape_from_school/game/chest_exploration_progress.dart';
 import 'package:escape_from_school/game/oxygen_system.dart';
 import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
 import 'package:escape_from_school/game/music.dart';
+import 'package:escape_from_school/game/ui_theme.dart' as ui_theme; // 关键区域：引入 UI 主题工具（避免作用域歧义）
+import 'package:escape_from_school/data/props.dart'; // 关键区域：引入物品定义，确保预加载覆盖所有物品图片
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -210,6 +212,11 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
   AnimationController? _ecgController;
   double _ecgPhase = 0.0;
 
+  // 关键区域：用于进度条动画与端点发光的上次百分比记录
+  double _lastHpPercentage = 0.0;
+  double _lastFoodPercentage = 0.0;
+  double _lastSanityPercentage = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -264,26 +271,31 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
       // 如果加载失败，继续使用颜色渲染
     }
 
-    // 加载物品图片
-    final itemImagePaths = [
-      'images/items/hanbao.png',
-      'images/items/fish01.png',
-      'images/items/fish02.png',
-      'images/items/fish03.png',
-      'images/items/book.png',
-    ];
-    
+    // 关键区域：加载所有地面物品图片
+    // 说明：统一从 props.dart 的 allItems 读取 image 路径，以避免遗漏导致地面物品不显示
     try {
-      for (String imagePath in itemImagePaths) {
-        final ByteData data = await rootBundle.load(imagePath);
-        final Uint8List bytes = data.buffer.asUint8List();
-        final ui.Codec codec = await ui.instantiateImageCodec(bytes);
-        final ui.FrameInfo frameInfo = await codec.getNextFrame();
-        terrainImages[imagePath] = frameInfo.image; // 使用完整路径作为key
+      final Set<String> itemImagePaths = allItems
+          .map((item) => item.image)
+          .where((path) => path.isNotEmpty)
+          .toSet();
+
+      for (final imagePath in itemImagePaths) {
+        try {
+          final ByteData data = await rootBundle.load(imagePath);
+          final Uint8List bytes = data.buffer.asUint8List();
+          final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+          final ui.FrameInfo frameInfo = await codec.getNextFrame();
+          terrainImages[imagePath] = frameInfo.image; // 使用完整路径作为key
+        } catch (e) {
+          // 单个物品加载失败时继续，不影响其它物品显示
+          if (kDebugMode) {
+            print('Warn: failed to load item image $imagePath: $e');
+          }
+        }
       }
     } catch (e) {
-      print('Error loading item images: $e');
-      // 如果加载失败，将使用回退图标
+      print('Error preparing item images from allItems: $e');
+      // 如果全局准备失败，将使用回退图标
     }
 
     // 加载角色图片
@@ -349,12 +361,28 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 _hasNavigatedToGameOver = true; // 设置标志，防止重复导航
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) { // 确保组件仍然挂载
+                    // 关键区域：避免使用已释放的 gameStateNotifier
+                    // pushReplacement 后本页面会被销毁，如果将其成员 gameStateNotifier 透传给 GameOverPage，
+                    // 会在后续 watch/read 时出现 “Tried to use OptimizedGameStateNotifier after dispose” 异常。
+                    // 因此这里创建一个新的 Notifier，并以死亡时的快照初始化其 state，确保 GameOverPage 读到的是稳定的最终状态。
+                    final snapshotState = gameStateNotifier.state; // 已含 deathTimeStats / deathTimeInventory / gameEndTime
+
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => GameOverPage(
-                          deathReason: gameState.deathReason,
-                          characterImage: gameState.characterStats['image'] ?? 'images/man/cook.png',
+                        builder: (context) => ProviderScope(
+                          overrides: [
+                            optimizedGameStateProvider.overrideWith((ref) {
+                              final fresh = OptimizedGameStateNotifier(snapshotState.characterStats);
+                              // 关键区域：用死亡快照覆盖新 Notifier 的状态，避免显示活跃状态并彻底规避 dispose 后使用问题
+                              fresh.state = snapshotState;
+                              return fresh;
+                            }),
+                          ],
+                          child: GameOverPage(
+                            deathReason: snapshotState.deathReason,
+                            characterImage: snapshotState.characterStats['image'] ?? 'images/man/cook.png',
+                          ),
                         ),
                       ),
                     );
@@ -1491,6 +1519,11 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
     final double currentSan = (gameState.characterStats['san'] ?? 0).toDouble().clamp(0, 250);
     final double maxSan = 250.0; // 精神值上限固定为250
     final double percentage = (currentSan / maxSan).clamp(0.0, 1.0); // 限制在100%以内
+    final bool sanChanged = (_lastSanityPercentage != percentage);
+    // 关键区域：帧结束后更新上次百分比，用于下次构建的动画起点
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _lastSanityPercentage = percentage;
+    });
     
     return Positioned(
       top: 40,
@@ -1538,15 +1571,23 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 ),
               ),
             ),
-            // 内层进度圆环容器
-            Container(
+            // 关键区域：精神值环过渡动画 + 末端发光
+            SizedBox(
               width: 76,
               height: 76,
-              child: CustomPaint(
-                painter: _3DCircularProgressPainter(
-                  percentage: percentage,
-                  strokeWidth: 14,
-                ),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: _lastSanityPercentage, end: percentage),
+                duration: const Duration(milliseconds: 420),
+                curve: Curves.easeOutCubic,
+                builder: (context, animPercent, child) {
+                  return CustomPaint(
+                    painter: _3DCircularProgressPainter(
+                      percentage: animPercent,
+                      strokeWidth: 14,
+                      glowOpacity: sanChanged ? 0.9 : 0.0,
+                    ),
+                  );
+                },
               ),
             ),
             // 内层光泽效果
@@ -1708,6 +1749,13 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
     final double maxHp = (gameState.characterStats['maxHp'] ?? 100).toDouble();
     final double currentFood = (gameState.characterStats['food'] ?? 0).toDouble();
     final double maxFood = 100.0;
+    // 关键区域：记录当前百分比用于端点发光与过渡动画起点
+    final double hpPct = (currentHp / maxHp).clamp(0.0, 1.0);
+    final double foodPct = (currentFood / maxFood).clamp(0.0, 1.0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _lastHpPercentage = hpPct;
+      _lastFoodPercentage = foodPct;
+    });
     
     return Positioned(
       bottom: 80,
@@ -1743,6 +1791,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
   // 构建单个状态条（更细更长的设计）
   Widget _buildStatusBar(IconData icon, double current, double max, Color color, String label) {
     final double percentage = (current / max).clamp(0.0, 1.0);
+    final double fillWidth = (176 * percentage).clamp(0.0, 176.0);
+    final bool changed = (_lastHpPercentage != percentage);
     
     return Container(
       width: 180,  // 进一步增加宽度从160到180
@@ -1767,19 +1817,45 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
             width: 176,  // 调整内部宽度
             height: 12,  // 调整内部高度
             decoration: BoxDecoration(
-              color: Colors.grey.shade800,
               borderRadius: BorderRadius.circular(8),
+              gradient: ui_theme.UITheme.progressBackground(),
             ),
           ),
           // 进度条
           Positioned(
             left: 2,
-            child: Container(
-              width: (176 * percentage).clamp(0.0, 176.0),  // 调整进度条宽度
+            child: AnimatedContainer(
+              width: fillWidth,  // 调整进度条宽度
               height: 12,  // 调整进度条高度
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
               decoration: BoxDecoration(
-                color: color,
                 borderRadius: BorderRadius.circular(8),
+                gradient: ui_theme.UITheme.progressFill(color),
+              ),
+            ),
+          ),
+          // 关键区域：端点发光（值变化时亮起后渐隐）
+          Positioned(
+            left: (2 + fillWidth - 8).clamp(2.0, 170.0),
+            child: AnimatedOpacity(
+              opacity: changed ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
+              child: Container(
+                width: 14,
+                height: 12,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.9),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1807,6 +1883,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
   // 构建饱食度条
   Widget _buildFoodBar(double currentFood, double maxFood) {
     final double foodPercentage = (currentFood / maxFood).clamp(0.0, 1.0);
+    final double fillWidth = (176 * foodPercentage).clamp(0.0, 176.0);
+    final bool changed = (_lastFoodPercentage != foodPercentage);
     
     return Container(
       width: 180,
@@ -1831,19 +1909,45 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
             width: 176,
             height: 12,
             decoration: BoxDecoration(
-              color: Colors.grey.shade800,
               borderRadius: BorderRadius.circular(8),
+              gradient: ui_theme.UITheme.progressBackground(),
             ),
           ),
           // 饱食度进度条
           Positioned(
             left: 2,
-            child: Container(
-              width: (176 * foodPercentage).clamp(0.0, 176.0),
+            child: AnimatedContainer(
+              width: fillWidth,
               height: 12,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
               decoration: BoxDecoration(
-                color: Colors.orange,
                 borderRadius: BorderRadius.circular(8),
+                gradient: ui_theme.UITheme.progressFill(Colors.orange),
+              ),
+            ),
+          ),
+          // 关键区域：端点发光（值变化时亮起后渐隐）
+          Positioned(
+            left: (2 + fillWidth - 8).clamp(2.0, 170.0),
+            child: AnimatedOpacity(
+              opacity: changed ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
+              child: Container(
+                width: 14,
+                height: 12,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withOpacity(0.9),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -2088,27 +2192,38 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                         final notifier = ref.read(optimizedGameStateProvider.notifier);
                         notifier.openInventory(); // 只负责打开背包
                       },
+                      // 关键区域：美化背包按钮为胶囊样式（渐变 + 图标 + 边框）
                       child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.yellow, width: 3), // 添加黄色边框
                           borderRadius: BorderRadius.circular(8),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.amber.shade700,
+                              Colors.amber.shade800,
+                            ],
+                          ),
+                          border: Border.all(
+                            color: Colors.amber.shade400.withOpacity(0.7),
+                            width: 1.5,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              offset: const Offset(2, 2),
-                              blurRadius: 4,
+                              color: Colors.amber.shade200.withOpacity(0.4),
+                              offset: const Offset(0, 2),
+                              blurRadius: 6,
                             ),
                           ],
                         ),
-                        child: const Center(
-                          child: Text(
-                            '背包',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.inventory_2, color: Colors.white, size: 20),
+                        
+                          ],
                         ),
                       ),
                     ),
@@ -2594,8 +2709,24 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
             ),
           ),
           
-          // 背包界面（需要在功能按钮之前，避免覆盖按钮）
-          if (gameState.showInventory) const InventoryView(),
+          // 关键区域：为背包界面添加打开/关闭动画（AnimatedSwitcher）
+          // 使用淡入淡出 + 轻微缩放，覆盖显示与隐藏两种动作
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: gameState.showInventory
+                ? const InventoryView()
+                : const SizedBox.shrink(),
+            transitionBuilder: (child, animation) {
+              final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+              final scale = Tween<double>(begin: 0.96, end: 1.0).animate(animation);
+              return FadeTransition(
+                opacity: fade,
+                child: ScaleTransition(scale: scale, child: child),
+              );
+            },
+          ),
           
           // 交互控制组件（最高优先级，不受伤害效果影响）
           // 移动控制（摇杆）
@@ -2628,10 +2759,12 @@ class InventoryView extends ConsumerWidget {
 class _3DCircularProgressPainter extends CustomPainter {
   final double percentage;
   final double strokeWidth;
+  final double glowOpacity; // 关键区域：端点发光透明度（变化时提升）
 
   _3DCircularProgressPainter({
     required this.percentage,
     required this.strokeWidth,
+    this.glowOpacity = 0.0,
   });
 
   @override
@@ -2690,6 +2823,38 @@ class _3DCircularProgressPainter extends CustomPainter {
         false,
         highlightPaint,
       );
+
+      // 关键区域：在进度末端添加发光（变化时可见）
+      if (glowOpacity > 0) {
+        final double endAngle = -math.pi / 2 + sweepAngle;
+        final Offset endPoint = Offset(
+          center.dx + radius * math.cos(endAngle),
+          center.dy + radius * math.sin(endAngle),
+        );
+
+        final glowPaint = Paint()
+          ..color = Colors.blueAccent.withOpacity(glowOpacity)
+          ..style = PaintingStyle.fill
+          ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 8);
+
+        // 端点发光圆斑
+        canvas.drawCircle(endPoint, strokeWidth * 0.45, glowPaint);
+
+        // 端点短弧加权发光
+        final glowArcPaint = Paint()
+          ..color = Colors.blueAccent.withOpacity(glowOpacity * 0.9)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth * 0.8
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 6);
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius),
+          endAngle - 0.08,
+          0.16,
+          false,
+          glowArcPaint,
+        );
+      }
     }
   }
 
@@ -2697,7 +2862,8 @@ class _3DCircularProgressPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return oldDelegate is! _3DCircularProgressPainter ||
         oldDelegate.percentage != percentage ||
-        oldDelegate.strokeWidth != strokeWidth;
+        oldDelegate.strokeWidth != strokeWidth ||
+        (oldDelegate is _3DCircularProgressPainter && oldDelegate.glowOpacity != glowOpacity);
   }
 }
 
