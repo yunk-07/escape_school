@@ -21,6 +21,7 @@ import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/shop_view.dart';
 import 'package:escape_from_school/game/item_usage_progress.dart';
 import 'package:escape_from_school/game/chest_exploration_progress.dart';
+import 'package:escape_from_school/game/chest_search_overlay.dart';
 import 'package:escape_from_school/game/oxygen_system.dart';
 import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
 import 'package:escape_from_school/game/music.dart';
@@ -2735,6 +2736,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           
           // 功能按钮
           _buildActionButtons(gameState),
+          // 宝箱搜索页面叠加层（整页覆盖，拦截交互）
+          const ChestSearchOverlay(),
           
         ],
       ),

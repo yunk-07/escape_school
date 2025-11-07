@@ -110,13 +110,31 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     if (mounted && !_isDisposed) {
       _scaleController.forward();
     }
-    
-    // 等待动画完成后开始自动滚动
-    await Future.delayed(const Duration(milliseconds: 2000));
-    if (mounted && !_isDisposed) {
-      _startAutoScroll();
+    // 关键区域：先展示 GAME OVER 标题，待标题动画完成后再开始滚动
+    void _maybeStartScroll() {
+      if (!_isDisposed && mounted && !_hasUserScrolled &&
+          _fadeController.status == AnimationStatus.completed &&
+          _scaleController.status == AnimationStatus.completed) {
+        // 给予标题一个停留时间（800ms），再开始滚动
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted && !_isDisposed) {
+            _startAutoScroll();
+          }
+        });
+      }
     }
-    
+    // 监听淡入与缩放完成状态，以标题完成为准触发滚动
+    _fadeController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _maybeStartScroll();
+      }
+    });
+    _scaleController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _maybeStartScroll();
+      }
+    });
+
     // 定期触发故障效果
     _triggerGlitchEffect();
   }
@@ -260,20 +278,15 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // 角色头像区域
-                                _buildCharacterSection(),
+                                // 关键区域：布局重构——英雄头部（标题+死亡原因+分隔），保持滚动展示
+                                _buildHeroHeader(),
                                 
-                                SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.03),
                                 
-                                // 游戏结束标题
-                                _buildGameOverTitle(),
+                                // 关键区域：主内容（两栏布局），左侧头像与生存时间，右侧玩家数据与背包
+                                _buildMainContent(),
                                 
-                                SizedBox(height: MediaQuery.of(context).size.height * 0.015),
-                                
-                                // 死亡原因
-                                _buildDeathReason(),
-                                
-                                SizedBox(height: MediaQuery.of(context).size.height * 0.025),
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.03),
                                 
                                 // 按钮区域
                                 _buildButtonSection(),
@@ -457,6 +470,57 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
           ),
         );
       },
+    );
+  }
+
+  // 关键区域：英雄头部（标题 + 死亡原因 + 装饰分隔线）
+  Widget _buildHeroHeader() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final spacing = (screenWidth * 0.01).clamp(8.0, 16.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildDividerLine(),
+        SizedBox(height: spacing),
+        _buildGameOverTitle(),
+        SizedBox(height: spacing * 0.75),
+        _buildDeathReason(),
+        SizedBox(height: spacing),
+        _buildDividerLine(),
+      ],
+    );
+  }
+
+  // 关键区域：主内容（复用原左头像+右数据/背包布局）
+  Widget _buildMainContent() {
+    return _buildCharacterSection();
+  }
+
+  // 关键区域：装饰分隔线（渐变发光效果）
+  Widget _buildDividerLine() {
+    return Container(
+      width: double.infinity,
+      height: 2,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Colors.red.withOpacity(0.0),
+            Colors.red.shade400,
+            Colors.red.shade700,
+            Colors.red.withOpacity(0.0),
+          ],
+          stops: const [0.0, 0.35, 0.65, 1.0],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withOpacity(0.3),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
     );
   }
 

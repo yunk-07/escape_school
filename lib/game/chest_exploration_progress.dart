@@ -13,8 +13,9 @@ class ChestExplorationProgress extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(optimizedGameStateProvider);
     
-    // 如果没有在探索宝箱，不显示进度条
-    if (!gameState.isExploringChest) {
+    // 关键区域：在搜索页面打开时隐藏原探索进度条
+    // 如果没有在探索宝箱，或已进入搜索页面，不显示进度条
+    if (!gameState.isExploringChest || gameState.isChestSearchOpen) {
       return const SizedBox.shrink();
     }
     

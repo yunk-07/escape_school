@@ -225,6 +225,10 @@ class OptimizedGameState {
   final Point<int>? currentExploringChest;        // 当前正在探索的宝箱位置
   final double chestExplorationProgress;          // 宝箱探索进度 (0.0 - 1.0)
   final DateTime? chestExplorationStartTime;      // 宝箱探索开始时间
+  // 宝箱搜索页面相关状态
+  final bool isChestSearchOpen;                   // 是否打开宝箱搜索页面
+  final List<Item> chestPendingItems;             // 尚未揭示的宝箱物品（搜索队列）
+  final List<Item> chestVisibleItems;             // 已揭示、当前显示在宝箱中的物品
   
   // 游戏时间相关状态
   final DateTime gameStartTime;                   // 游戏开始时间
@@ -291,6 +295,9 @@ class OptimizedGameState {
     this.currentExploringChest,
     this.chestExplorationProgress = 0.0,
     this.chestExplorationStartTime,
+    this.isChestSearchOpen = false,
+    this.chestPendingItems = const [],
+    this.chestVisibleItems = const [],
     required this.gameStartTime,
     this.gameEndTime,
     this.deathTimeStats,
@@ -350,6 +357,9 @@ class OptimizedGameState {
     Point<int>? currentExploringChest,
     double? chestExplorationProgress,
     DateTime? chestExplorationStartTime,
+    bool? isChestSearchOpen,
+    List<Item>? chestPendingItems,
+    List<Item>? chestVisibleItems,
     DateTime? gameStartTime,
     DateTime? gameEndTime,
     Map<String, dynamic>? deathTimeStats,
@@ -408,6 +418,9 @@ class OptimizedGameState {
       currentExploringChest: currentExploringChest ?? this.currentExploringChest,
       chestExplorationProgress: chestExplorationProgress ?? this.chestExplorationProgress,
       chestExplorationStartTime: chestExplorationStartTime ?? this.chestExplorationStartTime,
+      isChestSearchOpen: isChestSearchOpen ?? this.isChestSearchOpen,
+      chestPendingItems: chestPendingItems ?? this.chestPendingItems,
+      chestVisibleItems: chestVisibleItems ?? this.chestVisibleItems,
       gameStartTime: gameStartTime ?? this.gameStartTime,
       gameEndTime: gameEndTime ?? this.gameEndTime,
       deathTimeStats: deathTimeStats ?? this.deathTimeStats,
@@ -1843,12 +1856,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       cancelChestExploration();
     }
     
-    // 开始宝箱探索进度
+    // 开始宝箱探索进度，并打开搜索页面
+    // 关键区域：初始化“待揭示队列”和“当前宝箱内容”，采用逐步揭示逻辑
+    final initialItems = _getRandomChestItems();
     state = state.copyWith(
       isExploringChest: true,
+      isChestSearchOpen: true,
       currentExploringChest: chestPosition,
       chestExplorationProgress: 0.0,
       chestExplorationStartTime: DateTime.now(),
+      chestPendingItems: initialItems,
+      chestVisibleItems: const [],
     );
     
     // 启动宝箱探索计时器
@@ -2366,26 +2384,63 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _chestExplorationTimer?.cancel(); // 取消之前的计时器
     
     const updateInterval = Duration(milliseconds: 50); // 20fps更新
-    const totalDuration = Duration(seconds: 3); // 宝箱探索需要3秒
     
     _chestExplorationTimer = Timer.periodic(updateInterval, (timer) {
       if (!state.isExploringChest || state.currentExploringChest != chestPosition) {
         timer.cancel();
         return;
       }
-      
-      final elapsed = DateTime.now().difference(state.chestExplorationStartTime!);
-      final progress = (elapsed.inMilliseconds / totalDuration.inMilliseconds).clamp(0.0, 1.0);
-      
-      if (progress >= 1.0) {
-        // 探索完成，打开宝箱
+
+      // 关键区域：逐个搜索——仅对队列首项计时，完成后揭示并重置下一个项的起始时间
+      if (state.chestPendingItems.isEmpty) {
+        // 全部揭示完成
+        state = state.copyWith(chestExplorationProgress: 1.0);
         timer.cancel();
-        _completeChestExploration(chestPosition);
+        return;
+      }
+
+      final startTime = state.chestExplorationStartTime;
+      if (startTime == null) {
+        timer.cancel();
+        return;
+      }
+
+      final currentItem = state.chestPendingItems.first;
+      final itemDurationMs = _getChestItemSearchDurationMs(currentItem);
+      final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
+      final progress = (elapsedMs / itemDurationMs).clamp(0.0, 1.0);
+
+      if (elapsedMs >= itemDurationMs) {
+        // 当前项搜索完成，揭示该物品
+        final newPending = List<Item>.from(state.chestPendingItems);
+        final newVisible = List<Item>.from(state.chestVisibleItems);
+        if (newPending.isNotEmpty) {
+          newVisible.add(newPending.removeAt(0));
+        }
+
+        state = state.copyWith(
+          chestPendingItems: newPending,
+          chestVisibleItems: newVisible,
+          chestExplorationProgress: newPending.isEmpty ? 1.0 : 0.0,
+          chestExplorationStartTime: newPending.isEmpty ? state.chestExplorationStartTime : DateTime.now(),
+        );
+
+        if (newPending.isEmpty) {
+          // 队列为空，停止计时器（页面保持打开，等待玩家操作）
+          timer.cancel();
+        }
       } else {
-        // 更新进度
+        // 更新当前项的搜索进度
         state = state.copyWith(chestExplorationProgress: progress);
       }
     });
+  }
+
+  // 关键区域：按物品等级设置搜索时间（level 越高耗时越长）
+  int _getChestItemSearchDurationMs(Item item) {
+    final int l = item.level.clamp(0, 7);
+    // 基础 1200ms，等级每提升增加 600ms（0→1200ms，5→~4800ms）
+    return 1200 + l * 600;
   }
 
   /// 完成宝箱探索，获得物品
@@ -2650,6 +2705,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void cancelChestExploration() {
     if (!state.isExploringChest) return;
     
+    // 如果当前处于搜索页面，统一走关闭逻辑（掉落未取物品并移除宝箱）
+    if (state.isChestSearchOpen) {
+      closeChestSearch();
+      return;
+    }
+    
     // 取消计时器
     _chestExplorationTimer?.cancel();
     
@@ -2666,6 +2727,112 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       '取消探索宝箱',
       BroadcastMessageType.item,
     );
+  }
+
+  /// 将宝箱中的物品放入背包（点击/快捷方式）
+  /// 关键区域：容量校验与原子更新，避免状态不同步
+  bool transferChestItemToInventory(Item item) {
+    // 背包容量检查
+    final inventory = List<Item>.from(state.playerInventory);
+    if (inventory.length >= state.inventoryCapacity) {
+      addBroadcastMessage('背包已满，无法放入', BroadcastMessageType.item);
+      return false;
+    }
+
+    // 从宝箱可见列表移除该物品
+    final visible = List<Item>.from(state.chestVisibleItems);
+    final index = visible.indexWhere((i) => i.id == item.id);
+    if (index == -1) {
+      return false; // 该物品当前不可见或已被转移
+    }
+    final removed = visible.removeAt(index);
+
+    // 放入背包（追加到末尾）
+    inventory.add(removed);
+
+    // 更新状态
+    state = state.copyWith(
+      playerInventory: inventory,
+      chestVisibleItems: visible,
+    );
+
+    addBroadcastMessage('已放入背包：${removed.name}', BroadcastMessageType.item);
+    return true;
+  }
+
+  /// 将宝箱中的物品放入背包指定格子（拖拽到格子）
+  /// 关键区域：组合插入与移除，保证一次操作完成
+  bool transferChestItemToInventoryAtSlot(Item item, int targetIndex) {
+    // 容量边界检查
+    if (targetIndex < 0 || targetIndex >= state.inventoryCapacity) {
+      return false;
+    }
+
+    // 背包满则拒绝
+    if (state.playerInventory.length >= state.inventoryCapacity) {
+      addBroadcastMessage('背包已满，无法放入', BroadcastMessageType.item);
+      return false;
+    }
+
+    // 先尝试在指定位置插入
+    final success = insertItemAtPosition(item, targetIndex);
+    if (!success) {
+      return false;
+    }
+
+    // 插入成功后，从宝箱可见列表移除该物品
+    final visible = List<Item>.from(state.chestVisibleItems);
+    final index = visible.indexWhere((i) => i.id == item.id);
+    if (index != -1) {
+      visible.removeAt(index);
+      state = state.copyWith(chestVisibleItems: visible);
+    }
+
+    addBroadcastMessage('已放入背包：${item.name}', BroadcastMessageType.item);
+    return true;
+  }
+
+  /// 关闭宝箱搜索页面
+  /// 关键区域：剩余物品全部掉落在地上，并移除宝箱
+  void closeChestSearch() {
+    if (!state.isChestSearchOpen) {
+      return;
+    }
+
+    // 取消可能仍在运行的计时器
+    _chestExplorationTimer?.cancel();
+
+    final chestPos = state.currentExploringChest;
+    final dropPos = chestPos ?? state.playerPosition.toPoint();
+
+    // 掉落所有未转移的可见物品
+    if (state.chestVisibleItems.isNotEmpty) {
+      for (final item in state.chestVisibleItems) {
+        _dropItemToGround(item, dropPos);
+      }
+      addBroadcastMessage('关闭宝箱，未取走物品已掉落在地上', BroadcastMessageType.item);
+    }
+
+    // 移除对应的宝箱
+    final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
+    if (chestPos != null) {
+      updatedChestPositions.remove(chestPos);
+    }
+
+    // 重置相关状态并关闭页面
+    state = state.copyWith(
+      chestPositions: updatedChestPositions,
+      isChestSearchOpen: false,
+      chestPendingItems: const [],
+      chestVisibleItems: const [],
+      isExploringChest: false,
+      currentExploringChest: null,
+      chestExplorationProgress: 0.0,
+      chestExplorationStartTime: null,
+    );
+
+    // 智能补充宝箱：只在宝箱数量不足时添加新宝箱
+    _replenishChestsIfNeeded();
   }
 
   /// 触发游戏结束
