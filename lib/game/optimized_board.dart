@@ -1019,8 +1019,10 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
     WidgetsBinding.instance.addPostFrameCallback((_) {
       gameStateNotifier.cleanupExpiredMessages();
     });
-
-    final messages = gameState.broadcastMessages;
+    // 关键区域：信息框不显示“鬼”的相关消息
+    final messages = gameState.broadcastMessages
+        .where((m) => !m.text.contains('鬼'))
+        .toList();
     if (messages.isNotEmpty) {
       for (int i = 0; i < messages.length; i++) {
         final msg = messages[i];
