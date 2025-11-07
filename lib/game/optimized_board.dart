@@ -1748,7 +1748,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
     final double currentHp = (gameState.characterStats['hp'] ?? 0).toDouble();
     final double maxHp = (gameState.characterStats['maxHp'] ?? 100).toDouble();
     final double currentFood = (gameState.characterStats['food'] ?? 0).toDouble();
-    final double maxFood = 100.0;
+    // 关键区域：饱食度上限改为动态 maxFood
+    final double maxFood = (gameState.characterStats['maxFood'] ?? 100).toDouble();
     // 关键区域：记录当前百分比用于端点发光与过渡动画起点
     final double hpPct = (currentHp / maxHp).clamp(0.0, 1.0);
     final double foodPct = (currentFood / maxFood).clamp(0.0, 1.0);

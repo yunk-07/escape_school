@@ -587,50 +587,97 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
     double currentSpeed = isUnderwater ? baseSpeed * 0.9 : baseSpeed;
     // 饱食度低于50%线性降低到50%
     final double food = ((stats['food'] ?? 0) as num).toDouble();
-    const double maxFood = 100.0;
+    // 关键区域：饱食度上限改为动态 maxFood
+    final double maxFood = ((stats['maxFood'] ?? 100) as num).toDouble();
     final double foodPct = (food / maxFood).clamp(0.0, 1.0);
     if (foodPct < 0.5) {
       final double hungerSpeedMultiplier = 0.5 + foodPct; // 0.5~1.0
       currentSpeed *= hungerSpeedMultiplier;
     }
 
+    // 关键区域：进度条比例计算
+    final double safeBase = baseSpeed <= 0 ? 1.0 : baseSpeed;
+    final double brightRatio = (currentSpeed / safeBase).clamp(0.0, 1.0);
+    final double grayRatio = (1.0 - brightRatio).clamp(0.0, 1.0);
+    const int totalFlex = 100;
+    final int brightFlex = (brightRatio * totalFlex).round();
+    final int grayFlex = totalFlex - brightFlex;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4), // 关键区域：缩小垂直间距
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.directions_run, color: Colors.orange, size: 16),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              '移动速度',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          // 原始速度（删除线灰色） + 当前速度（高亮）
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _formatToTwoDigits(baseSpeed),
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12, // 关键区域：缩小基础速度文字
-                  decoration: TextDecoration.lineThrough,
+              const Icon(Icons.directions_run, color: Colors.orange, size: 16),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  '移动速度',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                _formatToTwoDigits(currentSpeed),
-                style: const TextStyle(
-                  color: Colors.orange,
-                  fontSize: 14, // 关键区域：缩小当前速度文字
-                  fontWeight: FontWeight.bold,
-                ),
+              // 原始速度（删除线灰色） + 当前速度（高亮）
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatToTwoDigits(baseSpeed),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12, // 关键区域：缩小基础速度文字
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatToTwoDigits(currentSpeed),
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontSize: 14, // 关键区域：缩小当前速度文字
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          // 关键区域：移动速度双段进度条（亮色=削弱后速度，灰色=被削弱部分）
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Container(
+              height: 6,
+              decoration: BoxDecoration(
+                gradient: ui_theme.UITheme.progressBackground(),
+              ),
+              child: Row(
+                children: [
+                  if (brightFlex > 0)
+                    Expanded(
+                      flex: brightFlex,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: ui_theme.UITheme.progressFill(Colors.orange),
+                        ),
+                      ),
+                    ),
+                  if (grayFlex > 0)
+                    Expanded(
+                      flex: grayFlex,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: ui_theme.UITheme.progressFill(Colors.grey),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -1640,6 +1687,13 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
     switch (effectKey) {
       case 'hp':
         return '生命值';
+      // 关键区域：弹窗效果名称映射——将 maxHp 显示为“最大生命值”
+      case 'maxHp':
+        return '最大生命值';
+      case 'maxSan':
+        return '最大理智值';
+      case 'maxFood':
+        return '最大饱食度';
       case 'san':
         return '理智值';
       case 'food':

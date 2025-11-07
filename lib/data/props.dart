@@ -1,11 +1,21 @@
 // data/props.dart
 // 物品数据配置文件 - 包含物品的基本信息、效果和使用时间
+// 关键区域：effects 支持可变上限修改
+// 支持的效果键：
+// - hp:        修改生命值（按当前 maxHp 夹取）
+// - maxHp:     修改生命值上限（至少为 1；若降低会夹取 hp）
+// - food:      修改饱食度（按当前 maxFood 夹取）
+// - maxFood:   修改饱食度上限（至少为 1；若降低会夹取 food）
+// - san:       修改精神值（按 0..250 夹取）
+// - moveSpeed: 修改移动速度（不设上限，最小 1）
+// - gold:      修改金币
+// - oxygenBonus: 修改氧气上限（已在状态机中处理）
 class Item {
   final String id;
   final String name;
   final String image;
   final String description;
-  final Map<String, int> effects; // {hp: 10, gold: 5}
+  final Map<String, int> effects; // {hp: 10, gold: 5, maxHp: 20, maxFood: -10}
   final String type; // 新增：物品类型
   final int count;   // 新增：物品数量
   final bool availableInShop; // 新增：是否在商店出售
@@ -117,7 +127,7 @@ final List<Item> allItems = [
     name: '能量棒',
     image: 'images/items/hpbang.png',
     description: '高能量营养棒，能够快速恢复体力和精神状态',
-    effects: {'san': 10, 'hp': 20, 'food': 10},
+    effects: {'san': 10, 'hp': 20, 'food': 10,'maxHp':1},
     type: 'potion',
     level: 4,
     availableInShop: true,
@@ -189,7 +199,7 @@ final List<Item> allItems = [
     name: '奇怪的粉末',
     image: 'images/items/allbang.png',
     description: '吃了会有什么效果？',
-    effects: {'san': 40, 'food': 1,'hp':-1,'moveSpeed':-1,'oxygenBonus':-1},
+    effects: {'san': 40, 'food': 1,'maxHp':-1,'moveSpeed':-1,'oxygenBonus':-1},
     type: 'potion',
     level: 4,
     availableInShop: false,

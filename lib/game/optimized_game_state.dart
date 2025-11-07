@@ -165,6 +165,8 @@ class OptimizedGameState {
   final OptimizedMovementState movementState;
   final List<List<String>> map;
   final List<Point<int>> chestPositions;
+  // 关键区域：固定刷新宝箱的位置（开局在玩家脚底生成的宝箱）
+  final Point<int>? fixedChestPosition;
   final List<Item> playerInventory;
   final int inventoryCapacity;                    // 背包容量
   final int maxInventoryCapacity;                 // 最大背包容量（用于扩容）
@@ -248,6 +250,7 @@ class OptimizedGameState {
     required this.movementState,
     required this.map,
     required this.chestPositions,
+    this.fixedChestPosition,
     required this.playerInventory,
     this.inventoryCapacity = 20,                    // 默认背包容量20格
     this.maxInventoryCapacity = 100,                // 最大可扩容到100格
@@ -306,6 +309,7 @@ class OptimizedGameState {
     OptimizedMovementState? movementState,
     List<List<String>>? map,
     List<Point<int>>? chestPositions,
+    Point<int>? fixedChestPosition,
     List<Item>? playerInventory,
     int? inventoryCapacity,
     int? maxInventoryCapacity,
@@ -363,6 +367,7 @@ class OptimizedGameState {
       movementState: movementState ?? this.movementState,
       map: map ?? this.map,
       chestPositions: chestPositions ?? this.chestPositions,
+      fixedChestPosition: fixedChestPosition ?? this.fixedChestPosition,
       playerInventory: playerInventory ?? this.playerInventory,
       inventoryCapacity: inventoryCapacity ?? this.inventoryCapacity,
       maxInventoryCapacity: maxInventoryCapacity ?? this.maxInventoryCapacity,
@@ -425,10 +430,14 @@ Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> character
   return {
     'name': characterData['name'],
     'hp': (characterData['hp'] as num).toDouble(),
-    'maxHp': (characterData['hp'] as num).toDouble(),
+    // 关键区域：支持从角色配置读取最大生命值
+    'maxHp': ((characterData['maxHp'] ?? characterData['hp']) as num).toDouble(),
     'san': (characterData['san'] as num).toDouble(),
-    'maxSan': (characterData['san'] as num).toDouble(),
+    // 关键区域：支持从角色配置读取最大精神值
+    'maxSan': ((characterData['maxSan'] ?? characterData['san']) as num).toDouble(),
     'food': (characterData['food'] as num).toDouble(),
+    // 关键区域：新增 maxFood 表示饱食度上限（可被道具修改）
+    'maxFood': ((characterData['maxFood'] ?? characterData['food']) as num).toDouble(),
     'moveSpeed': characterData['moveSpeed'],
     'gold': (characterData['gold'] as num).toDouble(),
     'image': characterData['image'],
@@ -537,6 +546,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _initializeGhosts();
     _setRandomPlayerSpawn();
     _initializeChests(); // 初始化随机宝箱位置
+    _spawnFixedChestUnderPlayer(); // 关键区域：开局在玩家脚底下生成固定宝箱
     _startMovementTimer();
     _startVisionUpdateTimer();
     _startSmoothVisionTimer(); // 启动平滑视野动画定时器
@@ -550,6 +560,20 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startGhostUpdateTimer(); // 启动鬼的更新定时器
     _startGhostSpawnTimer(); // 启动鬼的生成定时器
     _updateVision();
+  }
+
+  /// 开局在玩家脚底下生成一个固定刷新宝箱，并记录其位置
+  /// 关键区域：该宝箱位置固定且用于 100% 掉落 3 个随机物品
+  void _spawnFixedChestUnderPlayer() {
+    final fixedPos = state.playerPosition.toPoint();
+    final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
+    if (!updatedChestPositions.contains(fixedPos)) {
+      updatedChestPositions.add(fixedPos);
+    }
+    state = state.copyWith(
+      chestPositions: updatedChestPositions,
+      fixedChestPosition: fixedPos,
+    );
   }
 
   /// 初始化鬼
@@ -1369,9 +1393,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       print('移动速度：水中移动，速度降低10% -> ${modifiedSpeed.toStringAsFixed(1)}');
     }
     
-    // 饱食度影响移动速度
+    // 饱食度影响移动速度（关键区域：使用动态 maxFood）
     final currentFood = state.characterStats['food'] ?? 0;
-    final maxFood = 100; // 假设最大饱食度为100
+    final double maxFood = (state.characterStats['maxFood'] ?? 100).toDouble();
     final foodPercentage = (currentFood / maxFood).clamp(0.0, 1.0);
     
     // 当饱食度低于50%时开始影响移动速度
@@ -1875,7 +1899,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 获取宝箱随机物品
   List<Item> _getRandomChestItems() {
-    // 使用 ItemSpawner 的概率系统生成宝箱物品
+    // 关键区域：固定宝箱100%掉落3个随机物品，其余宝箱维持原逻辑
+    final isFixedChest = state.currentExploringChest != null &&
+        state.fixedChestPosition != null &&
+        state.currentExploringChest == state.fixedChestPosition;
+    if (isFixedChest) {
+      return ItemSpawner.generateChestItems(minItems: 3, maxItems: 3);
+    }
     return ItemSpawner.generateChestItems(minItems: 1, maxItems: 3);
   }
 
@@ -2375,13 +2405,39 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 移除已打开的宝箱
     final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
     updatedChestPositions.remove(chestPosition);
+    // 关键区域：初始固定宝箱点击后应消失——不再重生
+    // 保持普通宝箱原逻辑（移除后由补充机制补齐数量），固定宝箱不再重新添加
     
     // 随机获得物品
     final randomItems = _getRandomChestItems();
     print('_completeChestExploration - 获得物品: ${randomItems.map((item) => item.name).toList()}');
     
+    // 关键区域：背包容量检查——满背包时，宝箱物品自动掉落在地上
     final updatedInventory = List<Item>.from(state.playerInventory);
-    updatedInventory.addAll(randomItems);
+    final int freeSlots = state.inventoryCapacity - updatedInventory.length;
+    final List<Item> itemsToInventory = freeSlots > 0
+        ? randomItems.take(freeSlots).toList()
+        : <Item>[];
+    final List<Item> itemsToDrop = (freeSlots >= randomItems.length)
+        ? <Item>[]
+        : randomItems.sublist(itemsToInventory.length);
+
+    // 先添加能装下的
+    if (itemsToInventory.isNotEmpty) {
+      updatedInventory.addAll(itemsToInventory);
+    }
+    // 装不下的直接掉落到玩家当前位置
+    if (itemsToDrop.isNotEmpty) {
+      final dropPos = state.playerPosition.toPoint();
+      for (final item in itemsToDrop) {
+        _dropItemToGround(item, dropPos);
+        // 与购买逻辑一致的提示
+        addBroadcastMessage(
+          '背包已满，${item.name} 掉落在地上',
+          BroadcastMessageType.item,
+        );
+      }
+    }
     
     // 更新状态
     state = state.copyWith(
@@ -2393,10 +2449,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       chestExplorationStartTime: null,
     );
     
-    // 显示获得物品的消息
-    final itemNames = randomItems.map((item) => item.name).join('、');
-    addBroadcastMessage('打开宝箱获得：$itemNames', BroadcastMessageType.item, duration: const Duration(seconds: 3));
-    print('_completeChestExploration - 显示消息: 打开宝箱获得：$itemNames');
+    // 显示获得物品的消息（仅显示成功进入背包的物品）
+    if (itemsToInventory.isNotEmpty) {
+      final itemNames = itemsToInventory.map((item) => item.name).join('、');
+      addBroadcastMessage('打开宝箱获得：$itemNames', BroadcastMessageType.item, duration: const Duration(seconds: 3));
+      print('_completeChestExploration - 显示消息: 打开宝箱获得：$itemNames');
+    }
     
     // 智能补充宝箱：只在宝箱数量不足时添加新宝箱
     _replenishChestsIfNeeded();
@@ -2421,15 +2479,46 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     item.effects.forEach((effectType, value) {
       switch (effectType) {
         case 'hp':
+          // 关键区域：生命值上限不固定，需依赖可变的 maxHp
+          // 使用当前角色的 maxHp 作为生命值上限进行限制，避免固定 100 上限
           final currentHp = character['hp'] ?? 100;
-          final newHp = (currentHp + value).clamp(0, 100);
+          final double maxHp = (character['maxHp'] ?? 100).toDouble();
+          final newHp = (currentHp + value).clamp(0, maxHp);
           character['hp'] = newHp;
           hasEffect = true;
           break;
         case 'food':
+          // 关键区域：饱食度上限不固定，依赖可变的 maxFood
           final currentFood = character['food'] ?? 100;
-          final newFood = (currentFood + value).clamp(0, 100);
+          final double maxFood = (character['maxFood'] ?? 100).toDouble();
+          final newFood = (currentFood + value).clamp(0, maxFood);
           character['food'] = newFood;
+          hasEffect = true;
+          break;
+        case 'maxHp':
+          // 关键区域：允许道具修改生命值上限
+          final double currentMaxHp = (character['maxHp'] ?? 100).toDouble();
+          final double proposed = (currentMaxHp + value).toDouble();
+          final double newMaxHp = proposed < 1 ? 1 : proposed;
+          character['maxHp'] = newMaxHp;
+          // 若当前生命值超过新上限则进行夹取
+          final double currentHp2 = (character['hp'] ?? 0).toDouble();
+          if (currentHp2 > newMaxHp) {
+            character['hp'] = newMaxHp;
+          }
+          hasEffect = true;
+          break;
+        case 'maxFood':
+          // 关键区域：允许道具修改饱食度上限
+          final double currentMaxFood = (character['maxFood'] ?? 100).toDouble();
+          final double proposedFoodMax = (currentMaxFood + value).toDouble();
+          final double newMaxFood = proposedFoodMax < 1 ? 1 : proposedFoodMax;
+          character['maxFood'] = newMaxFood;
+          // 若当前饱食度超过新上限则进行夹取
+          final double currentFood2 = (character['food'] ?? 0).toDouble();
+          if (currentFood2 > newMaxFood) {
+            character['food'] = newMaxFood;
+          }
           hasEffect = true;
           break;
         case 'san':
@@ -2629,7 +2718,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.5-1饱食度
             final foodDeduction = 0.5 + random.nextDouble() * 0.5;
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            // 关键区域：改为使用动态 maxFood 进行夹取
+            final double maxFoodGrass = (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodGrass);
             
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
@@ -2641,7 +2732,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.2-1饱食度
             final foodDeduction = 0.2 + random.nextDouble() * 0.8;
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            final double maxFoodBuilding = (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodBuilding);
             
             // 随机扣除0.8-2精神值
             final sanDeduction = 0.8 + random.nextDouble() * 1.2;
@@ -2653,7 +2745,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.5-1饱食度
             final foodDeduction = 0.5 + random.nextDouble() * 0.5;
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            final double maxFoodWoods = (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodWoods);
             
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
@@ -2669,7 +2762,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.2-0.5饱食度
             final foodDeduction = 0.2 + random.nextDouble() * 0.3;
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, 100);
+            final double maxFoodPath = (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodPath);
             
             // 随机恢复0-0.5精神值
             final sanRecovery = random.nextDouble() * 0.5;
@@ -3236,7 +3330,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
         case 'food':
           final currentFood = (newStats['food'] ?? 0).toDouble();
-          final maxFood = 100.0; // 饱食度最大值固定为100
+          // 关键区域：改为使用动态 maxFood
+          final double maxFood = (newStats['maxFood'] ?? 100).toDouble();
           final newFood = (currentFood + value).clamp(0, maxFood);
           newStats['food'] = newFood;
           messages.add('恢复饱食度 +${value.toStringAsFixed(1)} (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})');
@@ -3312,7 +3407,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 随机饱食度 10-50
     final foodGain = random.nextInt(41) + 10; // 10-50的随机数
     final currentFood = (newStats['food'] ?? 0).toDouble();
-    final maxFood = 100.0; // 饱食度最大值固定为100
+    // 关键区域：改为使用动态 maxFood
+    final double maxFood = (newStats['maxFood'] ?? 100).toDouble();
     final newFood = (currentFood + foodGain).clamp(0, maxFood);
     newStats['food'] = newFood;
     messages.add('恢复饱食度 +$foodGain (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})');
