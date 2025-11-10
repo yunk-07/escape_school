@@ -990,9 +990,11 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
         child: Container(
           width: 50,
           height: 50,
+          // 关键区域：美化设置按钮样式，统一采用 UITheme 渐变与高光
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(8),
+            gradient: ui_theme.UITheme.progressBackground(),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.5),
@@ -1001,10 +1003,22 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
               ),
             ],
           ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0x30FFFFFF),
+                Color(0x00000000),
+              ],
+              stops: [0.0, 1.0],
+            ),
+          ),
           child: const Icon(
             Icons.settings,
             color: Colors.white,
-            size: 24,
+            size: 26,
           ),
         ),
       ),
@@ -1424,13 +1438,29 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
         }
         
         if (isChestVisible) {
-           print('宝箱可见，直接打开宝箱...');
-           // 直接打开宝箱，不检查距离
-           gameStateNotifier.openChestAtPosition(chestPos);
-           return; // 找到点击的宝箱后退出循环
-         } else {
-           print('宝箱不可见，无法交互');
-         }
+          // 关键区域：为宝箱开启添加与拾取物品一致的距离检测（<= 1.5格）
+          final double playerX = gameState.playerPosition.x;
+          final double playerY = gameState.playerPosition.y;
+          final double distance = math.sqrt(
+            math.pow(playerX - chestPos.x, 2) + math.pow(playerY - chestPos.y, 2)
+          );
+
+          if (distance <= 1.5) {
+            print('宝箱可见，距离满足 ($distance <= 1.5)，打开宝箱');
+            gameStateNotifier.openChestAtPosition(chestPos);
+            return; // 找到点击的宝箱并打开后退出循环
+          } else {
+            print('宝箱可见，但距离过远：$distance > 1.5');
+            // 与拾取物品一致的提示样式
+            gameStateNotifier.addBroadcastMessage(
+              '距离太远，无法打开宝箱',
+              BroadcastMessageType.system,
+            );
+            return; // 已处理当前点击，退出循环避免重复提示
+          }
+        } else {
+          print('宝箱不可见，无法交互');
+        }
       }
     }
     
@@ -3525,9 +3555,18 @@ class _GameAreaPainter extends CustomPainter {
       final ui.Image? itemImage = terrainImages[item.image];
       if (itemImage != null) {
         final Rect srcRect = Rect.fromLTWH(0, 0, itemImage.width.toDouble(), itemImage.height.toDouble());
-        final Paint imagePaint = Paint()
-          ..color = Colors.white.withOpacity(opacity * 0.8); // 稍微透明，表示是地面物品
+        final Paint imagePaint = Paint()..filterQuality = FilterQuality.medium;
         canvas.drawImageRect(itemImage, srcRect, itemRect, imagePaint);
+
+        // 关键区域：为地面物品添加按等级的边框颜色（最小改动，不引入额外特效）
+        final Paint levelBorderPaint = Paint()
+          ..color = _getItemLevelColor(item.level).withOpacity(opacity * 0.85)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(itemRect, const Radius.circular(3)),
+          levelBorderPaint,
+        );
       } else {
         _drawItemFallback(canvas, itemRect, item, opacity);
       }
@@ -3572,18 +3611,22 @@ class _GameAreaPainter extends CustomPainter {
       );
     }
     
-    // 绘制微弱的发光效果，表示可拾取
+    // 关键区域：微弱描边使用物品等级颜色，替换类型色为等级色
     final Paint glowPaint = Paint()
-      ..color = _getItemTypeColor(item.type ?? '').withOpacity(0.2 * opacity)
+      ..color = _getItemLevelColor(item.level).withOpacity(0.25 * opacity)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
-    canvas.drawRect(itemRect, glowPaint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(itemRect, const Radius.circular(3)),
+      glowPaint,
+    );
   }
 
   /// 绘制物品后备方案（当没有图片时）
   void _drawItemFallback(Canvas canvas, Rect itemRect, dynamic item, double opacity) {
+    // 关键区域：后备绘制按物品等级着色（不再使用类型色）
     final Paint itemPaint = Paint()
-      ..color = _getItemTypeColor(item.type ?? '').withOpacity(opacity * 0.8)
+      ..color = _getItemLevelColor(item.level).withOpacity(opacity * 0.85)
       ..style = PaintingStyle.fill;
     
     // 根据物品类型绘制不同形状
@@ -3636,6 +3679,10 @@ class _GameAreaPainter extends CustomPainter {
   /// 根据物品类型获取颜色
   Color _getItemTypeColor(String itemType) {
     switch (itemType) {
+      case '装备':
+        return Colors.indigo;
+      case '物品':
+        return Colors.amber;
       case 'food':
         return Colors.green;
       case 'tool':
@@ -3646,6 +3693,28 @@ class _GameAreaPainter extends CustomPainter {
         return Colors.purple;
       default:
         return Colors.grey;
+    }
+  }
+
+  // 关键区域：按物品等级返回颜色（用于地面物品着色，与背包/宝箱一致）
+  Color _getItemLevelColor(int level) {
+    switch (level) {
+      case 1:
+        return Colors.grey.shade600; // 无色
+      case 2:
+        return Colors.green.shade400; // 绿色
+      case 3:
+        return Colors.blue.shade400; // 蓝色
+      case 4:
+        return Colors.purple.shade400; // 紫色
+      case 5:
+        return Colors.amber.shade400; // 金色
+      case 6:
+        return Colors.orange.shade400; // 橙色
+      case 7:
+        return Colors.red.shade400; // 红色
+      default:
+        return Colors.grey.shade600; // 默认无色
     }
   }
 

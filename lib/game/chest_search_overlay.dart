@@ -391,8 +391,9 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           // 待揭示物品：首个显示旋转搜索覆盖，其余显示静态蒙版
           final pendingIndex = index - visibleItems.length;
           final isActiveSearching = pendingIndex == 0; // 仅首个待揭示显示旋转
+          final Item? currentPendingItem = isActiveSearching && pendingItems.isNotEmpty ? pendingItems.first : null;
           // 关键区域：未揭示物品不显示任何级别颜色，仅使用中性样式
-          tileChild = _pendingItemTile(isActiveSearching);
+          tileChild = _pendingItemTile(currentPendingItem, isActiveSearching);
           tileKey = 'pending-${pendingIndex}';
         }
 
@@ -466,7 +467,7 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
               left: 2,
               right: 2,
               child: Text(
-                item.name,
+                item.count > 1 ? '${item.name} x ${item.count}' : item.name,
                 style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600, shadows: [
                   Shadow(offset: Offset(0.5, 0.5), blurRadius: 1.0, color: Colors.black),
                 ]),
@@ -491,8 +492,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
   }
 
   // 关键区域：待揭示物品蒙版——首个显示旋转搜索图标，其余显示静态蒙版
-  // 修改：未揭示阶段不显示物品颜色（不按 level 着色），仅使用中性样式
-  Widget _pendingItemTile(bool isActive) {
+  // 修改：未揭示阶段不显示颜色，但动画强度随物品等级增大（不泄露具体颜色，仅变化动效）
+  Widget _pendingItemTile(Item? item, bool isActive) {
     return Container(
       decoration: BoxDecoration(
         // 关键区域：待揭示阶段使用中性渐变，不泄露任何等级颜色
@@ -536,12 +537,30 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                 ? AnimatedBuilder(
                     animation: _spinController,
                     builder: (context, child) {
-                      return Transform.rotate(
-                        angle: _spinController.value * 2 * math.pi,
-                        child: child,
+                      // 关键区域：动画强度随物品等级增大（level 1..7）
+                      final int lvl = (item?.level ?? 1).clamp(1, 7);
+                      final double speedFactor = 0.8 + (lvl - 1) * 0.18; // 0.8 .. 1.88
+                      final double glow = 3.0 + (lvl - 1) * 1.5; // 3 .. 12
+                      final double size = 22 + (lvl - 1) * 2.5; // 22 .. 37.0
+                      final double pulse = 1.0 + (lvl * 0.02) * math.sin(_spinController.value * 2 * math.pi);
+                      return Container(
+                        width: size + 8,
+                        height: size + 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: Colors.amber.withOpacity(0.35), blurRadius: glow, spreadRadius: 0.0),
+                          ],
+                        ),
+                        child: Transform.scale(
+                          scale: pulse,
+                          child: Transform.rotate(
+                            angle: _spinController.value * 2 * math.pi * speedFactor,
+                            child: Icon(Icons.search, color: Colors.amber, size: size),
+                          ),
+                        ),
                       );
                     },
-                    child: const Icon(Icons.search, color: Colors.amber, size: 22),
                   )
                 : const Icon(Icons.search, color: Colors.white24, size: 20),
           ),
@@ -611,6 +630,10 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
 
   IconData _typeIcon(String type) {
     switch (type) {
+      case '装备':
+        return Icons.security;
+      case '物品':
+        return Icons.inventory_2;
       case 'potion':
         return Icons.local_pharmacy;
       case 'food':
@@ -619,6 +642,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
         return Icons.build;
       case 'weapon':
         return Icons.security;
+      case 'book':
+        return Icons.menu_book;
       default:
         return Icons.inventory_2;
     }

@@ -19,6 +19,7 @@ import 'package:escape_from_school/game/smooth_vision.dart';
 import 'package:escape_from_school/game/item_spawner.dart';
 import 'package:escape_from_school/game/oxygen_system.dart';
 import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 游戏页面类型枚举
 enum GamePage {
@@ -168,6 +169,8 @@ class OptimizedGameState {
   // 关键区域：固定刷新宝箱的位置（开局在玩家脚底生成的宝箱）
   final Point<int>? fixedChestPosition;
   final List<Item> playerInventory;
+  // 关键区域：装备槽状态，严格四个部位（垂直展示）
+  final Map<String, Item?> equipmentSlots; // {weapon, armor, head, hand}
   final int inventoryCapacity;                    // 背包容量
   final int maxInventoryCapacity;                 // 最大背包容量（用于扩容）
   final Map<Point<int>, List<Item>> groundItems;  // 地面物品，按位置存储
@@ -256,6 +259,15 @@ class OptimizedGameState {
     required this.chestPositions,
     this.fixedChestPosition,
     required this.playerInventory,
+    // 关键区域：扩展装备槽默认键为六类，保持与UI一致
+    this.equipmentSlots = const <String, Item?>{
+      'weapon': null,
+      'armor': null,
+      'head': null,
+      'hand': null,
+      'pants': null,
+      'shoes': null,
+    },
     this.inventoryCapacity = 20,                    // 默认背包容量20格
     this.maxInventoryCapacity = 100,                // 最大可扩容到100格
     this.groundItems = const {},                    // 初始化为空的地面物品映射
@@ -318,6 +330,7 @@ class OptimizedGameState {
     List<Point<int>>? chestPositions,
     Point<int>? fixedChestPosition,
     List<Item>? playerInventory,
+    Map<String, Item?>? equipmentSlots,
     int? inventoryCapacity,
     int? maxInventoryCapacity,
     Map<Point<int>, List<Item>>? groundItems,
@@ -379,6 +392,7 @@ class OptimizedGameState {
       chestPositions: chestPositions ?? this.chestPositions,
       fixedChestPosition: fixedChestPosition ?? this.fixedChestPosition,
       playerInventory: playerInventory ?? this.playerInventory,
+      equipmentSlots: equipmentSlots ?? this.equipmentSlots,
       inventoryCapacity: inventoryCapacity ?? this.inventoryCapacity,
       maxInventoryCapacity: maxInventoryCapacity ?? this.maxInventoryCapacity,
       groundItems: groundItems ?? this.groundItems,
@@ -560,6 +574,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _setRandomPlayerSpawn();
     _initializeChests(); // 初始化随机宝箱位置
     _spawnFixedChestUnderPlayer(); // 关键区域：开局在玩家脚底下生成固定宝箱
+    // 关键区域：初始化装备为空并覆盖持久化记录（符合“开局装备栏为空”）
+    final clearedSlots = <String, Item?>{
+      'weapon': null,
+      'armor': null,
+      'head': null,
+      'hand': null,
+      'pants': null,
+      'shoes': null,
+    };
+    state = state.copyWith(equipmentSlots: clearedSlots);
+    _saveEquipmentToPrefs();
     _startMovementTimer();
     _startVisionUpdateTimer();
     _startSmoothVisionTimer(); // 启动平滑视野动画定时器
@@ -574,6 +599,317 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startGhostSpawnTimer(); // 启动鬼的生成定时器
     _updateVision();
   }
+
+  // 关键区域：装备/卸下逻辑与效果应用
+  /// 装备物品到指定槽位（weapon/armor/head/hand）
+  bool equipItemToSlot(Item item, String slot) {
+    // 关键区域：类型与槽位匹配（支持中文类型与旧“装备+equipmentSlot”兼容）
+    final bool matchesByType =
+        (item.type == '武器' && slot == 'weapon') ||
+        (item.type == '甲' && slot == 'armor') ||
+        (item.type == '头' && slot == 'head') ||
+        (item.type == '背包' && slot == 'hand') ||
+        (item.type == '裤子' && slot == 'pants') ||
+        (item.type == '鞋' && slot == 'shoes');
+
+    final bool matchesLegacy = (item.type == '装备' && item.equipmentSlot == slot);
+
+    if (!(matchesByType || matchesLegacy)) {
+      return false;
+    }
+
+    // 关键区域：优先按对象身份匹配选中堆叠，其次按 id+count 兜底
+    List<Item> inventory = List<Item>.from(state.playerInventory);
+    int idx = inventory.indexWhere((i) => identical(i, item));
+    if (idx == -1) {
+      idx = inventory.indexWhere((i) => i.id == item.id && i.count > 0);
+    }
+    if (idx == -1) {
+      return false; // 背包中不存在
+    }
+
+    // 若槽位已占用，先卸下
+    final currentEquipped = state.equipmentSlots[slot];
+    if (currentEquipped != null) {
+      _unequipInternal(slot, notify: false);
+      // 关键区域：卸下后背包已更新，需重新抓取背包并重新定位待装备条目
+      inventory = List<Item>.from(state.playerInventory);
+      idx = inventory.indexWhere((i) => identical(i, item));
+      if (idx == -1) {
+        idx = inventory.indexWhere((i) => i.id == item.id && i.count > 0);
+      }
+      if (idx == -1) {
+        return false; // 防御：若异常找不到，终止操作
+      }
+    }
+
+    // 从背包扣除一个
+    final invItem = inventory[idx];
+    if (invItem.count > 1) {
+      inventory[idx] = Item(
+        id: invItem.id,
+        name: invItem.name,
+        image: invItem.image,
+        description: invItem.description,
+        effects: invItem.effects,
+        type: invItem.type,
+        count: invItem.count - 1,
+        availableInShop: invItem.availableInShop,
+        basePrice: invItem.basePrice,
+        usageTime: invItem.usageTime,
+        level: invItem.level,
+        equipmentSlot: invItem.equipmentSlot,
+        equipEffects: invItem.equipEffects,
+      );
+    } else {
+      inventory.removeAt(idx);
+    }
+
+    // 应用装备效果
+    _applyEquipEffects(item.equipEffects ?? const {});
+
+    // 更新状态：设置槽位与背包
+    final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
+    updatedSlots[slot] = item;
+    state = state.copyWith(playerInventory: inventory, equipmentSlots: updatedSlots);
+
+    // 播报消息
+    addBroadcastMessage('装备了 ${item.name}', BroadcastMessageType.item);
+
+    // 持久化保存
+    _saveEquipmentToPrefs();
+
+    return true;
+  }
+
+  /// 卸下指定槽位的装备
+  bool unequipItemFromSlot(String slot) {
+    return _unequipInternal(slot, notify: true);
+  }
+
+  bool _unequipInternal(String slot, {bool notify = true}) {
+    final equipped = state.equipmentSlots[slot];
+    if (equipped == null) return false;
+
+    // 撤回装备效果
+    _removeEquipEffects(equipped.equipEffects ?? const {});
+
+    // 将装备返回到背包（合并数量）
+    final inventory = List<Item>.from(state.playerInventory);
+    // 关键区域：装备类物品不堆叠，直接作为独立条目返回背包
+    final bool isEquipment = (equipped.type == '装备') ||
+        (equipped.type == '武器') ||
+        (equipped.type == '甲') ||
+        (equipped.type == '头') ||
+        (equipped.type == '背包') ||
+        (equipped.type == '裤子') ||
+        (equipped.type == '鞋');
+
+    if (isEquipment) {
+      inventory.add(Item(
+        id: equipped.id,
+        name: equipped.name,
+        image: equipped.image,
+        description: equipped.description,
+        effects: equipped.effects,
+        type: equipped.type,
+        count: 1,
+        availableInShop: equipped.availableInShop,
+        basePrice: equipped.basePrice,
+        usageTime: equipped.usageTime,
+        level: equipped.level,
+        equipmentSlot: equipped.equipmentSlot,
+        equipEffects: equipped.equipEffects,
+      ));
+    } else {
+      // 非装备类型仍可合并（例如消耗品）
+      final idx = inventory.indexWhere((i) => i.id == equipped.id);
+      if (idx >= 0) {
+        final existing = inventory[idx];
+        inventory[idx] = Item(
+          id: existing.id,
+          name: existing.name,
+          image: existing.image,
+          description: existing.description,
+          effects: existing.effects,
+          type: existing.type,
+          count: existing.count + 1,
+          availableInShop: existing.availableInShop,
+          basePrice: existing.basePrice,
+          usageTime: existing.usageTime,
+          level: existing.level,
+          equipmentSlot: existing.equipmentSlot,
+          equipEffects: existing.equipEffects,
+        );
+      } else {
+        inventory.add(Item(
+          id: equipped.id,
+          name: equipped.name,
+          image: equipped.image,
+          description: equipped.description,
+          effects: equipped.effects,
+          type: equipped.type,
+          count: 1,
+          availableInShop: equipped.availableInShop,
+          basePrice: equipped.basePrice,
+          usageTime: equipped.usageTime,
+          level: equipped.level,
+          equipmentSlot: equipped.equipmentSlot,
+          equipEffects: equipped.equipEffects,
+        ));
+      }
+    }
+
+    // 清空槽位并更新状态
+    final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
+    updatedSlots[slot] = null;
+    state = state.copyWith(playerInventory: inventory, equipmentSlots: updatedSlots);
+
+    if (notify) {
+      addBroadcastMessage('卸下了 ${equipped.name}', BroadcastMessageType.item);
+    }
+
+    // 持久化保存
+    _saveEquipmentToPrefs();
+
+    return true;
+  }
+
+  // 关键区域：应用装备效果（与道具使用效果一致的规则）
+  void _applyEquipEffects(Map<String, int> effects) {
+    final character = Map<String, dynamic>.from(state.characterStats);
+
+    effects.forEach((effectType, value) {
+      switch (effectType) {
+        case 'hp':
+          final currentHp = (character['hp'] ?? 100).toDouble();
+          final double maxHp = (character['maxHp'] ?? 100).toDouble();
+          character['hp'] = (currentHp + value).clamp(0, maxHp);
+          break;
+        case 'food':
+          final currentFood = (character['food'] ?? 100).toDouble();
+          final double maxFood = (character['maxFood'] ?? 100).toDouble();
+          character['food'] = (currentFood + value).clamp(0, maxFood);
+          break;
+        case 'maxHp':
+          final double currentMaxHp = (character['maxHp'] ?? 100).toDouble();
+          final double proposed = (currentMaxHp + value).toDouble();
+          final double newMaxHp = proposed < 1 ? 1 : proposed;
+          character['maxHp'] = newMaxHp;
+          final double currentHp2 = (character['hp'] ?? 0).toDouble();
+          if (currentHp2 > newMaxHp) character['hp'] = newMaxHp;
+          break;
+        case 'maxFood':
+          final double currentMaxFood = (character['maxFood'] ?? 100).toDouble();
+          final double proposedFoodMax = (currentMaxFood + value).toDouble();
+          final double newMaxFood = proposedFoodMax < 1 ? 1 : proposedFoodMax;
+          character['maxFood'] = newMaxFood;
+          final double currentFood2 = (character['food'] ?? 0).toDouble();
+          if (currentFood2 > newMaxFood) character['food'] = newMaxFood;
+          break;
+        case 'san':
+          final currentSan = (character['san'] ?? 100).toDouble();
+          character['san'] = (currentSan + value).clamp(0, 250);
+          break;
+        case 'moveSpeed':
+          final currentSpeed = (character['moveSpeed'] ?? 100).toDouble();
+          character['moveSpeed'] = (currentSpeed + value).clamp(1, double.infinity);
+          break;
+        case 'gold':
+          final currentGold = (character['gold'] ?? 0).toDouble();
+          character['gold'] = (currentGold + value).clamp(0, 999999);
+          break;
+        case 'oxygenBonus':
+          final currentOxygenBeforeBonus = state.currentOxygen;
+          increaseOxygenCapacity(value.toDouble());
+          final newMaxOxygen = state.actualMaxOxygen;
+          if (currentOxygenBeforeBonus < newMaxOxygen) {
+            _startOxygenRecovery(currentOxygenBeforeBonus, newMaxOxygen);
+          }
+          break;
+      }
+    });
+
+    state = state.copyWith(characterStats: character);
+  }
+
+  // 关键区域：撤回装备效果（取反应用）
+  void _removeEquipEffects(Map<String, int> effects) {
+    final reversed = <String, int>{};
+    effects.forEach((k, v) => reversed[k] = -v);
+    _applyEquipEffects(reversed);
+  }
+
+  // 关键区域：装备槽持久化（SharedPreferences）
+  Future<void> _saveEquipmentToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final Map<String, String> slotIds = {};
+      state.equipmentSlots.forEach((slot, item) {
+        if (item != null) slotIds[slot] = item.id;
+      });
+      final jsonStr = slotIds.entries.map((e) => '${e.key}:${e.value}').join('|');
+      await prefs.setString('equipmentSlots', jsonStr);
+    } catch (_) {}
+  }
+
+  Future<void> _loadEquipmentFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('equipmentSlots');
+      // 关键区域：若无持久化装备数据，默认不装备任何物品（全部为空）
+      if (jsonStr == null || jsonStr.isEmpty) {
+        final updatedSlots = <String, Item?>{
+          'weapon': null,
+          'armor': null,
+          'head': null,
+          'hand': null,
+          'pants': null,
+          'shoes': null,
+        };
+        state = state.copyWith(equipmentSlots: updatedSlots);
+        await _saveEquipmentToPrefs();
+        return;
+      }
+      // 关键区域：使用安全的默认槽位映射（六类），避免 Null 导致的类型异常
+      final updatedSlots = <String, Item?>{
+        'weapon': null,
+        'armor': null,
+        'head': null,
+        'hand': null,
+        'pants': null,
+        'shoes': null,
+      };
+      final pairs = jsonStr.split('|');
+      for (final p in pairs) {
+        if (!p.contains(':')) continue;
+        final parts = p.split(':');
+        if (parts.length != 2) continue;
+        final slot = parts[0];
+        final id = parts[1];
+        final item = allItems.firstWhere(
+          (i) => i.id == id,
+          orElse: () => Item(
+            id: id,
+            name: id,
+            image: '',
+            description: '',
+            effects: const {},
+            type: '装备',
+            equipmentSlot: slot,
+            equipEffects: const {},
+          ),
+        );
+        // 应用效果但不变动背包（恢复会话状态）
+        _applyEquipEffects(item.equipEffects ?? const {});
+        updatedSlots[slot] = item;
+      }
+      state = state.copyWith(equipmentSlots: updatedSlots);
+    } catch (_) {}
+  }
+
+  // 注释：此前的“按角色默认初始化装备”逻辑已移除，
+  // 现在开局不装备任何物品（所有槽位为 null）。
 
   /// 开局在玩家脚底下生成一个固定刷新宝箱，并记录其位置
   /// 关键区域：该宝箱位置固定且用于 100% 掉落 3 个随机物品
@@ -2078,26 +2414,24 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 扣除金币
     final updatedCharacter = Map<String, dynamic>.from(character);
     updatedCharacter['gold'] = currentMoney - shopItem.currentPrice;
-    
-    // 添加物品到背包
-    final newInventory = List<Item>.from(state.playerInventory);
-    newInventory.add(shopItem.item);
-    
+
     // 减少商品库存
     shopItem.stock--;
-    
-    // 更新状态
-    state = state.copyWith(
-      characterStats: updatedCharacter,
-      playerInventory: newInventory,
-    );
-    
+
+    // 尝试堆叠插入到背包（末尾位置），失败则改为掉落在地面
+    final success = insertItemAtPosition(shopItem.item, state.playerInventory.length);
+    if (!success) {
+      _dropItemToGround(shopItem.item, state.playerPosition.toPoint());
+      state = state.copyWith(characterStats: updatedCharacter);
+      addBroadcastMessage('背包空间不足，购买物品已掉落：${shopItem.item.name}', BroadcastMessageType.item);
+      return true; // 购买成功但物品掉落
+    }
+
+    // 更新金币（背包已由插入方法更新）
+    state = state.copyWith(characterStats: updatedCharacter);
+
     // 添加购买成功的播报消息
-    addBroadcastMessage(
-      '购买了 ${shopItem.item.name}',
-      BroadcastMessageType.item,
-    );
-    
+    addBroadcastMessage('购买了 ${shopItem.item.name}', BroadcastMessageType.item);
     return true; // 购买成功
   }
 
@@ -2118,15 +2452,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 从地面拾取物品
   bool pickupItemFromGround(Point<int> position, Item item) {
-    // 检查背包容量
-    if (state.playerInventory.length >= state.inventoryCapacity) {
-      addBroadcastMessage(
-        '背包已满',
-        BroadcastMessageType.item,
-      );
-      return false;
-    }
-    
+    // 使用堆叠插入逻辑，不再仅以格数判断
     final currentGroundItems = Map<Point<int>, List<Item>>.from(state.groundItems);
     
     // 检查该位置是否有物品
@@ -2149,9 +2475,80 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       currentGroundItems.remove(position);
     }
     
-    // 添加物品到背包
+    // 添加物品到背包（堆叠：仅对“物品”生效）
     final newInventory = List<Item>.from(state.playerInventory);
-    newInventory.add(item);
+    const int stackLimit = 16;
+    int remaining = item.count;
+
+    if (item.type == '物品') {
+      // 合并到已有堆叠
+      for (int i = 0; i < newInventory.length && remaining > 0; i++) {
+        final invItem = newInventory[i];
+        if (invItem.id == item.id && invItem.type == '物品') {
+          final int free = stackLimit - invItem.count;
+          if (free > 0) {
+            final int addCount = remaining < free ? remaining : free;
+            newInventory[i] = Item(
+              id: invItem.id,
+              name: invItem.name,
+              image: invItem.image,
+              description: invItem.description,
+              effects: invItem.effects,
+              type: invItem.type,
+              count: invItem.count + addCount,
+              availableInShop: invItem.availableInShop,
+              basePrice: invItem.basePrice,
+              usageTime: invItem.usageTime,
+              level: invItem.level,
+              equipmentSlot: invItem.equipmentSlot,
+              equipEffects: invItem.equipEffects,
+            );
+            remaining -= addCount;
+          }
+        }
+      }
+
+      // 需要新增堆叠时检查容量
+      while (remaining > 0) {
+        final int neededStacks = (remaining + stackLimit - 1) ~/ stackLimit;
+        final int availableSlots = state.inventoryCapacity - newInventory.length;
+        if (availableSlots < neededStacks) {
+          // 回滚地面物品列表（把拿走的放回）
+          final backItems = currentGroundItems[position] ?? <Item>[];
+          backItems.add(item);
+          currentGroundItems[position] = backItems;
+          addBroadcastMessage('背包空间不足，无法拾取', BroadcastMessageType.item);
+          return false;
+        }
+        final int toAdd = remaining > stackLimit ? stackLimit : remaining;
+        newInventory.add(Item(
+          id: item.id,
+          name: item.name,
+          image: item.image,
+          description: item.description,
+          effects: item.effects,
+          type: item.type,
+          count: toAdd,
+          availableInShop: item.availableInShop,
+          basePrice: item.basePrice,
+          usageTime: item.usageTime,
+          level: item.level,
+          equipmentSlot: item.equipmentSlot,
+          equipEffects: item.equipEffects,
+        ));
+        remaining -= toAdd;
+      }
+    } else {
+      // 非堆叠类型按单件处理，需要至少1个槽位
+      if (newInventory.length >= state.inventoryCapacity) {
+        final backItems = currentGroundItems[position] ?? <Item>[];
+        backItems.add(item);
+        currentGroundItems[position] = backItems;
+        addBroadcastMessage('背包已满，无法拾取', BroadcastMessageType.item);
+        return false;
+      }
+      newInventory.add(item);
+    }
     
     // 更新状态
     state = state.copyWith(
@@ -2160,10 +2557,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
     
     // 添加拾取成功的播报消息
-    addBroadcastMessage(
-      '拾取了 ${item.name}',
-      BroadcastMessageType.item,
-    );
+    addBroadcastMessage('拾取了 ${item.name}${item.count > 1 ? ' x ${item.count}' : ''}', BroadcastMessageType.item);
     
     return true;
   }
@@ -2228,28 +2622,91 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 将物品添加到背包的指定位置（用于拖拽到空格子）
   bool insertItemAtPosition(Item item, int targetIndex) {
     final inventory = List<Item>.from(state.playerInventory);
-    
-    // 检查背包容量
-    if (inventory.length >= state.inventoryCapacity) {
-      return false;
-    }
-    
-    // 检查目标位置是否有效
+
+    // 目标位置边界检查
     if (targetIndex < 0 || targetIndex >= state.inventoryCapacity) {
       return false;
     }
-    
-    // 如果目标位置超出当前物品数量，直接添加到末尾
-    if (targetIndex >= inventory.length) {
-      inventory.add(item);
+
+    // 堆叠逻辑：仅对 type == '物品' 生效
+    const int stackLimit = 16;
+    int remaining = item.count;
+
+    if (item.type == '物品') {
+      // 先尝试合并到已有同类堆叠
+      for (int i = 0; i < inventory.length && remaining > 0; i++) {
+        final invItem = inventory[i];
+        if (invItem.id == item.id && invItem.type == '物品') {
+          final int free = stackLimit - invItem.count;
+          if (free > 0) {
+            final int addCount = remaining < free ? remaining : free;
+            inventory[i] = Item(
+              id: invItem.id,
+              name: invItem.name,
+              image: invItem.image,
+              description: invItem.description,
+              effects: invItem.effects,
+              type: invItem.type,
+              count: invItem.count + addCount,
+              availableInShop: invItem.availableInShop,
+              basePrice: invItem.basePrice,
+              usageTime: invItem.usageTime,
+              level: invItem.level,
+              equipmentSlot: invItem.equipmentSlot,
+              equipEffects: invItem.equipEffects,
+            );
+            remaining -= addCount;
+          }
+        }
+      }
+
+      // 若仍有剩余，计算新增堆叠所需槽位
+      while (remaining > 0) {
+        final int neededStacks = (remaining + stackLimit - 1) ~/ stackLimit;
+        final int availableSlots = state.inventoryCapacity - inventory.length;
+        if (availableSlots < neededStacks) {
+          return false; // 容量不足，拒绝插入
+        }
+
+        final int toAdd = remaining > stackLimit ? stackLimit : remaining;
+        final Item stackItem = Item(
+          id: item.id,
+          name: item.name,
+          image: item.image,
+          description: item.description,
+          effects: item.effects,
+          type: item.type,
+          count: toAdd,
+          availableInShop: item.availableInShop,
+          basePrice: item.basePrice,
+          usageTime: item.usageTime,
+          level: item.level,
+          equipmentSlot: item.equipmentSlot,
+          equipEffects: item.equipEffects,
+        );
+
+        if (targetIndex >= inventory.length) {
+          inventory.add(stackItem);
+        } else {
+          inventory.insert(targetIndex, stackItem);
+          targetIndex++; // 多个堆叠依次插入
+        }
+        remaining -= toAdd;
+      }
     } else {
-      // 在指定位置插入物品，其他物品后移
-      inventory.insert(targetIndex, item);
+      // 非堆叠类型需要至少1个槽位
+      if (inventory.length >= state.inventoryCapacity) {
+        return false;
+      }
+      if (targetIndex >= inventory.length) {
+        inventory.add(item);
+      } else {
+        inventory.insert(targetIndex, item);
+      }
     }
-    
+
     // 更新背包状态
     state = state.copyWith(playerInventory: inventory);
-    
     return true;
   }
 
@@ -2517,9 +2974,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   
   /// 完成物品使用，应用效果
   void _completeItemUsage(Item item) {
-    // 检查物品是否在背包中
+    // 检查物品是否在背包中（优先使用对象身份匹配，以确保选中堆叠）
     final inventory = List<Item>.from(state.playerInventory);
-    final itemIndex = inventory.indexWhere((i) => i.id == item.id);
+    int itemIndex = inventory.indexWhere((i) => identical(i, item));
+    if (itemIndex == -1) {
+      // 回退：按 id + count 尝试匹配（避免同 id 不同堆叠被误选）
+      itemIndex = inventory.indexWhere((i) => i.id == item.id && i.count == item.count);
+    }
     
     if (itemIndex == -1) {
       // 物品不在背包中，取消使用
@@ -2527,7 +2988,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       return;
     }
     
-    // 应用物品效果
+    // 关键区域：金币为特殊物品——一次使用消耗选中堆叠的全部数量
+    final bool isGold = item.id == 'gold';
+    final int quantityToConsume = isGold ? item.count : 1;
+
+    // 应用物品效果（金币按堆叠数量整体生效）
     final character = Map<String, dynamic>.from(state.characterStats);
     bool hasEffect = false;
     
@@ -2538,7 +3003,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           // 使用当前角色的 maxHp 作为生命值上限进行限制，避免固定 100 上限
           final currentHp = character['hp'] ?? 100;
           final double maxHp = (character['maxHp'] ?? 100).toDouble();
-          final newHp = (currentHp + value).clamp(0, maxHp);
+          final int delta = isGold ? (value * quantityToConsume) : value;
+          final newHp = (currentHp + delta).clamp(0, maxHp);
           character['hp'] = newHp;
           hasEffect = true;
           break;
@@ -2546,14 +3012,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           // 关键区域：饱食度上限不固定，依赖可变的 maxFood
           final currentFood = character['food'] ?? 100;
           final double maxFood = (character['maxFood'] ?? 100).toDouble();
-          final newFood = (currentFood + value).clamp(0, maxFood);
+          final int delta = isGold ? (value * quantityToConsume) : value;
+          final newFood = (currentFood + delta).clamp(0, maxFood);
           character['food'] = newFood;
           hasEffect = true;
           break;
         case 'maxHp':
           // 关键区域：允许道具修改生命值上限
           final double currentMaxHp = (character['maxHp'] ?? 100).toDouble();
-          final double proposed = (currentMaxHp + value).toDouble();
+          final double proposed = (currentMaxHp + (isGold ? (value * quantityToConsume) : value)).toDouble();
           final double newMaxHp = proposed < 1 ? 1 : proposed;
           character['maxHp'] = newMaxHp;
           // 若当前生命值超过新上限则进行夹取
@@ -2566,7 +3033,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         case 'maxFood':
           // 关键区域：允许道具修改饱食度上限
           final double currentMaxFood = (character['maxFood'] ?? 100).toDouble();
-          final double proposedFoodMax = (currentMaxFood + value).toDouble();
+          final double proposedFoodMax = (currentMaxFood + (isGold ? (value * quantityToConsume) : value)).toDouble();
           final double newMaxFood = proposedFoodMax < 1 ? 1 : proposedFoodMax;
           character['maxFood'] = newMaxFood;
           // 若当前饱食度超过新上限则进行夹取
@@ -2578,19 +3045,22 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
         case 'san':
           final currentSan = character['san'] ?? 100;
-          final newSan = (currentSan + value).clamp(0, 250); // 精神值上限限制为250
+          final int deltaSan = isGold ? (value * quantityToConsume) : value;
+          final newSan = (currentSan + deltaSan).clamp(0, 250); // 精神值上限限制为250
           character['san'] = newSan;
           hasEffect = true;
           break;
         case 'moveSpeed':
           final currentSpeed = character['moveSpeed'] ?? 100;
-          final newSpeed = (currentSpeed + value).clamp(1, double.infinity); // 移除上限，只保留最小值1防止负速度
+          final int deltaSpeed = isGold ? (value * quantityToConsume) : value;
+          final newSpeed = (currentSpeed + deltaSpeed).clamp(1, double.infinity); // 移除上限，只保留最小值1防止负速度
           character['moveSpeed'] = newSpeed;
           hasEffect = true;
           break;
         case 'gold':
           final currentGold = character['gold'] ?? 0;
-          final newGold = (currentGold + value).clamp(0, 999999);
+          final int deltaGold = value * quantityToConsume;
+          final newGold = (currentGold + deltaGold).clamp(0, 999999);
           character['gold'] = newGold;
           hasEffect = true;
           break;
@@ -2598,7 +3068,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           // 记录增加氧气上限前的当前氧气值
           final currentOxygenBeforeBonus = state.currentOxygen;
           // 增加氧气上限
-          increaseOxygenCapacity(value.toDouble());
+          final double deltaOxygenBonus = isGold ? (value * quantityToConsume).toDouble() : value.toDouble();
+          increaseOxygenCapacity(deltaOxygenBonus);
           // 检查是否需要启动氧气恢复进度条
           final newMaxOxygen = state.actualMaxOxygen;
           if (currentOxygenBeforeBonus < newMaxOxygen) {
@@ -2610,22 +3081,26 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     });
     
     if (hasEffect) {
-      // 从背包中移除物品（如果数量大于1，则减少数量）
-      if (item.count > 1) {
-        inventory[itemIndex] = Item(
-          id: item.id,
-          name: item.name,
-          image: item.image,
-          description: item.description,
-          effects: item.effects,
-          type: item.type,
-          count: item.count - 1,
-          availableInShop: item.availableInShop,
-          basePrice: item.basePrice,
-          usageTime: item.usageTime,
-        );
-      } else {
+      // 从背包中移除物品：金币一次消耗整个堆叠；其他物品按照原逻辑（-1 或移除）
+      if (isGold) {
         inventory.removeAt(itemIndex);
+      } else {
+        if (item.count > 1) {
+          inventory[itemIndex] = Item(
+            id: item.id,
+            name: item.name,
+            image: item.image,
+            description: item.description,
+            effects: item.effects,
+            type: item.type,
+            count: item.count - 1,
+            availableInShop: item.availableInShop,
+            basePrice: item.basePrice,
+            usageTime: item.usageTime,
+          );
+        } else {
+          inventory.removeAt(itemIndex);
+        }
       }
       
       // 更新游戏状态
@@ -2640,7 +3115,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       
       // 添加使用完成的播报消息
       addBroadcastMessage(
-        '使用了 ${item.name}',
+        '使用了 ${item.name}${isGold ? ' x ${quantityToConsume}' : ''}',
         BroadcastMessageType.item,
       );
     } else {
@@ -2732,31 +3207,93 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 将宝箱中的物品放入背包（点击/快捷方式）
   /// 关键区域：容量校验与原子更新，避免状态不同步
   bool transferChestItemToInventory(Item item) {
-    // 背包容量检查
+    // 复制当前状态
     final inventory = List<Item>.from(state.playerInventory);
-    if (inventory.length >= state.inventoryCapacity) {
-      addBroadcastMessage('背包已满，无法放入', BroadcastMessageType.item);
-      return false;
-    }
+    final visible = List<Item>.from(state.chestVisibleItems);
 
     // 从宝箱可见列表移除该物品
-    final visible = List<Item>.from(state.chestVisibleItems);
     final index = visible.indexWhere((i) => i.id == item.id);
     if (index == -1) {
       return false; // 该物品当前不可见或已被转移
     }
     final removed = visible.removeAt(index);
 
-    // 放入背包（追加到末尾）
-    inventory.add(removed);
+    // 堆叠逻辑（仅对 type == '物品' 生效，上限16）
+    const int stackLimit = 16;
+    int remaining = removed.count;
+
+    if (removed.type == '物品') {
+      // 先尝试合并到已有同类堆叠
+      for (int i = 0; i < inventory.length && remaining > 0; i++) {
+        final invItem = inventory[i];
+        if (invItem.id == removed.id && invItem.type == '物品') {
+          final int free = stackLimit - invItem.count;
+          if (free > 0) {
+            final int addCount = remaining < free ? remaining : free;
+            inventory[i] = Item(
+              id: invItem.id,
+              name: invItem.name,
+              image: invItem.image,
+              description: invItem.description,
+              effects: invItem.effects,
+              type: invItem.type,
+              count: invItem.count + addCount,
+              availableInShop: invItem.availableInShop,
+              basePrice: invItem.basePrice,
+              usageTime: invItem.usageTime,
+              level: invItem.level,
+              equipmentSlot: invItem.equipmentSlot,
+              equipEffects: invItem.equipEffects,
+            );
+            remaining -= addCount;
+          }
+        }
+      }
+
+      // 若仍有剩余，计算新增堆叠所需槽位
+      while (remaining > 0) {
+        final int neededStacks = (remaining + stackLimit - 1) ~/ stackLimit;
+        final int availableSlots = state.inventoryCapacity - inventory.length;
+        if (availableSlots < neededStacks) {
+          // 回滚宝箱可见列表，拒绝整个操作
+          visible.insert(index, removed);
+          addBroadcastMessage('背包空间不足，无法放入', BroadcastMessageType.item);
+          return false;
+        }
+        final int toAdd = remaining > stackLimit ? stackLimit : remaining;
+        inventory.add(Item(
+          id: removed.id,
+          name: removed.name,
+          image: removed.image,
+          description: removed.description,
+          effects: removed.effects,
+          type: removed.type,
+          count: toAdd,
+          availableInShop: removed.availableInShop,
+          basePrice: removed.basePrice,
+          usageTime: removed.usageTime,
+          level: removed.level,
+          equipmentSlot: removed.equipmentSlot,
+          equipEffects: removed.equipEffects,
+        ));
+        remaining -= toAdd;
+      }
+    } else {
+      // 非堆叠类型按单件处理：需要1个槽位
+      if (inventory.length >= state.inventoryCapacity) {
+        visible.insert(index, removed);
+        addBroadcastMessage('背包已满，无法放入', BroadcastMessageType.item);
+        return false;
+      }
+      inventory.add(removed);
+    }
 
     // 更新状态
     state = state.copyWith(
       playerInventory: inventory,
       chestVisibleItems: visible,
     );
-
-    addBroadcastMessage('已放入背包：${removed.name}', BroadcastMessageType.item);
+    addBroadcastMessage('已放入背包：${removed.name}${removed.count > 1 ? ' x ${removed.count}' : ''}', BroadcastMessageType.item);
     return true;
   }
 

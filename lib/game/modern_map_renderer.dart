@@ -290,19 +290,21 @@ class MapPainter extends CustomPainter {
           final drawY = centerY - displayHeight / 2;
           
           final rect = Rect.fromLTWH(drawX, drawY, displayWidth, displayHeight);
+          // 关键区域：按物品等级为地面物品图片进行轻度着色
           canvas.drawImageRect(
             image,
             Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
             rect,
             Paint()..colorFilter = ColorFilter.mode(
-              Colors.white.withOpacity(0.8), // 稍微透明，表示是地面物品
+              _getItemLevelColor(item.level).withOpacity(0.8),
               BlendMode.modulate,
             ),
           );
         } else {
           // 后备方案：绘制小圆点
           final paint = Paint()
-            ..color = _getItemTypeColor(item.type).withOpacity(0.8)
+            // 关键区域：后备绘制按物品等级着色（不再使用类型色）
+            ..color = _getItemLevelColor(item.level).withOpacity(0.8)
             ..style = PaintingStyle.fill;
           
           canvas.drawCircle(
@@ -343,6 +345,10 @@ class MapPainter extends CustomPainter {
   /// 根据物品类型获取颜色
   Color _getItemTypeColor(String itemType) {
     switch (itemType) {
+      case '装备':
+        return Colors.indigo;
+      case '物品':
+        return Colors.amber;
       case 'food':
         return Colors.green;
       case 'tool':
@@ -353,6 +359,28 @@ class MapPainter extends CustomPainter {
         return Colors.purple;
       default:
         return Colors.grey;
+    }
+  }
+
+  // 关键区域：按物品等级返回颜色（用于地面物品着色，与背包/宝箱一致）
+  Color _getItemLevelColor(int level) {
+    switch (level) {
+      case 1:
+        return Colors.grey.shade600; // 无色
+      case 2:
+        return Colors.green.shade400; // 绿色
+      case 3:
+        return Colors.blue.shade400; // 蓝色
+      case 4:
+        return Colors.purple.shade400; // 紫色
+      case 5:
+        return Colors.amber.shade400; // 金色
+      case 6:
+        return Colors.orange.shade400; // 橙色
+      case 7:
+        return Colors.red.shade400; // 红色
+      default:
+        return Colors.grey.shade600; // 默认无色
     }
   }
 

@@ -796,6 +796,11 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 关键区域：调整布局 —— 将装备栏置于顶部，背包网格置于底部且可滑动
+          _buildEquipmentSlots(gameState, ref),
+
+          const SizedBox(height: 12),
+
           // 背包物品网格（卡片容器包裹，增强立体与层次）
           Expanded(
             flex: 4,
@@ -846,8 +851,6 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             ),
           ),
 
-          const SizedBox(height: 12),
-
           // 垃圾桶拖拽区域 - 只在拖拽时显示
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
@@ -857,6 +860,163 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         ],
       ),
     );
+  }
+
+  /// 关键区域：装备槽横向正方形布局（weapon/armor/head/hand/pants/shoes）
+  Widget _buildEquipmentSlots(OptimizedGameState gameState, WidgetRef ref) {
+    final slotsOrder = const ['weapon', 'armor', 'head', 'hand', 'pants', 'shoes'];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: slotsOrder.map((slot) {
+        final equipped = gameState.equipmentSlots[slot];
+        final bool hasEquipped = equipped != null;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: DragTarget<Item>(
+            // 关键区域：按中文类型与槽位映射接受拖拽（兼容旧“装备+equipmentSlot”）
+            onWillAccept: (item) {
+              if (item == null) return false;
+              final matchesByType =
+                  (item.type == '武器' && slot == 'weapon') ||
+                  (item.type == '甲' && slot == 'armor') ||
+                  (item.type == '头' && slot == 'head') ||
+                  (item.type == '背包' && slot == 'hand') ||
+                  (item.type == '裤子' && slot == 'pants') ||
+                  (item.type == '鞋' && slot == 'shoes');
+              final matchesLegacy = (item.type == '装备' && item.equipmentSlot == slot);
+              return matchesByType || matchesLegacy;
+            },
+            onAccept: (item) {
+              ref.read(optimizedGameStateProvider.notifier).equipItemToSlot(item, slot);
+            },
+            builder: (context, candidateData, rejectedData) {
+              final isHovering = candidateData.isNotEmpty;
+              return GestureDetector(
+                onTap: () {
+                  if (equipped != null) {
+                    ref.read(optimizedGameStateProvider.notifier).unequipItemFromSlot(slot);
+                  }
+                },
+                child: SizedBox(
+                  width: 54,
+                  height: 54,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        // 关键区域：装备状态高亮边框，融合全局风格
+                        // 装备栏按 level 着色：悬停用琥珀，高亮用等级色
+                        color: isHovering
+                            ? Colors.amberAccent.withOpacity(0.85)
+                            : (hasEquipped
+                                ? _getItemLevelColor(equipped!.level).withOpacity(0.85)
+                                : Colors.grey.shade500.withOpacity(0.6)),
+                        width: 1.2,
+                      ),
+                      // 关键区域：背景渐变采用 UITheme，风格统一
+                      gradient: ui_theme.UITheme.progressBackground(),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    // 关键区域：前景高光与装备状态微光，应作为 Container 的 foregroundDecoration
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          // 关键区域：装备栏前景微光按 level 着色
+                          (hasEquipped ? _getItemLevelColor(equipped!.level) : Colors.white)
+                              .withOpacity(hasEquipped ? 0.12 : 0.06),
+                          Colors.transparent,
+                          Colors.white.withOpacity(0.04),
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: equipped == null
+                            ? Icon(
+                                _slotIcon(slot),
+                                color: Colors.grey.shade300,
+                                size: 22,
+                              )
+                            : (equipped.image.isNotEmpty
+                                // 关键区域：显示装备贴图（支持资源缺失回退）
+                                ? Image.asset(
+                                    equipped.image,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (c, e, s) => Icon(
+                                      _slotIcon(slot),
+                                      // 关键区域：装备贴图加载失败时，按 level 着色图标
+                                      color: _getItemLevelColor(equipped!.level),
+                                      size: 22,
+                                    ),
+                                  )
+                                : Icon(
+                                    _slotIcon(slot),
+                                    // 关键区域：无贴图装备，按 level 着色图标
+                                    color: _getItemLevelColor(equipped!.level),
+                                    size: 22,
+                                  )),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  IconData _slotIcon(String slot) {
+    switch (slot) {
+      case 'weapon':
+        return Icons.security;
+      case 'armor':
+        return Icons.checkroom;
+      case 'head':
+        return Icons.masks;
+      case 'hand':
+        return Icons.pan_tool_alt;
+      case 'pants':
+        return Icons.roller_shades;
+      case 'shoes':
+        return Icons.hiking;
+      default:
+        return Icons.inventory_2;
+    }
+  }
+
+  String _slotLabel(String slot) {
+    switch (slot) {
+      case 'weapon':
+        return '武器槽（拖拽装备到此）';
+      case 'armor':
+        return '护甲槽（拖拽装备到此）';
+      case 'head':
+        return '头部槽（拖拽装备到此）';
+      case 'hand':
+        return '手部槽（拖拽装备到此）';
+      case 'pants':
+        return '裤子槽（拖拽装备到此）';
+      case 'shoes':
+        return '鞋子槽（拖拽装备到此）';
+      default:
+        return '装备槽';
+    }
   }
 
   /// 构建空背包提示
@@ -1059,7 +1219,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                        left: 1,
                        right: 8, // 为可能的数量显示留出空间
                        child: Text(
-                         item.name,
+                         item.count > 1 ? '${item.name} x ${item.count}' : item.name,
                          style: const TextStyle(
                            color: Colors.white,
                            fontSize: 6, // 缩小文字尺寸适应10列布局
@@ -1177,7 +1337,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                           left: 2,
                           right: 20, // 为右上角数量显示留出空间
                           child: Text(
-                            item.name,
+                            item.count > 1 ? '${item.name} x ${item.count}' : item.name,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 8,
@@ -1324,7 +1484,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.45), width: 1),
+            // 关键区域：详情页按等级颜色区分 —— 弹窗边框使用等级颜色
+            side: BorderSide(color: _getItemLevelColor(item.level).withOpacity(0.45), width: 1),
           ),
           title: Row(
             children: [
@@ -1340,14 +1501,17 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      _getItemTypeColor(item.type).withOpacity(0.25),
+                      // 关键区域：详情页按等级颜色区分 —— 缩略图背景使用等级颜色
+                      _getItemLevelColor(item.level).withOpacity(0.25),
                       Colors.black.withOpacity(0.25),
                     ],
                   ),
-                  border: Border.all(color: _getItemTypeColor(item.type).withOpacity(0.45), width: 1),
+                  // 关键区域：缩略图边框使用等级颜色
+                  border: Border.all(color: _getItemLevelColor(item.level).withOpacity(0.45), width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: _getItemTypeColor(item.type).withOpacity(0.25),
+                      // 关键区域：缩略图阴影使用等级颜色
+                      color: _getItemLevelColor(item.level).withOpacity(0.25),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -1378,7 +1542,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                         errorBuilder: (context, error, stackTrace) {
                           return Icon(
                             _getItemTypeIcon(item.type),
-                            color: _getItemTypeColor(item.type),
+                            // 关键区域：缩略图回退图标使用等级颜色
+                            color: _getItemLevelColor(item.level),
                             // 关键区域：全体缩小 —— 回退图标尺寸
                             size: 20,
                           );
@@ -1386,7 +1551,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                       )
                     : Icon(
                         _getItemTypeIcon(item.type),
-                        color: _getItemTypeColor(item.type),
+                        // 关键区域：缩略图回退图标使用等级颜色
+                        color: _getItemLevelColor(item.level),
                         // 关键区域：全体缩小 —— 回退图标尺寸
                         size: 20,
                       ),
@@ -1398,8 +1564,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   children: [
                     Text(
                       item.name,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        // 关键区域：标题使用等级颜色以体现区分
+                        color: _getItemLevelColor(item.level),
                         // 关键区域：全体缩小 —— 标题文字尺寸
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -1427,7 +1594,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
               Container(
                 height: 1,
                 margin: const EdgeInsets.only(bottom: 12),
-                color: Colors.white.withOpacity(0.06),
+                // 关键区域：分隔线使用等级颜色，保持不抢眼的弱透明度
+                color: _getItemLevelColor(item.level).withOpacity(0.14),
               ),
               // 物品描述
               Container(
@@ -1526,6 +1694,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
               ),
               child: const Text('取消'),
             ),
+            // 关键区域：装备按钮（支持中文类型与旧“装备+equipmentSlot”）
+            if (_slotForItem(item) != null)
+              TextButton(
+                onPressed: () {
+                  final slot = _slotForItem(item)!;
+                  Navigator.of(context).pop();
+                  ref.read(optimizedGameStateProvider.notifier).equipItemToSlot(item, slot);
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.indigo.shade600,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.indigoAccent.withOpacity(0.55))),
+                ),
+                child: const Text('装备'),
+              ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -1540,20 +1724,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
               ),
               child: const Text('丢弃'),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _useItem(item, ref);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: _getItemTypeColor(item.type),
-                // 关键区域：全体缩小 —— 按钮内边距减小
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.55))),
+            // 关键区域：装备类隐藏“使用”按钮，仅非装备类显示
+            if (_slotForItem(item) == null)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _useItem(item, ref);
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: _getItemTypeColor(item.type),
+                  // 关键区域：全体缩小 —— 按钮内边距减小
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.55))),
+                ),
+                child: const Text('使用'),
               ),
-              child: const Text('使用'),
-            ),
           ],
         );
       },
@@ -1570,6 +1756,28 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
   void _dropItem(Item item, WidgetRef ref) {
     final notifier = ref.read(optimizedGameStateProvider.notifier);
     notifier.dropItemFromInventory(item);
+  }
+
+  // 关键区域：根据中文类型或旧字段，推断对应装备槽位
+  String? _slotForItem(Item item) {
+    switch (item.type) {
+      case '武器':
+        return 'weapon';
+      case '甲':
+        return 'armor';
+      case '头':
+        return 'head';
+      case '背包':
+        return 'hand';
+      case '裤子':
+        return 'pants';
+      case '鞋':
+        return 'shoes';
+      case '装备':
+        return item.equipmentSlot; // 兼容旧数据
+      default:
+        return null;
+    }
   }
 
   /// 构建垃圾桶拖拽区域
@@ -1653,6 +1861,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
   /// 获取物品类型颜色
   Color _getItemTypeColor(String type) {
     switch (type) {
+      case '装备':
+        return Colors.indigo; // 装备统一为靛蓝
+      case '物品':
+        return Colors.amber;  // 通用物品统一为琥珀
       case 'potion':
         return Colors.green;
       case 'food':
@@ -1661,6 +1873,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return Colors.blue;
       case 'weapon':
         return Colors.red;
+      case 'book':
+        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -1669,6 +1883,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
   /// 获取物品类型图标
   IconData _getItemTypeIcon(String type) {
     switch (type) {
+      case '装备':
+        return Icons.security; // 统一用盾牌表示装备
+      case '物品':
+        return Icons.inventory_2; // 通用物品
       case 'potion':
         return Icons.local_pharmacy;
       case 'food':
@@ -1677,6 +1895,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return Icons.build;
       case 'weapon':
         return Icons.security;
+      case 'book':
+        return Icons.menu_book;
       default:
         return Icons.inventory_2;
     }

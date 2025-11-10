@@ -271,6 +271,30 @@ class ItemSpawner {
       }
     }
     
+    // 关键区域：为每个宝箱必定生成 1-10 枚“金币”作为堆叠物品
+    // 说明：金币道具为可使用物品，每次使用 +1 金币。这里以堆叠形式加入宝箱可见物品。
+    try {
+      final goldTemplate = allItems.firstWhere((i) => i.id == 'gold');
+      final goldCount = 1 + _random.nextInt(10); // 1..10 随机数量
+      items.add(Item(
+        id: goldTemplate.id,
+        name: goldTemplate.name,
+        image: goldTemplate.image,
+        description: goldTemplate.description,
+        effects: goldTemplate.effects,
+        type: goldTemplate.type,
+        count: goldCount,
+        availableInShop: goldTemplate.availableInShop,
+        basePrice: goldTemplate.basePrice,
+        usageTime: goldTemplate.usageTime,
+        level: goldTemplate.level,
+        equipmentSlot: goldTemplate.equipmentSlot,
+        equipEffects: goldTemplate.equipEffects,
+      ));
+    } catch (_) {
+      // 若未配置 gold 道具，安全跳过，不抛错
+    }
+
     return items;
   }
 }

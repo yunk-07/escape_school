@@ -965,6 +965,10 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   // 关键区域：图片容错时按类型显示图标
   IconData _getItemTypeIcon(String type) {
     switch (type) {
+      case '装备':
+        return Icons.security;
+      case '物品':
+        return Icons.inventory_2;
       case 'potion':
         return Icons.local_pharmacy;
       case 'food':
@@ -973,6 +977,8 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
         return Icons.build;
       case 'weapon':
         return Icons.security;
+      case 'book':
+        return Icons.menu_book;
       default:
         return Icons.inventory_2;
     }
