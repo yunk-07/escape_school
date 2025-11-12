@@ -170,7 +170,7 @@ class OptimizedGameState {
   final Point<int>? fixedChestPosition;
   final List<Item> playerInventory;
   // 关键区域：装备槽状态，严格四个部位（垂直展示）
-  final Map<String, Item?> equipmentSlots; // {weapon, armor, head, hand}
+  final Map<String, Item?> equipmentSlots; // {weapon, armor, head, bag}
   final int inventoryCapacity;                    // 背包容量
   final int maxInventoryCapacity;                 // 最大背包容量（用于扩容）
   final Map<Point<int>, List<Item>> groundItems;  // 地面物品，按位置存储
@@ -179,6 +179,9 @@ class OptimizedGameState {
   final bool showInventory;
   final bool showCharacterInfo;
   final bool showShop;
+  // 关键区域：炼金机显示状态与位置
+  final bool showAlchemy; // 是否显示炼金界面
+  final Point<int>? alchemyStation; // 炼金机在地图中的位置
   final Shop? schoolShop;
   final GhostManager ghostManager;
   final bool isGameOver;
@@ -248,7 +251,15 @@ class OptimizedGameState {
   final double maxOxygen;                         // 基础最大氧气值
   final double oxygenBonus;                       // 氧气增强值（通过道具获得）
   final OxygenRecoveryManager? oxygenRecoveryManager; // 氧气恢复管理器
-  
+
+  // 炼金特效相关状态
+  // 关键区域：控制炼金抽奖特效的显示与数据（候选与结果）
+  final bool showAlchemyEffect;            // 是否显示炼金抽奖特效覆盖层
+  final List<Item> alchemyCandidates;      // 可能合成出的候选物品列表（同等级）
+  final Item? alchemyResultItem;           // 抽奖最终结果物品（点击后放入背包）
+  // 关键区域：炼金动画用的等级概率权重（键为等级，值为权重）
+  final Map<int, int> alchemyLevelWeights;
+
 
 
   const OptimizedGameState({
@@ -264,7 +275,7 @@ class OptimizedGameState {
       'weapon': null,
       'armor': null,
       'head': null,
-      'hand': null,
+      'bag': null,
       'pants': null,
       'shoes': null,
     },
@@ -277,6 +288,8 @@ class OptimizedGameState {
     this.showInventory = false,
     this.showCharacterInfo = false,
     this.showShop = false,
+    this.showAlchemy = false,
+    this.alchemyStation,
     this.schoolShop,
     this.isGameOver = false,
     this.deathReason = '',
@@ -320,6 +333,10 @@ class OptimizedGameState {
     this.maxOxygen = 10.0,
     this.oxygenBonus = 0.0,
     this.oxygenRecoveryManager,
+    this.showAlchemyEffect = false,
+    this.alchemyCandidates = const [],
+    this.alchemyResultItem,
+    this.alchemyLevelWeights = const {},
   });
 
   OptimizedGameState copyWith({
@@ -340,6 +357,8 @@ class OptimizedGameState {
     bool? showInventory,
     bool? showCharacterInfo,
     bool? showShop,
+    bool? showAlchemy,
+    Point<int>? alchemyStation,
     Shop? schoolShop,
     bool? isGameOver,
     String? deathReason,
@@ -383,6 +402,10 @@ class OptimizedGameState {
     double? maxOxygen,
     double? oxygenBonus,
     OxygenRecoveryManager? oxygenRecoveryManager,
+    bool? showAlchemyEffect,
+    List<Item>? alchemyCandidates,
+    Item? alchemyResultItem,
+    Map<int, int>? alchemyLevelWeights,
   }) {
     return OptimizedGameState(
       characterStats: characterStats ?? this.characterStats,
@@ -402,6 +425,8 @@ class OptimizedGameState {
       showInventory: showInventory ?? this.showInventory,
       showCharacterInfo: showCharacterInfo ?? this.showCharacterInfo,
       showShop: showShop ?? this.showShop,
+      showAlchemy: showAlchemy ?? this.showAlchemy,
+      alchemyStation: alchemyStation ?? this.alchemyStation,
       schoolShop: schoolShop ?? this.schoolShop,
       isGameOver: isGameOver ?? this.isGameOver,
       deathReason: deathReason ?? this.deathReason,
@@ -445,6 +470,10 @@ class OptimizedGameState {
       maxOxygen: maxOxygen ?? this.maxOxygen,
       oxygenBonus: oxygenBonus ?? this.oxygenBonus,
       oxygenRecoveryManager: oxygenRecoveryManager ?? this.oxygenRecoveryManager,
+      showAlchemyEffect: showAlchemyEffect ?? this.showAlchemyEffect,
+      alchemyCandidates: alchemyCandidates ?? this.alchemyCandidates,
+      alchemyResultItem: alchemyResultItem ?? this.alchemyResultItem,
+      alchemyLevelWeights: alchemyLevelWeights ?? this.alchemyLevelWeights,
     );
   }
 
@@ -468,6 +497,8 @@ Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> character
     'moveSpeed': characterData['moveSpeed'],
     'gold': (characterData['gold'] as num).toDouble(),
     'image': characterData['image'],
+    // 关键区域：角色高品质物品概率增幅（0.0为默认概率，0.1表示+10%）
+    'rarityBoost': ((characterData['rarityBoost'] ?? 0.0) as num).toDouble(),
   };
 }
 
@@ -570,6 +601,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _smoothVisionManager = SmoothVisionManager(); // 初始化平滑视野管理器
     _initializeOxygenSystem(); // 初始化氧气系统
     _initializeShop();
+    // 关键区域：初始化炼金机位置（依赖商店位置）
+    _initializeAlchemyStation();
     _initializeGhosts();
     _setRandomPlayerSpawn();
     _initializeChests(); // 初始化随机宝箱位置
@@ -579,7 +612,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       'weapon': null,
       'armor': null,
       'head': null,
-      'hand': null,
+      'bag': null,
       'pants': null,
       'shoes': null,
     };
@@ -601,14 +634,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   // 关键区域：装备/卸下逻辑与效果应用
-  /// 装备物品到指定槽位（weapon/armor/head/hand）
+  /// 装备物品到指定槽位（weapon/armor/head/bag/pants/shoes）
   bool equipItemToSlot(Item item, String slot) {
     // 关键区域：类型与槽位匹配（支持中文类型与旧“装备+equipmentSlot”兼容）
     final bool matchesByType =
         (item.type == '武器' && slot == 'weapon') ||
         (item.type == '甲' && slot == 'armor') ||
         (item.type == '头' && slot == 'head') ||
-        (item.type == '背包' && slot == 'hand') ||
+        (item.type == '背包' && slot == 'bag') ||
         (item.type == '裤子' && slot == 'pants') ||
         (item.type == '鞋' && slot == 'shoes');
 
@@ -631,7 +664,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 若槽位已占用，先卸下
     final currentEquipped = state.equipmentSlots[slot];
     if (currentEquipped != null) {
-      _unequipInternal(slot, notify: false);
+      // 关键区域：替换前容量预检——若卸下失败（容量不足），则替换失败并提示
+      final bool ok = _unequipInternal(slot, notify: false);
+      if (!ok) {
+        addBroadcastMessage('背包空间不足', BroadcastMessageType.item, duration: const Duration(seconds: 1));
+        return false;
+      }
       // 关键区域：卸下后背包已更新，需重新抓取背包并重新定位待装备条目
       inventory = List<Item>.from(state.playerInventory);
       idx = inventory.indexWhere((i) => identical(i, item));
@@ -691,12 +729,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final equipped = state.equipmentSlots[slot];
     if (equipped == null) return false;
 
-    // 撤回装备效果
-    _removeEquipEffects(equipped.equipEffects ?? const {});
-
-    // 将装备返回到背包（合并数量）
-    final inventory = List<Item>.from(state.playerInventory);
-    // 关键区域：装备类物品不堆叠，直接作为独立条目返回背包
+    // 关键区域：卸下前容量检查（不足则失败并提示“背包空间不足”）
+    List<Item> preInventory = List<Item>.from(state.playerInventory);
     final bool isEquipment = (equipped.type == '装备') ||
         (equipped.type == '武器') ||
         (equipped.type == '甲') ||
@@ -704,7 +738,26 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         (equipped.type == '背包') ||
         (equipped.type == '裤子') ||
         (equipped.type == '鞋');
+    final bool hasSameId = preInventory.indexWhere((i) => i.id == equipped.id) >= 0;
+    final bool needsNewSlot = isEquipment || !hasSameId;
 
+    // 预测卸下后的容量（考虑 inventoryBonus 撤销）
+    final int deltaCapacity = -(equipped.equipEffects?['inventoryBonus'] ?? 0);
+    final int futureCapacityRaw = state.inventoryCapacity + deltaCapacity;
+    final int futureCapacity = futureCapacityRaw.clamp(1, state.maxInventoryCapacity);
+    final int futureInvLen = preInventory.length > futureCapacity ? futureCapacity : preInventory.length;
+    if (needsNewSlot && futureInvLen >= futureCapacity) {
+      if (notify) {
+        addBroadcastMessage('背包空间不足', BroadcastMessageType.item, duration: const Duration(seconds: 1));
+      }
+      return false;
+    }
+
+    // 撤回装备效果（可能缩容，内部已处理超量自动掉落）
+    _removeEquipEffects(equipped.equipEffects ?? const {});
+
+    // 将装备返回到背包（合并数量）
+    final inventory = List<Item>.from(state.playerInventory);
     if (isEquipment) {
       inventory.add(Item(
         id: equipped.id,
@@ -827,6 +880,32 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             _startOxygenRecovery(currentOxygenBeforeBonus, newMaxOxygen);
           }
           break;
+        case 'inventoryBonus':
+          // 关键区域：装备背包扩容效果——调整背包容量（支持负值撤销）
+          final int currentCapacity = state.inventoryCapacity;
+          final int proposed = currentCapacity + value;
+          // 容量边界：至少为1，不超过最大容量
+          final int newCapacity = proposed.clamp(1, state.maxInventoryCapacity);
+
+          // 若为缩容且当前物品超过新容量，则将多余物品掉落在地上
+          List<Item> newInventory = List<Item>.from(state.playerInventory);
+          if (value < 0 && newInventory.length > newCapacity) {
+            final int dropCount = newInventory.length - newCapacity;
+            final Point<int> dropPos = state.playerPosition.toPoint();
+            for (int i = 0; i < dropCount; i++) {
+              final int idx = newInventory.length - 1; // 从末尾开始移除
+              final Item item = newInventory[idx];
+              _dropItemToGround(item, dropPos);
+              newInventory.removeAt(idx);
+            }
+          }
+
+          // 更新容量与背包
+          state = state.copyWith(
+            inventoryCapacity: newCapacity,
+            playerInventory: newInventory,
+          );
+          break;
       }
     });
 
@@ -863,7 +942,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           'weapon': null,
           'armor': null,
           'head': null,
-          'hand': null,
+          'bag': null,
           'pants': null,
           'shoes': null,
         };
@@ -876,7 +955,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         'weapon': null,
         'armor': null,
         'head': null,
-        'hand': null,
+        'bag': null,
         'pants': null,
         'shoes': null,
       };
@@ -886,6 +965,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         final parts = p.split(':');
         if (parts.length != 2) continue;
         final slot = parts[0];
+        // 关键区域：兼容旧持久化键 hand -> bag
+        final normalizedSlot = (slot == 'hand') ? 'bag' : slot;
         final id = parts[1];
         final item = allItems.firstWhere(
           (i) => i.id == id,
@@ -896,13 +977,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             description: '',
             effects: const {},
             type: '装备',
-            equipmentSlot: slot,
+            equipmentSlot: normalizedSlot,
             equipEffects: const {},
           ),
         );
         // 应用效果但不变动背包（恢复会话状态）
         _applyEquipEffects(item.equipEffects ?? const {});
-        updatedSlots[slot] = item;
+        updatedSlots[normalizedSlot] = item;
       }
       state = state.copyWith(equipmentSlots: updatedSlots);
     } catch (_) {}
@@ -1279,6 +1360,20 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     state = state.copyWith(schoolShop: shop);
   }
 
+  /// 初始化炼金机位置
+  void _initializeAlchemyStation() {
+    // 关键区域：设置炼金机初始位置（靠近商店右侧），若无商店则使用默认坐标
+    final shop = state.schoolShop;
+    Point<int> pos;
+    if (shop != null) {
+      // 关键区域：将 num 显式转为 int，避免类型不匹配
+      pos = Point<int>(shop.position.x.toInt() + 1, shop.position.y.toInt());
+    } else {
+      pos = const Point<int>(6, 5);
+    }
+    state = state.copyWith(alchemyStation: pos);
+  }
+
   /// 启动移动定时器
   void _startMovementTimer() {
     // 先取消现有定时器
@@ -1434,12 +1529,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final playerPosition = state.playerPosition.toPoint();
     final chestPositions = state.chestPositions;
     final existingGroundItems = state.groundItems;
+    // 关键区域：读取角色概率增幅（rarityBoost），用于提升高品质地面物品概率
+    final double rarityBoost = ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
     
     // 尝试刷新物品
     final spawnResult = ItemSpawner.trySpawnItem(
       playerPosition,
       chestPositions,
       existingGroundItems,
+      rarityBoost: rarityBoost,
     );
     
     if (spawnResult != null) {
@@ -2155,6 +2253,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     state = state.copyWith(showShop: !state.showShop);
   }
 
+  /// 切换炼金界面显示
+  void toggleAlchemy() {
+    // 关键区域：炼金界面开关，与商店逻辑保持一致
+    state = state.copyWith(showAlchemy: !state.showAlchemy);
+  }
+
   /// 检查玩家是否靠近宝箱
   bool isNearChest() {
     // 玩家像素坐标转换为网格坐标
@@ -2253,31 +2357,61 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 获取宝箱随机物品
   List<Item> _getRandomChestItems() {
-    // 关键区域：固定宝箱100%掉落3个随机物品，其余宝箱维持原逻辑
+    // 关键区域：固定宝箱100%掉落3个随机物品；同时在建筑内提升高品质概率
     final isFixedChest = state.currentExploringChest != null &&
         state.fixedChestPosition != null &&
         state.currentExploringChest == state.fixedChestPosition;
+    final chestPos = state.currentExploringChest;
+    // 关键区域：角色概率增幅（rarityBoost）接入宝箱物品生成
+    final double rarityBoost = ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
     if (isFixedChest) {
-      return ItemSpawner.generateChestItems(minItems: 3, maxItems: 3);
+      // 固定宝箱：位置已知，按位置生成并保持掉落数量为3
+      if (chestPos != null) {
+        return ItemSpawner.generateChestItemsAtPosition(chestPos, minItems: 3, maxItems: 3, rarityBoost: rarityBoost);
+      }
+      return ItemSpawner.generateChestItems(minItems: 3, maxItems: 3, rarityBoost: rarityBoost);
     }
-    return ItemSpawner.generateChestItems(minItems: 1, maxItems: 3);
+    // 普通宝箱：若有当前位置，使用位置增强概率（建筑内提升高品质概率）
+    if (chestPos != null) {
+      return ItemSpawner.generateChestItemsAtPosition(chestPos, minItems: 1, maxItems: 3, rarityBoost: rarityBoost);
+    }
+    return ItemSpawner.generateChestItems(minItems: 1, maxItems: 3, rarityBoost: rarityBoost);
   }
 
-  /// 获取适合放置宝箱的位置（只在草地和路径上）
+  /// 获取适合放置宝箱的位置（建筑内优先，其次草地与路径）
+  // 关键区域：仅收集“建筑”格子作为可放置宝箱的位置
+  // 说明：为满足“每50个建筑物格子上要有一个宝箱”，宝箱位置限定在建筑格（terrain == 'building'）。
   List<Point<int>> _getChestSuitablePositions() {
     final suitablePositions = <Point<int>>[];
-    
     for (int y = 0; y < MapData.testMap.length; y++) {
       for (int x = 0; x < MapData.testMap[y].length; x++) {
-        final terrain = MapData.testMap[y][x];
-        // 只在草地和路径上放置宝箱，避免墙体、水域、建筑等
-        if (terrain == 'grass' || terrain == 'path') {
+        if (MapData.testMap[y][x] == 'building') {
           suitablePositions.add(Point(x, y));
         }
       }
     }
-    
     return suitablePositions;
+  }
+
+  // 关键区域：统计建筑格数量
+  // 说明：遍历 MapData.testMap，计算 terrain == 'building' 的格子总数。
+  int _countBuildingTiles() {
+    int count = 0;
+    for (int y = 0; y < MapData.testMap.length; y++) {
+      for (int x = 0; x < MapData.testMap[y].length; x++) {
+        if (MapData.testMap[y][x] == 'building') {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  // 关键区域：计算目标宝箱数量（每50个建筑格一个宝箱）
+  // 说明：向下取整，满足“每50个建筑物格子上要有一个宝箱”的数量约束。
+  int _computeTargetChestCount() {
+    final buildingTiles = _countBuildingTiles();
+    return buildingTiles ~/ 50;
   }
 
   /// 获取固定的测试宝箱位置（三个相邻的宝箱）
@@ -2315,22 +2449,27 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 初始化宝箱位置
   void _initializeChests() {
-    final initialChestPositions = _generateRandomChestPositions(chestCount: 5);
+    // 关键区域：初始化时按建筑格动态确定目标宝箱数量
+    final targetCount = _computeTargetChestCount();
+    final initialChestPositions = _generateRandomChestPositions(chestCount: targetCount);
     state = state.copyWith(chestPositions: initialChestPositions);
-    print('初始化宝箱位置，数量：${initialChestPositions.length}');
+    print('初始化宝箱位置，数量：${initialChestPositions.length}（目标：$targetCount，建筑格：${_countBuildingTiles()}）');
   }
 
   /// 刷新宝箱位置（在宝箱被打开后调用）
   void _refreshChestPositions() {
-    final newChestPositions = _generateRandomChestPositions(chestCount: 5);
+    // 关键区域：刷新时按建筑格动态确定目标宝箱数量
+    final targetCount = _computeTargetChestCount();
+    final newChestPositions = _generateRandomChestPositions(chestCount: targetCount);
     state = state.copyWith(chestPositions: newChestPositions);
-    print('宝箱位置已刷新，新位置: ${newChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}');
+    print('宝箱位置已刷新，新位置: ${newChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}（目标：$targetCount）');
   }
 
   /// 智能补充宝箱：只在宝箱数量不足时添加新宝箱
   void _replenishChestsIfNeeded() {
     final currentChestCount = state.chestPositions.length;
-    final targetChestCount = 5;
+    // 关键区域：按建筑格动态确定目标宝箱数量
+    final targetChestCount = _computeTargetChestCount();
     
     // 如果当前宝箱数量已经足够，不需要补充
     if (currentChestCount >= targetChestCount) {
@@ -2340,7 +2479,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 计算需要补充的宝箱数量
     final needToAdd = targetChestCount - currentChestCount;
-    print('当前宝箱数量: $currentChestCount，目标数量: $targetChestCount，需要补充: $needToAdd');
+    print('当前宝箱数量: $currentChestCount，目标数量: $targetChestCount，需要补充: $needToAdd（建筑格：${_countBuildingTiles()}）');
     
     // 获取当前已存在的宝箱位置
     final existingPositions = Set<Point<int>>.from(state.chestPositions);
@@ -2710,6 +2849,444 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return true;
   }
 
+  /// 炼金合成（按背包索引选择两个物品）
+  /// 关键区域：仅支持同类“物品”堆叠的升级式合成，产物插入或掉落复用现有逻辑
+  bool performAlchemyByIndices(int indexA, int indexB) {
+    final inventory = List<Item>.from(state.playerInventory);
+    // 索引有效性检查
+    if (indexA < 0 || indexB < 0 || indexA >= inventory.length || indexB >= inventory.length) {
+      addBroadcastMessage('请选择两个有效物品', BroadcastMessageType.system);
+      return false;
+    }
+
+    final itemA = inventory[indexA];
+    final itemB = inventory[indexB];
+
+    // 关键区域：Level6 不参与炼金（双保险校验）
+    if (itemA.level == 6 || itemB.level == 6) {
+      addBroadcastMessage('Level6 物品不参与炼金', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 类型与同类检查
+    if (itemA.type != '物品' || itemB.type != '物品') {
+      addBroadcastMessage('只能合成“物品”类型', BroadcastMessageType.system);
+      return false;
+    }
+    if (itemA.id != itemB.id) {
+      addBroadcastMessage('仅支持相同物品的炼金', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 同一堆叠至少需要2个
+    if (indexA == indexB && itemA.count < 2) {
+      addBroadcastMessage('同一堆叠至少需要2个', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 产物等级：取两者较高等级+1，最大不超过7
+    final int newLevel = (math.max(itemA.level, itemB.level) + 1).clamp(1, 7);
+    final Item product = Item(
+      id: itemA.id,
+      name: itemA.name,
+      image: itemA.image,
+      description: itemA.description,
+      effects: itemA.effects,
+      type: itemA.type,
+      count: 1,
+      availableInShop: false,
+      basePrice: itemA.basePrice,
+      usageTime: itemA.usageTime,
+      level: newLevel,
+      equipmentSlot: itemA.equipmentSlot,
+      equipEffects: itemA.equipEffects,
+    );
+
+    // 消耗材料
+    if (indexA == indexB) {
+      final int newCount = itemA.count - 2;
+      if (newCount > 0) {
+        inventory[indexA] = Item(
+          id: itemA.id,
+          name: itemA.name,
+          image: itemA.image,
+          description: itemA.description,
+          effects: itemA.effects,
+          type: itemA.type,
+          count: newCount,
+          availableInShop: itemA.availableInShop,
+          basePrice: itemA.basePrice,
+          usageTime: itemA.usageTime,
+          level: itemA.level,
+          equipmentSlot: itemA.equipmentSlot,
+          equipEffects: itemA.equipEffects,
+        );
+      } else {
+        inventory.removeAt(indexA);
+      }
+    } else {
+      // 分别减少两个堆叠各1个
+      int removeShift = 0;
+      // 先处理较小索引，避免位移问题
+      final int first = indexA < indexB ? indexA : indexB;
+      final int second = indexA < indexB ? indexB : indexA;
+      final Item firstItem = inventory[first];
+      final int firstNewCount = firstItem.count - 1;
+      if (firstNewCount > 0) {
+        inventory[first] = Item(
+          id: firstItem.id,
+          name: firstItem.name,
+          image: firstItem.image,
+          description: firstItem.description,
+          effects: firstItem.effects,
+          type: firstItem.type,
+          count: firstNewCount,
+          availableInShop: firstItem.availableInShop,
+          basePrice: firstItem.basePrice,
+          usageTime: firstItem.usageTime,
+          level: firstItem.level,
+          equipmentSlot: firstItem.equipmentSlot,
+          equipEffects: firstItem.equipEffects,
+        );
+      } else {
+        inventory.removeAt(first);
+        removeShift = 1;
+      }
+      // 再处理第二个（考虑可能的位移）
+      final int adjustedSecond = second - removeShift;
+      final Item secondItem = inventory[adjustedSecond];
+      final int secondNewCount = secondItem.count - 1;
+      if (secondNewCount > 0) {
+        inventory[adjustedSecond] = Item(
+          id: secondItem.id,
+          name: secondItem.name,
+          image: secondItem.image,
+          description: secondItem.description,
+          effects: secondItem.effects,
+          type: secondItem.type,
+          count: secondNewCount,
+          availableInShop: secondItem.availableInShop,
+          basePrice: secondItem.basePrice,
+          usageTime: secondItem.usageTime,
+          level: secondItem.level,
+          equipmentSlot: secondItem.equipmentSlot,
+          equipEffects: secondItem.equipEffects,
+        );
+      } else {
+        inventory.removeAt(adjustedSecond);
+      }
+    }
+
+    // 先更新背包以反映消耗
+    state = state.copyWith(playerInventory: inventory);
+
+    // 插入产物；若容量不足则掉落地面
+    final bool inserted = insertItemAtPosition(product, state.playerInventory.length);
+    if (!inserted) {
+      _dropItemToGround(product, state.playerPosition.toPoint());
+      addBroadcastMessage('背包已满，产物掉落在地面', BroadcastMessageType.item);
+    } else {
+      addBroadcastMessage('炼金成功，获得 ${product.name} Lv${product.level}', BroadcastMessageType.item);
+    }
+
+    return true;
+  }
+
+  /// 启动炼金抽奖特效（按背包索引选择十个物品）
+  /// 关键区域：立即消耗材料，关闭炼金页面，计算候选与最终结果，开启特效覆盖层
+  bool startAlchemyEffectByIndicesList(List<int> indices) {
+    final inventory = List<Item>.from(state.playerInventory);
+
+    // 数量校验
+    if (indices.length != 10) {
+      addBroadcastMessage('需要选择10件物品进行炼金', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 索引有效性校验，并构建移除映射
+    final Map<int, int> removalMap = <int, int>{};
+    final List<Item> selectedItems = <Item>[];
+    for (final idx in indices) {
+      if (idx < 0 || idx >= inventory.length) {
+        addBroadcastMessage('包含无效背包索引', BroadcastMessageType.system);
+        return false;
+      }
+      final item = inventory[idx];
+      removalMap[idx] = (removalMap[idx] ?? 0) + 1;
+      selectedItems.add(item);
+    }
+
+    // 金币保护
+    if (selectedItems.any((it) => it.id == 'gold' || it.name == '金币')) {
+      addBroadcastMessage('金币为特殊道具，不能参与炼金', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 关键区域：Level6 不参与炼金（双保险校验）
+    if (selectedItems.any((it) => it.level == 6)) {
+      addBroadcastMessage('Level6 物品不参与炼金', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 计数校验
+    for (final entry in removalMap.entries) {
+      final item = inventory[entry.key];
+      if (item.count < entry.value) {
+        addBroadcastMessage('材料数量不足', BroadcastMessageType.system);
+        return false;
+      }
+    }
+
+    // 概率分布：根据所选物品 level 计算 (level+1) 的权重
+    final Map<int, int> levelWeights = <int, int>{};
+    for (final it in selectedItems) {
+      final int outLevel = (it.level + 1).clamp(1, 7);
+      levelWeights[outLevel] = (levelWeights[outLevel] ?? 0) + 1;
+    }
+
+    // 加权随机选择结果等级
+    const int total = 10;
+    int roll = math.Random().nextInt(total); // 0..9
+    int acc = 0;
+    int resultLevel = 1;
+    final List<int> sortedLevels = levelWeights.keys.toList()..sort();
+    for (final lvl in sortedLevels) {
+      acc += levelWeights[lvl] ?? 0;
+      if (roll < acc) {
+        resultLevel = lvl;
+        break;
+      }
+    }
+
+    // 候选与模板产物（按结果等级从现有物品中选择）
+    final List<Item> candidates = allItems
+        .where((it) => it.type == '物品' && it.level == resultLevel && it.id != 'gold')
+        .toList();
+
+    if (candidates.isEmpty) {
+      addBroadcastMessage('没有该等级的现有物品，炼金失败', BroadcastMessageType.system);
+      return false;
+    }
+
+    final Item template = candidates[math.Random().nextInt(candidates.length)];
+    final Item product = Item(
+      id: template.id,
+      name: template.name,
+      image: template.image,
+      description: template.description,
+      effects: template.effects,
+      type: template.type,
+      count: 1,
+      availableInShop: template.availableInShop,
+      basePrice: template.basePrice,
+      usageTime: template.usageTime,
+      level: template.level,
+      equipmentSlot: template.equipmentSlot,
+      equipEffects: template.equipEffects,
+    );
+
+    // 消耗材料：按堆叠索引批量扣减
+    final List<int> uniqueIndicesDesc = removalMap.keys.toList()..sort((a, b) => b.compareTo(a));
+    for (final idx in uniqueIndicesDesc) {
+      final Item cur = inventory[idx];
+      final int toRemove = removalMap[idx] ?? 0;
+      final int newCount = cur.count - toRemove;
+      if (newCount > 0) {
+        inventory[idx] = Item(
+          id: cur.id,
+          name: cur.name,
+          image: cur.image,
+          description: cur.description,
+          effects: cur.effects,
+          type: cur.type,
+          count: newCount,
+          availableInShop: cur.availableInShop,
+          basePrice: cur.basePrice,
+          usageTime: cur.usageTime,
+          level: cur.level,
+          equipmentSlot: cur.equipmentSlot,
+          equipEffects: cur.equipEffects,
+        );
+      } else {
+        inventory.removeAt(idx);
+      }
+    }
+
+    // 关键区域：更新状态——关闭炼金页面，开启特效并携带候选与结果
+    state = state.copyWith(
+      playerInventory: inventory,
+      showAlchemy: false,
+      showAlchemyEffect: true,
+      alchemyCandidates: candidates,
+      alchemyResultItem: product,
+      // 关键区域：保存等级概率权重供动画轨道按权重混合各等级
+      alchemyLevelWeights: levelWeights,
+    );
+
+    addBroadcastMessage('开始炼金…', BroadcastMessageType.item, duration: const Duration(milliseconds: 800));
+    return true;
+  }
+
+  /// 完成炼金抽奖特效：将结果物品放入背包并关闭特效
+  /// 关键区域：插入失败则掉落在脚边，同时清理特效状态
+  bool finalizeAlchemyEffect() {
+    final Item? product = state.alchemyResultItem;
+    if (product == null) {
+      return false;
+    }
+
+    // 插入产物；若容量不足则掉落地面
+    final bool inserted = insertItemAtPosition(product, state.playerInventory.length);
+    if (!inserted) {
+      _dropItemToGround(product, state.playerPosition.toPoint());
+      addBroadcastMessage('背包已满，产物掉落在地面', BroadcastMessageType.item);
+    } else {
+      addBroadcastMessage('炼金成功，获得 ${product.name} Lv${product.level}', BroadcastMessageType.item);
+    }
+
+    // 关闭特效并清理数据
+    state = state.copyWith(
+      showAlchemyEffect: false,
+      alchemyCandidates: const [],
+      alchemyResultItem: null,
+      // 关键区域：清理动画概率权重
+      alchemyLevelWeights: const {},
+    );
+
+    return true;
+  }
+
+  /// 炼金合成（按背包索引选择十个物品）
+  /// 关键区域：十个才能开始炼金；按所选物品的 level 贡献概率，生成结果等级为 (level+1) 的加权随机；最大不超过7
+  /// 关键区域：产物的物品类型从所选材料中随机挑选一个作为基底（id、名称、图片等沿用），仅覆盖 level 与 count=1
+  bool performAlchemyByIndicesList(List<int> indices) {
+    final inventory = List<Item>.from(state.playerInventory);
+
+    // 数量校验
+    if (indices.length != 10) {
+      addBroadcastMessage('需要选择10件物品进行炼金', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 索引有效性校验，并构建移除映射（允许“物品”与“装备”作为材料）
+    final Map<int, int> removalMap = <int, int>{};
+    final List<Item> selectedItems = <Item>[];
+    for (final idx in indices) {
+      if (idx < 0 || idx >= inventory.length) {
+        addBroadcastMessage('包含无效背包索引', BroadcastMessageType.system);
+        return false;
+      }
+      final item = inventory[idx];
+      removalMap[idx] = (removalMap[idx] ?? 0) + 1;
+      selectedItems.add(item);
+    }
+
+    // 金币保护：若误选金币则直接拒绝（UI已过滤，这里双保险）
+    if (selectedItems.any((it) => it.id == 'gold' || it.name == '金币')) {
+      addBroadcastMessage('金币为特殊道具，不能参与炼金', BroadcastMessageType.system);
+      return false;
+    }
+
+    // 计数校验：每个堆叠需要足够数量
+    for (final entry in removalMap.entries) {
+      final item = inventory[entry.key];
+      if (item.count < entry.value) {
+        addBroadcastMessage('材料数量不足', BroadcastMessageType.system);
+        return false;
+      }
+    }
+
+    // 概率分布：根据所选物品 level 计算 (level+1) 的权重
+    final Map<int, int> levelWeights = <int, int>{};
+    for (final it in selectedItems) {
+      final int outLevel = (it.level + 1).clamp(1, 7);
+      levelWeights[outLevel] = (levelWeights[outLevel] ?? 0) + 1;
+    }
+
+    // 加权随机选择结果等级
+    final int total = indices.length; // 固定为10
+    int roll = math.Random().nextInt(total); // 0..9
+    int acc = 0;
+    int resultLevel = 1;
+    final List<int> sortedLevels = levelWeights.keys.toList()..sort();
+    for (final lvl in sortedLevels) {
+      acc += levelWeights[lvl] ?? 0;
+      if (roll < acc) {
+        resultLevel = lvl;
+        break;
+      }
+    }
+
+    // 关键区域：产物为 props.dart 中“现有物品”，按结果等级选择，不生成新物品
+    // 说明：仅选择类型为“物品”的模板，且排除金币（id=='gold'）
+    final List<Item> candidates = allItems
+        .where((it) => it.type == '物品' && it.level == resultLevel && it.id != 'gold')
+        .toList();
+
+    if (candidates.isEmpty) {
+      addBroadcastMessage('没有该等级的现有物品，炼金失败', BroadcastMessageType.system);
+      return false;
+    }
+
+    final Item template = candidates[math.Random().nextInt(candidates.length)];
+    final Item product = Item(
+      id: template.id,
+      name: template.name,
+      image: template.image,
+      description: template.description,
+      effects: template.effects,
+      type: template.type, // 固定为“物品”
+      count: 1,
+      availableInShop: template.availableInShop,
+      basePrice: template.basePrice,
+      usageTime: template.usageTime,
+      level: template.level,
+      equipmentSlot: template.equipmentSlot,
+      equipEffects: template.equipEffects,
+    );
+
+    // 消耗材料：按堆叠索引批量扣减
+    final List<int> uniqueIndicesDesc = removalMap.keys.toList()..sort((a, b) => b.compareTo(a));
+    for (final idx in uniqueIndicesDesc) {
+      final Item cur = inventory[idx];
+      final int toRemove = removalMap[idx] ?? 0;
+      final int newCount = cur.count - toRemove;
+      if (newCount > 0) {
+        inventory[idx] = Item(
+          id: cur.id,
+          name: cur.name,
+          image: cur.image,
+          description: cur.description,
+          effects: cur.effects,
+          type: cur.type,
+          count: newCount,
+          availableInShop: cur.availableInShop,
+          basePrice: cur.basePrice,
+          usageTime: cur.usageTime,
+          level: cur.level,
+          equipmentSlot: cur.equipmentSlot,
+          equipEffects: cur.equipEffects,
+        );
+      } else {
+        inventory.removeAt(idx);
+      }
+    }
+
+    // 更新背包以反映消耗
+    state = state.copyWith(playerInventory: inventory);
+
+    // 插入产物；若容量不足则掉落地面
+    final bool inserted = insertItemAtPosition(product, state.playerInventory.length);
+    if (!inserted) {
+      _dropItemToGround(product, state.playerPosition.toPoint());
+      addBroadcastMessage('背包已满，产物掉落在地面', BroadcastMessageType.item);
+    } else {
+      addBroadcastMessage('炼金成功，获得 ${product.name} Lv${product.level}', BroadcastMessageType.item);
+    }
+
+    return true;
+  }
+
   /// 丢弃背包中的物品到地面
   bool dropItemFromInventory(Item item) {
     // 检查物品是否在背包中
@@ -2725,6 +3302,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 如果物品数量大于1，只丢弃一个
     if (itemToDrop.count > 1) {
+      // 关键区域：保留 level/equipmentSlot/equipEffects，避免颜色丢失
       inventory[itemIndex] = Item(
         id: itemToDrop.id,
         name: itemToDrop.name,
@@ -2736,9 +3314,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         availableInShop: itemToDrop.availableInShop,
         basePrice: itemToDrop.basePrice,
         usageTime: itemToDrop.usageTime,
+        level: itemToDrop.level,
+        equipmentSlot: itemToDrop.equipmentSlot,
+        equipEffects: itemToDrop.equipEffects,
       );
       
-      // 创建要丢弃的单个物品
+      // 创建要丢弃的单个物品（保留等级与装备字段）
       final singleItem = Item(
         id: itemToDrop.id,
         name: itemToDrop.name,
@@ -2750,6 +3331,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         availableInShop: itemToDrop.availableInShop,
         basePrice: itemToDrop.basePrice,
         usageTime: itemToDrop.usageTime,
+        level: itemToDrop.level,
+        equipmentSlot: itemToDrop.equipmentSlot,
+        equipEffects: itemToDrop.equipEffects,
       );
       
       _dropItemToGround(singleItem, state.playerPosition.toPoint());

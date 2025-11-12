@@ -1,6 +1,13 @@
 // data/props.dart
 // 物品数据配置文件 - 包含物品的基本信息、效果和使用时间
 // 关键区域：统一物品类型为“物品/装备”，并为装备提供部位与加成
+// 关键区域：装备栏类别与 equipmentSlot 对应关系（备注在此）：
+// - 武器 -> equipmentSlot: 'weapon'
+// - 护甲 -> equipmentSlot: 'armor'
+// - 头部 -> equipmentSlot: 'head'
+// - 背包 -> equipmentSlot: 'bag'  
+// - 裤子 -> equipmentSlot: 'pants'
+// - 鞋子 -> equipmentSlot: 'shoes'
 // 关键区域：effects 支持可变上限修改
 // 支持的效果键：
 // - hp:        修改生命值（按当前 maxHp 夹取）
@@ -24,7 +31,7 @@ class Item {
   final int usageTime;       // 新增：使用时间（毫秒）
   final int level;           // 新增：物品等级（1-7）
   // 关键区域：装备专属字段
-  final String? equipmentSlot; // 装备部位：weapon/armor/head/hand
+  final String? equipmentSlot; // 装备部位：weapon/armor/head/bag/pants/shoes
   final Map<String, int>? equipEffects; // 装备效果加成（佩戴生效）
 
   Item({
@@ -103,7 +110,7 @@ final List<Item> allItems = [
       availableInShop: true,
       basePrice: 0,
       usageTime: 5000, // 阅读书籍需要5秒
-      level: 0, 
+      level: 1, 
   ),
   Item(
     id: 'shit',
@@ -177,7 +184,7 @@ final List<Item> allItems = [
     usageTime: 6000, // 6秒使用时间
   ),
   Item(
-    id: 'bread',
+    id: 'bread2',
     name: '面包',
     image: 'images/items/bread.png',
     description: '还真是十万马克',
@@ -252,13 +259,26 @@ final List<Item> allItems = [
     basePrice: 20,
   ),
   Item(
+    id: 'niuzai_hat',
+    name: '牛仔帽',
+    image: 'images/items/niuzai.png',
+    description: '无所畏惧',
+    effects: const {'maxHp': -40,'moveSpeed': 70,'san': 20},
+    type: '装备',
+    equipmentSlot: 'head',
+    equipEffects: const {'maxHp': -40,'moveSpeed': 70,'san': 20},
+    level: 4,
+    availableInShop: true,
+    basePrice: 20,
+  ),
+  Item(
     id: 'hand_gloves',
     name: '手套', 
     image: 'images/items/hand_gloves.png',
     description: '保暖手套，略增氧气上限',
     effects: const {},
-    type: '装备',
-    equipmentSlot: 'hand',
+    type: '武器', // 关键区域：手套归类为“武器”
+    equipmentSlot: 'weapon', // 关键区域：对应武器槽
     equipEffects: const {'oxygenBonus': 1},
     level: 2,
     availableInShop: false,
@@ -267,8 +287,8 @@ final List<Item> allItems = [
     id: 'pants_school_uniform',
     name: '校裤',
     image: 'images/items/xiaoku.png',
-    description: '',
-    effects: const {},
+    description: '普通校裤，增加最大生命值',
+    effects: const {'maxHp': 10},
     type: '装备',
     equipmentSlot: 'pants',
     equipEffects: const {'maxHp': 10},
@@ -285,6 +305,31 @@ final List<Item> allItems = [
     effects: const {'gold': 1},
     type: '物品',
     level: 1,
+    availableInShop: false,
+    usageTime: 0,
+  ),
+  Item(
+    id: 'bag',
+    name: '背包',
+    image: 'images/items/bag.png',
+    description: '普通背包',
+    effects: const {'inventoryBonus': 2},
+    type: '背包', // 关键区域：背包归类为“背包”
+    // 关键区域：背包装备到 bag 槽位，装备效果为增加2格背包容量
+    equipmentSlot: 'bag',
+    equipEffects: const {'inventoryBonus': 2},
+    level: 1,
+    availableInShop: true,
+    basePrice: 20,
+  ),
+  Item(
+    id: 'goldbar',
+    name: '金条',
+    image: 'images/items/goldbar.png',
+    description: '校长裤兜掉出来的',
+    effects: const {'gold': 333},
+    type: '物品',
+    level: 6,
     availableInShop: false,
     usageTime: 0,
   ),

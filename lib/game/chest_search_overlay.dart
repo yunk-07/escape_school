@@ -23,7 +23,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
   void initState() {
     super.initState();
     // 关键区域：旋转控制器——持续旋转，用于“当前搜索中的物品”覆盖图标
-    _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+    // 优化：略微延长时长，结合后续缓动与轻微半径抖动，降低机械感
+    _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
       ..repeat();
   }
 
@@ -86,7 +87,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.red.withOpacity(0.3),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        // 关键区域：统一圆角为5
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                       ),
                     ),
                   ],
@@ -110,7 +112,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                                 Colors.blueGrey.shade800.withOpacity(0.76),
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(12),
+                            // 关键区域：统一圆角为5
+                            borderRadius: BorderRadius.circular(5),
                             border: Border.all(color: Colors.blueGrey.shade400.withOpacity(0.5)),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withOpacity(0.45), blurRadius: 14, offset: const Offset(0, 6)),
@@ -119,7 +122,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                           ),
                           // 关键区域：面板前景高光（与背包页面一致），增强质感
                           foregroundDecoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            // 关键区域：统一圆角为5
+                            borderRadius: BorderRadius.circular(5),
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -161,7 +165,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                                 Colors.black.withOpacity(0.79),
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(12),
+                            // 关键区域：统一圆角为5
+                            borderRadius: BorderRadius.circular(5),
                             border: Border.all(color: Colors.amber.withOpacity(0.6)),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withOpacity(0.50), blurRadius: 16, offset: const Offset(0, 7)),
@@ -170,7 +175,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                           ),
                           // 关键区域：面板前景高光（与背包页面一致），增强质感
                           foregroundDecoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            // 关键区域：统一圆角为5
+                            borderRadius: BorderRadius.circular(5),
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -228,8 +234,12 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                   (color == Colors.amber ? Colors.orange.shade800 : Colors.cyan.shade800).withOpacity(0.32),
                 ],
               ),
-              borderRadius: BorderRadius.circular(6),
+              // 关键区域：统一圆角为5，并轻量美化
+              borderRadius: BorderRadius.circular(5),
               border: Border.all(color: (color == Colors.amber ? Colors.amberAccent : Colors.cyanAccent).withOpacity(0.35), width: 1),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 6, offset: const Offset(0, 3)),
+              ],
             ),
             child: Text(title, style: TextStyle(color: (color == Colors.amber ? Colors.amberAccent : Colors.cyanAccent).withOpacity(0.9), fontSize: 12, fontWeight: FontWeight.bold)),
           ),
@@ -262,7 +272,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             return Container(
               decoration: BoxDecoration(
                 color: hasItem ? Colors.black.withOpacity(0.6) : Colors.black.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
+                // 关键区域：统一圆角为5
+                borderRadius: BorderRadius.circular(5),
                 border: Border.all(
                   color: hovering ? Colors.cyanAccent.withOpacity(0.8) : Colors.white24,
                   width: 1,
@@ -291,12 +302,14 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                   Colors.black.withOpacity(0.18),
                 ],
               ),
-              borderRadius: BorderRadius.circular(8),
+              // 关键区域：统一圆角为5
+              borderRadius: BorderRadius.circular(5),
               border: Border.all(color: Colors.white24, width: 0.8),
             ),
             // 关键区域：前景高光叠加（与背包页面一致）
             foregroundDecoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              // 关键区域：统一圆角为5
+              borderRadius: BorderRadius.circular(5),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -333,16 +346,17 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (item.count > 1)
-          Positioned(
-            bottom: 2,
-            right: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white24)),
-              child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+          if (item.count > 1)
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                // 关键区域：统一圆角为5
+                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
+                child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+              ),
             ),
-          ),
       ],
     );
   }
@@ -426,7 +440,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
               Colors.black.withOpacity(0.30),
             ],
           ),
-          borderRadius: BorderRadius.circular(8),
+          // 关键区域：统一圆角为5
+          borderRadius: BorderRadius.circular(5),
           // 关键区域：已揭示物品按等级着色边框与阴影
           border: Border.all(color: _getItemLevelColor(item.level).withOpacity(0.85), width: 1),
           boxShadow: [
@@ -436,7 +451,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
         ),
         // 关键区域：前景高光叠加（与背包页面一致）
         foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          // 关键区域：统一圆角为5
+          borderRadius: BorderRadius.circular(5),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -475,16 +491,17 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (item.count > 1)
-              Positioned(
-                bottom: 2,
-                right: 2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white24)),
-                  child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
-                ),
+          if (item.count > 1)
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                // 关键区域：统一圆角为5
+                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
+                child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
               ),
+            ),
           ],
         ),
       ),
@@ -505,7 +522,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             Colors.black.withOpacity(0.30),
           ],
         ),
-        borderRadius: BorderRadius.circular(8),
+        // 关键区域：统一圆角为5
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.white24, width: 1),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 6, offset: const Offset(0, 3)),
@@ -513,7 +531,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
       ),
       // 关键区域：前景高光叠加（与背包页面一致）
       foregroundDecoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        // 关键区域：统一圆角为5
+        borderRadius: BorderRadius.circular(5),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -539,30 +558,46 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                     builder: (context, child) {
                       // 关键区域：动画强度随物品等级增大（level 1..7）
                       final int lvl = (item?.level ?? 1).clamp(1, 7);
-                      final double speedFactor = 0.8 + (lvl - 1) * 0.18; // 0.8 .. 1.88
-                      final double glow = 3.0 + (lvl - 1) * 1.5; // 3 .. 12
+                      // 关键区域：取消放大镜，仅保留小圆点旋转
+                      final double speedFactor = 1.0; // 基准旋转速度（圆点绕转）
+                      final double baseGlow = 3.0 + (lvl - 1) * 1.5; // 3 .. 12
                       final double size = 22 + (lvl - 1) * 2.5; // 22 .. 37.0
-                      final double pulse = 1.0 + (lvl * 0.02) * math.sin(_spinController.value * 2 * math.pi);
+                      final double dotSize = 4.0 + (lvl * 0.4); // 中心圆点尺寸（随等级微增）
                       return Container(
                         width: size + 8,
                         height: size + 8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           boxShadow: [
-                            BoxShadow(color: Colors.amber.withOpacity(0.35), blurRadius: glow, spreadRadius: 0.0),
+                            BoxShadow(color: Colors.amber.withOpacity(0.35), blurRadius: baseGlow, spreadRadius: 0.0),
                           ],
                         ),
-                        child: Transform.scale(
-                          scale: pulse,
-                          child: Transform.rotate(
-                            angle: _spinController.value * 2 * math.pi * speedFactor,
-                            child: Icon(Icons.search, color: Colors.amber, size: size),
+                        // 关键区域：只保留小圆点沿轨道环绕，无放大镜
+                        child: Transform.rotate(
+                          angle: _spinController.value * 2 * math.pi * speedFactor,
+                          child: SizedBox(
+                            width: size,
+                            height: size,
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: Container(
+                                width: dotSize,
+                                height: dotSize,
+                                decoration: BoxDecoration(
+                                  color: Colors.amber,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(color: Colors.amber.withOpacity(0.45), blurRadius: baseGlow, spreadRadius: 0.0),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      );
-                    },
-                  )
-                : const Icon(Icons.search, color: Colors.white24, size: 20),
+                  );
+                },
+              )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -585,7 +620,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
               Colors.black.withOpacity(0.25),
             ],
           ),
-          borderRadius: BorderRadius.circular(8),
+          // 关键区域：统一圆角为5
+          borderRadius: BorderRadius.circular(5),
           // 关键区域：拖拽反馈边框按等级着色
           border: Border.all(color: _getItemLevelColor(item.level).withOpacity(0.9)),
           boxShadow: [
@@ -620,8 +656,6 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
       case 5:
         return Colors.amber.shade400; // 金色
       case 6:
-        return Colors.orange.shade400; // 橙色
-      case 7:
         return Colors.red.shade400; // 红色
       default:
         return Colors.grey.shade600; // 默认无色

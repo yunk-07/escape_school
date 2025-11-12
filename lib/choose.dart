@@ -76,16 +76,17 @@ class _ChooseCharacterPageState extends State<ChooseCharacterPage> {
                         children: [
                           GestureDetector(
                             onTap: () => Navigator.pop(context),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.red.withOpacity(0.5),
-                                  width: 1,
-                                ),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              // 关键区域：选择页面圆角统一为 5（返回按钮）
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.5),
+                                width: 1,
                               ),
+                            ),
                               child: const Icon(
                                 Icons.arrow_back,
                                 color: Colors.white,
@@ -130,7 +131,8 @@ class _ChooseCharacterPageState extends State<ChooseCharacterPage> {
                         height: 2,
                         decoration: BoxDecoration(
                           color: Colors.red.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(1),
+                          // 关键区域：选择页面圆角统一为 5（装饰线）
+                          borderRadius: BorderRadius.circular(5),
                         ),
                       ),
                       
@@ -141,7 +143,7 @@ class _ChooseCharacterPageState extends State<ChooseCharacterPage> {
                         '点击卡片选择角色开始游戏',
                         style: TextStyle(
                           fontSize: isLandscape ? 12 : 14,
-                          fontFamily: 'MicC',
+                          
                           color: Colors.white.withOpacity(0.7),
                           shadows: const [
                             Shadow(
@@ -414,7 +416,8 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                         ],
                         stops: const [0.0, 0.5, 1.0],
                       ),
-                      borderRadius: BorderRadius.circular(20),
+                      // 关键区域：选择页面圆角统一为 5（角色卡片容器）
+                      borderRadius: BorderRadius.circular(5),
                       border: Border.all(
                         color: _isHovering ? const Color(0xFFFF6B35) : const Color(0xFFFF4444),
                         width: _isHovering ? 3 : 2,
@@ -456,7 +459,8 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                             padding: const EdgeInsets.all(10),
                             child: Container(
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(15),
+                                // 关键区域：选择页面圆角统一为 5（顶部图片容器）
+                                borderRadius: BorderRadius.circular(5),
                                 gradient: LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
@@ -479,7 +483,8 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                                 ],
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
+                                // 关键区域：选择页面圆角统一为 5（图片裁剪）
+                                borderRadius: BorderRadius.circular(5),
                                 child: Container(
                                   width: double.infinity,
                                   height: double.infinity,
@@ -513,9 +518,10 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                                         height: 30,
                                         child: Container(
                                           decoration: BoxDecoration(
+                                            // 关键区域：选择页面圆角统一为 5（顶部高光）
                                             borderRadius: const BorderRadius.only(
-                                              topLeft: Radius.circular(14),
-                                              topRight: Radius.circular(14),
+                                              topLeft: Radius.circular(5),
+                                              topRight: Radius.circular(5),
                                             ),
                                             gradient: LinearGradient(
                                               begin: Alignment.topCenter,
@@ -549,7 +555,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                                   widget.character['name'],
                                   style: TextStyle(
                                     fontSize: widget.isCompact ? 18 : 20,
-                                    fontFamily: 'MicC',
+                                  
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     shadows: const [
@@ -561,6 +567,10 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                                     ],
                                   ),
                                   textAlign: TextAlign.center,
+                                  // 关键区域：名称过长时以省略号显示，避免溢出容器
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
                                 ),
 
                                 const SizedBox(height: 6),
@@ -572,7 +582,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                                     widget.character['description'],
                                     style: TextStyle(
                                       fontSize: widget.isCompact ? 8 : 9,
-                                      fontFamily: 'MicC',
+                                    
                                       color: Colors.white70,
                                       height: 1.1,
                                     ),
@@ -679,7 +689,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
             label,
             style: TextStyle(
               fontSize: widget.isCompact ? 9 : 11,
-              fontFamily: 'MicC',
+            
               color: Colors.white70,
               fontWeight: FontWeight.w500,
             ),
@@ -691,7 +701,8 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
           Container(
             height: widget.isCompact ? 16 : 20,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              // 关键区域：选择页面圆角统一为 5（属性进度条外层）
+              borderRadius: BorderRadius.circular(5),
               color: Colors.black.withOpacity(0.3),
               border: Border.all(
                 color: config['color'].withOpacity(0.5),
@@ -703,7 +714,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                 // 进度条背景
                 Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(5),
                     gradient: LinearGradient(
                       colors: [
                         Colors.grey[800]!,
@@ -719,7 +730,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                   curve: Curves.easeOutCubic,
                   width: (widget.isCompact ? 58 : 68) * progress,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(5),
                     gradient: LinearGradient(
                       colors: [
                         config['color'],
@@ -742,7 +753,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                   ),
                   child: _isHovering && progress > 0.1 ? Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(5),
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -763,7 +774,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                     value.toString(),
                     style: TextStyle(
                       fontSize: widget.isCompact ? 10 : 12,
-                      fontFamily: 'MicC',
+                    
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       shadows: const [
@@ -827,10 +838,22 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
     // 所有属性都限制在100%以内，防止进度条爆表
     final progress = (numValue / maxValue).clamp(0.0, 1.0);
     
+    // 关键区域：金币缩写显示（>=1000 显示为 K；>=1000000 显示为 M；>=1000000000 显示为 B）
+    // 说明：仅影响选择角色页面的“金币”文本展示，不改动数值或进度条计算逻辑。
+    String _formatGoldAbbr(double v) {
+      final iv = v.floor();
+      if (iv >= 1000000000) return '${iv ~/ 1000000000}B';
+      if (iv >= 1000000) return '${iv ~/ 1000000}M';
+      if (iv >= 1000) return '${iv ~/ 1000}K';
+      return iv.toString();
+    }
+    final String displayValue = label == '金币' ? _formatGoldAbbr(numValue) : value.toString();
+    
     return Container(
       height: 42,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        // 关键区域：选择页面圆角统一为 5（紧凑属性卡外层）
+        borderRadius: BorderRadius.circular(5),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -863,7 +886,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
           // 进度条背景
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.5),
+              borderRadius: BorderRadius.circular(5),
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -885,7 +908,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
               alignment: Alignment.centerLeft,
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8.5),
+                  borderRadius: BorderRadius.circular(5),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -906,7 +929,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                 ),
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8.5),
+                    borderRadius: BorderRadius.circular(5),
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -934,7 +957,7 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                   label,
                   style: TextStyle(
                     fontSize: widget.isCompact ? 12 : 14,
-                    fontFamily: 'MicC',
+                    
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
                     shadows: const [
@@ -949,10 +972,10 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
                 
                 // 数值
                 Text(
-                  value.toString(),
+                  displayValue,
                   style: TextStyle(
-                    fontSize: widget.isCompact ? 13 : 15,
-                    fontFamily: 'MicC',
+                    fontSize: widget.isCompact ? 12 : 15,
+                    
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     shadows: const [

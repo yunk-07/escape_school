@@ -66,7 +66,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           height: MediaQuery.of(context).size.height * 0.85,
           decoration: BoxDecoration(
             color: Colors.grey.shade900.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(8),
+            // 关键区域：统一圆角为5
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(
               color: Colors.blue.shade400.withOpacity(0.5),
               width: 2,
@@ -88,7 +89,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           ),
           // 关键区域：增加前景高光渐变，模拟上左高光与下右微光，增强立体感
           foregroundDecoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            // 关键区域：统一圆角为5
+            borderRadius: BorderRadius.circular(5),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -147,9 +149,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             Colors.blueGrey.shade700,
           ],
         ),
+        // 关键区域：标题栏上侧圆角统一为5
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+          topLeft: Radius.circular(5),
+          topRight: Radius.circular(5),
         ),
         boxShadow: [
           BoxShadow(
@@ -161,9 +164,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       ),
       // 关键区域：标题栏前景高光，增强整体质感
       foregroundDecoration: BoxDecoration(
+        // 关键区域：标题栏上侧圆角统一为5
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+          topLeft: Radius.circular(5),
+          topRight: Radius.circular(5),
         ),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -193,7 +197,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     Colors.green.shade800.withOpacity(0.32),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(4),
+                // 关键区域：统一圆角为5
+                borderRadius: BorderRadius.circular(5),
                 border: Border.all(color: Colors.greenAccent.withOpacity(0.35), width: 1),
               ),
               child: Row(
@@ -241,10 +246,11 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                           Colors.cyan.shade700.withOpacity(0.28),
                           Colors.cyan.shade800.withOpacity(0.32),
                         ],
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.cyanAccent.withOpacity(0.35), width: 1),
                     ),
+                    // 关键区域：统一圆角为5
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.35), width: 1),
+                  ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -296,8 +302,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      // 关键区域：与外层容器一致，圆角改小
-                      borderRadius: BorderRadius.circular(6),
+                      // 关键区域：统一圆角为5
+                      borderRadius: BorderRadius.circular(5),
                       onTap: () {
                         final notifier = ref.read(optimizedGameStateProvider.notifier);
                         notifier.toggleInventory();
@@ -379,7 +385,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(4),
+        // 关键区域：统一圆角为5
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.blue.shade400.withOpacity(0.3)),
       ),
       child: Column(
@@ -396,7 +403,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 width: 120, // 固定宽度，大小始终不变
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
+                  // 关键区域：统一圆角为5
+                  borderRadius: BorderRadius.circular(5),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -525,7 +533,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           const SizedBox(height: 4),
           // 关键区域：统一主题进度条
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            // 关键区域：统一圆角为5
+            borderRadius: BorderRadius.circular(5),
             child: Container(
               height: 6, // 关键区域：缩小进度条厚度
               decoration: BoxDecoration(
@@ -649,7 +658,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           const SizedBox(height: 4),
           // 关键区域：移动速度双段进度条（亮色=削弱后速度，灰色=被削弱部分）
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            // 关键区域：统一圆角为5
+            borderRadius: BorderRadius.circular(5),
             child: Container(
               height: 6,
               decoration: BoxDecoration(
@@ -724,7 +734,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       width: 120, // 关键区域：缩小心电图宽度
       height: 54, // 关键区域：缩小心电图高度
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        // 关键区域：统一圆角为5
+        borderRadius: BorderRadius.circular(5),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -806,7 +817,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             flex: 4,
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                // 关键区域：统一圆角为5
+                borderRadius: BorderRadius.circular(5),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -832,7 +844,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
               // 关键区域：取消大黄框（移除琥珀色边框），保留高光与阴影增强立体感
               // 关键区域：前景高光网格，增强质感
               foregroundDecoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                // 关键区域：统一圆角为5
+                borderRadius: BorderRadius.circular(5),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -862,9 +875,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
     );
   }
 
-  /// 关键区域：装备槽横向正方形布局（weapon/armor/head/hand/pants/shoes）
+  /// 关键区域：装备槽横向正方形布局（weapon/armor/head/bag/pants/shoes）
   Widget _buildEquipmentSlots(OptimizedGameState gameState, WidgetRef ref) {
-    final slotsOrder = const ['weapon', 'armor', 'head', 'hand', 'pants', 'shoes'];
+    final slotsOrder = const ['weapon', 'armor', 'head', 'bag', 'pants', 'shoes'];
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: slotsOrder.map((slot) {
@@ -880,10 +893,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   (item.type == '武器' && slot == 'weapon') ||
                   (item.type == '甲' && slot == 'armor') ||
                   (item.type == '头' && slot == 'head') ||
-                  (item.type == '背包' && slot == 'hand') ||
+                  (item.type == '背包' && slot == 'bag') ||
                   (item.type == '裤子' && slot == 'pants') ||
                   (item.type == '鞋' && slot == 'shoes');
-              final matchesLegacy = (item.type == '装备' && item.equipmentSlot == slot);
+              final matchesLegacy = (item.type == '装备' && (item.equipmentSlot == slot || (item.equipmentSlot == 'hand' && slot == 'bag')));
               return matchesByType || matchesLegacy;
             },
             onAccept: (item) {
@@ -902,7 +915,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   height: 54,
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      // 关键区域：统一圆角为5
+                      borderRadius: BorderRadius.circular(5),
                       border: Border.all(
                         // 关键区域：装备状态高亮边框，融合全局风格
                         // 装备栏按 level 着色：悬停用琥珀，高亮用等级色
@@ -925,7 +939,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     ),
                     // 关键区域：前景高光与装备状态微光，应作为 Container 的 foregroundDecoration
                     foregroundDecoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      // 关键区域：统一圆角为5
+                      borderRadius: BorderRadius.circular(5),
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -938,16 +953,41 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                         ],
                         stops: const [0.0, 0.55, 1.0],
                       ),
+                      // 关键区域：加入凹陷下去的内阴影效果（模拟内凹）
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.10),
+                          blurRadius: 4,
+                          spreadRadius: -2,
+                          offset: const Offset(-2, -2),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.30),
+                          blurRadius: 6,
+                          spreadRadius: -2,
+                          offset: const Offset(2, 2),
+                        ),
+                      ],
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(6),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
+                        // 关键区域：统一圆角为5
+                        borderRadius: BorderRadius.circular(5),
                         child: equipped == null
-                            ? Icon(
-                                _slotIcon(slot),
-                                color: Colors.grey.shade300,
-                                size: 22,
+                            // 关键区域：占位图标改为中文文字（短标签），居中显示
+                            ? Center(
+                                child: Text(
+                                  _slotShortText(slot),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade300,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               )
                             : (equipped.image.isNotEmpty
                                 // 关键区域：显示装备贴图（支持资源缺失回退）
@@ -956,18 +996,34 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                                     width: double.infinity,
                                     height: double.infinity,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (c, e, s) => Icon(
-                                      _slotIcon(slot),
-                                      // 关键区域：装备贴图加载失败时，按 level 着色图标
-                                      color: _getItemLevelColor(equipped!.level),
-                                      size: 22,
+                                    errorBuilder: (c, e, s) => Center(
+                                      // 关键区域：贴图加载失败时，用中文文字回退（按 level 着色）
+                                      child: Text(
+                                        _slotShortText(slot),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: _getItemLevelColor(equipped!.level),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   )
-                                : Icon(
-                                    _slotIcon(slot),
-                                    // 关键区域：无贴图装备，按 level 着色图标
-                                    color: _getItemLevelColor(equipped!.level),
-                                    size: 22,
+                                : Center(
+                                    // 关键区域：无贴图装备，显示中文文字（按 level 着色）
+                                    child: Text(
+                                      _slotShortText(slot),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: _getItemLevelColor(equipped!.level),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   )),
                       ),
                     ),
@@ -989,7 +1045,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return Icons.checkroom;
       case 'head':
         return Icons.masks;
-      case 'hand':
+      case 'bag':
         return Icons.pan_tool_alt;
       case 'pants':
         return Icons.roller_shades;
@@ -997,6 +1053,26 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return Icons.hiking;
       default:
         return Icons.inventory_2;
+    }
+  }
+
+  // 关键区域：槽位短标签（用于占位与贴图回退文字）
+  String _slotShortText(String slot) {
+    switch (slot) {
+      case 'weapon':
+        return '武器';
+      case 'armor':
+        return '护甲';
+      case 'head':
+        return '头部';
+      case 'bag':
+        return '背包';
+      case 'pants':
+        return '裤子';
+      case 'shoes':
+        return '鞋子';
+      default:
+        return '装备';
     }
   }
 
@@ -1008,8 +1084,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return '护甲槽（拖拽装备到此）';
       case 'head':
         return '头部槽（拖拽装备到此）';
-      case 'hand':
-        return '手部槽（拖拽装备到此）';
+      case 'bag':
+        return '背包槽（拖拽装备到此）';
       case 'pants':
         return '裤子槽（拖拽装备到此）';
       case 'shoes':
@@ -1022,20 +1098,21 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
   /// 构建空背包提示
   Widget _buildEmptyInventory() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade700.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Colors.grey.shade500.withOpacity(0.5),
-                width: 2,
-              ),
-            ),
-            child: const Icon(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade700.withOpacity(0.3),
+                  // 关键区域：统一圆角为5
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: Colors.grey.shade500.withOpacity(0.5),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
               Icons.inventory_2_outlined,
               size: 40,
               color: Colors.grey,
@@ -1103,7 +1180,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         
         return Container(
           decoration: isHovering ? BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            // 关键区域：统一圆角为5
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(
               // 关键区域：移除黄色高亮，改为按物品等级着色的微霓虹边
               color: _getItemLevelColor(item.level).withOpacity(0.85),
@@ -1154,7 +1232,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                       Colors.black.withOpacity(0.25),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(6),
+                  // 关键区域：统一圆角为5
+                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color: _getItemLevelColor(item.level).withOpacity(0.9),
                     width: 1.5,
@@ -1175,7 +1254,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 ),
                 // 关键区域：前景高光叠加，增强质感
                 foregroundDecoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
+                  // 关键区域：统一圆角为5
+                  borderRadius: BorderRadius.circular(5),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1243,7 +1323,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             childWhenDragging: Container(
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(4),
+                // 关键区域：统一圆角为5
+                borderRadius: BorderRadius.circular(5),
                 border: Border.all(
                   color: Colors.grey.withOpacity(0.5),
                   width: 1,
@@ -1259,6 +1340,18 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             ),
             child: GestureDetector(
               onTap: () => _showUseItemDialog(context, item, item.count, ref),
+              // 关键区域：双击行为 —— 双击物品则使用，双击装备则装备
+              // 说明：通过 _slotForItem 判断是否为装备；非装备视为可使用物品
+              onDoubleTap: () {
+                final slot = _slotForItem(item);
+                if (slot != null) {
+                  // 双击装备：直接装备到对应槽位
+                  ref.read(optimizedGameStateProvider.notifier).equipItemToSlot(item, slot);
+                } else {
+                  // 双击物品：直接使用
+                  _useItem(item, ref);
+                }
+              },
               child: Stack(
                 children: [
                   Container(
@@ -1272,7 +1365,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                           Colors.black.withOpacity(0.18),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(6),
+                      // 关键区域：统一圆角为5
+                      borderRadius: BorderRadius.circular(5),
                       border: Border.all(
                         color: _getItemLevelColor(item.level).withOpacity(0.85),
                         width: 1,
@@ -1293,7 +1387,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     ),
                     // 关键区域：前景高光叠加
                     foregroundDecoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
+                      // 关键区域：统一圆角为5
+                      borderRadius: BorderRadius.circular(5),
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -1367,7 +1462,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                         padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(6),
+                          // 关键区域：统一圆角为5
+                          borderRadius: BorderRadius.circular(5),
                           border: Border.all(
                             color: _getItemLevelColor(item.level),
                             width: 0.5,
@@ -1415,22 +1511,23 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       builder: (context, candidateData, rejectedData) {
         final bool isHovering = candidateData.isNotEmpty;
         
-        return Container(
-          decoration: BoxDecoration(
-            // 关键区域：空格子采用柔和渐变与微光边框，提升整体一致性
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                (isHovering ? Colors.blue : Colors.grey).withOpacity(0.18),
-                Colors.black.withOpacity(0.12),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: (isHovering ? Colors.blue : Colors.grey).withOpacity(0.5),
-              width: isHovering ? 1.5 : 1,
-            ),
+          return Container(
+            decoration: BoxDecoration(
+              // 关键区域：空格子采用柔和渐变与微光边框，提升整体一致性
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  (isHovering ? Colors.blue : Colors.grey).withOpacity(0.18),
+                  Colors.black.withOpacity(0.12),
+                ],
+              ),
+              // 关键区域：统一圆角为5
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(
+                color: (isHovering ? Colors.blue : Colors.grey).withOpacity(0.5),
+                width: isHovering ? 1.5 : 1,
+              ),
             boxShadow: isHovering
                 ? [
                     // 关键区域：悬停时增加柔光阴影，突出层次
@@ -1450,7 +1547,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           ),
           // 关键区域：前景高光叠加，非悬停时更柔和
           foregroundDecoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            // 关键区域：统一圆角为5
+            borderRadius: BorderRadius.circular(5),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -1482,8 +1580,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
           contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
           actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           clipBehavior: Clip.antiAlias,
+          // 关键区域：物品详情页弹窗圆角统一为5
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(5),
             // 关键区域：详情页按等级颜色区分 —— 弹窗边框使用等级颜色
             side: BorderSide(color: _getItemLevelColor(item.level).withOpacity(0.45), width: 1),
           ),
@@ -1495,8 +1594,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 width: 32,
                 height: 32,
                 // 物品缩略图容器采用渐变与边框阴影，提升视觉质感
+                // 关键区域：物品缩略图容器圆角统一为5
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(5),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1522,8 +1622,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     ),
                   ],
                 ),
+                // 关键区域：缩略图高光前景圆角统一为5
                 foregroundDecoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(5),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1602,7 +1703,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 // 关键区域：全体缩小 —— 描述块内边距减小
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
+                  // 关键区域：描述块圆角统一为5
+                  borderRadius: BorderRadius.circular(5),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1640,7 +1742,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                           margin: const EdgeInsets.symmetric(vertical: 2),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
+                            // 关键区域：效果条圆角统一为5
+                            borderRadius: BorderRadius.circular(5),
                             border: Border.all(
                               color: (isPositive ? Colors.green : Colors.red).withOpacity(0.35),
                               width: 1,
@@ -1690,9 +1793,26 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 foregroundColor: Colors.grey.shade300,
                 // 关键区域：全体缩小 —— 按钮内边距减小
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade600.withOpacity(0.5))),
+                // 关键区域：按钮圆角统一为5
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5), side: BorderSide(color: Colors.grey.shade600.withOpacity(0.5))),
               ),
               child: const Text('取消'),
+            ),
+            // 关键区域：互换“装备”与“丢弃”按钮位置 —— 先丢弃后装备（仅影响装备类详情页视觉顺序）
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _dropItem(item, ref);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.red.shade600,
+                // 关键区域：全体缩小 —— 按钮内边距减小
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                // 关键区域：按钮圆角统一为5
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5), side: BorderSide(color: Colors.redAccent.withOpacity(0.55))),
+              ),
+              child: const Text('丢弃'),
             ),
             // 关键区域：装备按钮（支持中文类型与旧“装备+equipmentSlot”）
             if (_slotForItem(item) != null)
@@ -1706,24 +1826,11 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   foregroundColor: Colors.white,
                   backgroundColor: Colors.indigo.shade600,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.indigoAccent.withOpacity(0.55))),
+                  // 关键区域：按钮圆角统一为5
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5), side: BorderSide(color: Colors.indigoAccent.withOpacity(0.55))),
                 ),
                 child: const Text('装备'),
               ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _dropItem(item, ref);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.red.shade600,
-                // 关键区域：全体缩小 —— 按钮内边距减小
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.redAccent.withOpacity(0.55))),
-              ),
-              child: const Text('丢弃'),
-            ),
             // 关键区域：装备类隐藏“使用”按钮，仅非装备类显示
             if (_slotForItem(item) == null)
               TextButton(
@@ -1736,7 +1843,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   backgroundColor: _getItemTypeColor(item.type),
                   // 关键区域：全体缩小 —— 按钮内边距减小
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.55))),
+                  // 关键区域：按钮圆角统一为5
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5), side: BorderSide(color: _getItemTypeColor(item.type).withOpacity(0.55))),
                 ),
                 child: const Text('使用'),
               ),
@@ -1768,13 +1876,13 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       case '头':
         return 'head';
       case '背包':
-        return 'hand';
+        return 'bag';
       case '裤子':
         return 'pants';
       case '鞋':
         return 'shoes';
       case '装备':
-        return item.equipmentSlot; // 兼容旧数据
+        return (item.equipmentSlot == 'hand') ? 'bag' : item.equipmentSlot; // 兼容旧数据
       default:
         return null;
     }
@@ -1797,7 +1905,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             color: isHovering 
                 ? Colors.red.shade600.withOpacity(0.8)
                 : Colors.grey.shade800.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(8),
+            // 关键区域：统一圆角为5
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(
                color: isHovering 
                    ? Colors.red.shade400
@@ -1850,8 +1959,6 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       case 5:
         return Colors.amber.shade400; // 金色
       case 6:
-        return Colors.orange.shade400; // 橙色
-      case 7:
         return Colors.red.shade400; // 红色
       default:
         return Colors.grey.shade600; // 默认无色
@@ -2126,7 +2233,8 @@ class _ECGWidgetState extends State<ECGWidget>
       height: widget.height,
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(4),
+        // 关键区域：统一圆角为5
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
           color: _getECGColor().withOpacity(0.5),
           width: 1,

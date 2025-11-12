@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:escape_from_school/game/optimized_game_state.dart';
+import 'package:escape_from_school/game/alchemy_effect_overlay.dart';
 import 'package:escape_from_school/game/gameOver.dart';
 import 'package:escape_from_school/game/inventory_page.dart';
 import 'package:escape_from_school/game/joystick.dart';
@@ -19,6 +20,7 @@ import 'package:escape_from_school/game/hp_listener.dart';
 import 'package:escape_from_school/game/smooth_vision.dart';
 import 'package:escape_from_school/game/enhanced_vision.dart';
 import 'package:escape_from_school/game/shop_view.dart';
+import 'package:escape_from_school/game/alchemy_view.dart';
 import 'package:escape_from_school/game/item_usage_progress.dart';
 import 'package:escape_from_school/game/chest_exploration_progress.dart';
 import 'package:escape_from_school/game/chest_search_overlay.dart';
@@ -467,6 +469,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
               maxWidth: 420,
             ),
             decoration: BoxDecoration(
+              // 关键区域：统一边角为5（二级退出对话框外层容器）
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -477,7 +480,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 ],
                 stops: const [0.0, 0.5, 1.0],
               ),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(5),
               border: Border.all(
                 color: Colors.white.withOpacity(0.12),
                 width: 1.5,
@@ -502,6 +505,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                   decoration: BoxDecoration(
+                    // 关键区域：标题栏圆角统一为5
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -511,8 +515,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                       ],
                     ),
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      topRight: Radius.circular(18),
+                      topLeft: Radius.circular(5),
+                      topRight: Radius.circular(5),
                     ),
                     border: Border(
                       bottom: BorderSide(
@@ -527,7 +531,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
+                          // 关键区域：图标容器圆角统一为5
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: Icon(
                           Icons.exit_to_app,
@@ -553,7 +558,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8),
+                            // 关键区域：关闭按钮圆角统一为5
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Icon(
                             Icons.close,
@@ -607,7 +613,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                                 Colors.grey.shade700,
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            // 关键区域：取消按钮圆角统一为5
+                            borderRadius: BorderRadius.circular(5),
                             border: Border.all(
                               color: Colors.white.withOpacity(0.2),
                               width: 1,
@@ -624,7 +631,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                             color: Colors.transparent,
                             child: InkWell(
                               onTap: () => Navigator.of(context).pop(),
-                              borderRadius: BorderRadius.circular(10),
+                              // 关键区域：取消按钮点击反馈圆角统一为5
+                              borderRadius: BorderRadius.circular(5),
                               child: const Center(
                                 child: Text(
                                   '取消',
@@ -650,7 +658,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                                 Colors.grey.shade600,
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            // 关键区域：退出按钮圆角统一为5
+                            borderRadius: BorderRadius.circular(5),
                             border: Border.all(
                               color: Colors.red.withOpacity(0.3),
                               width: 1,
@@ -670,7 +679,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                                 Navigator.of(context).pop();
                                 _exitToMainMenu(context);
                               },
-                              borderRadius: BorderRadius.circular(10),
+                              // 关键区域：退出按钮点击反馈圆角统一为5
+                              borderRadius: BorderRadius.circular(5),
                               child: const Center(
                                 child: Text(
                                   '退出游戏',
@@ -1027,60 +1037,72 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
 
 
 
-  // 构建播报框（设置按钮左边）
+  // 关键区域：提示方式改为——中上位置显示一个长方形小方框，显示一条消息
   Widget _buildBroadcastBox(OptimizedGameState gameState) {
-    // 清理过期消息
+    // 清理过期消息（确保一秒钟提示及时消失）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       gameStateNotifier.cleanupExpiredMessages();
     });
-    // 关键区域：信息框不显示“鬼”的相关消息
+
+    // 过滤掉不需要显示的消息（例如包含“鬼”字样）
     final messages = gameState.broadcastMessages
         .where((m) => !m.text.contains('鬼'))
         .toList();
-    if (messages.isNotEmpty) {
-      for (int i = 0; i < messages.length; i++) {
-        final msg = messages[i];
-        final age = DateTime.now().difference(msg.timestamp).inSeconds;
-      }
+
+    if (messages.isEmpty) {
+      return const SizedBox.shrink();
     }
-    
-    return Positioned(
-      top: 40,
-      right: 80, // 设置按钮右边距20 + 按钮宽度50 + 间距10 = 80
-      child: Container(
-        width: 200,
-        height: 100,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
-          borderRadius: BorderRadius.circular(4), // 简单的四方形，圆角很小
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 消息列表
-            Expanded(
-              child: messages.isEmpty
-                  ? const Center(
-                      child: Text(
-                        '暂无消息',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 10,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(4),
-                      itemCount: messages.length,
-                      reverse: true, // 最新消息在底部
-                      itemBuilder: (context, index) {
-                        final message = messages[messages.length - 1 - index];
-                        return _buildBroadcastMessage(message);
-                      },
-                    ),
+
+    // 只显示最新一条消息，作为短提示
+    final BroadcastMessage latest = messages.last;
+
+  return Positioned(
+      top: 60,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: BackdropFilter(
+            // 关键区域：玻璃立体效果——背景模糊
+            filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              constraints: const BoxConstraints(
+                // 关键区域：缩小默认尺寸，同时去掉高度上限以便长文本自适应换行
+                minWidth: 96,
+                maxWidth: 280,
+                minHeight: 22,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                // 关键区域：半透明底色 + 细白边 + 轻微阴影，形成玻璃质感
+                color: Colors.white.withOpacity(0.10),
+                border: Border.all(color: Colors.white.withOpacity(0.30), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              // 关键区域：顶部高光渐变，增强立体感
+              foregroundDecoration: const BoxDecoration(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x55FFFFFF),
+                    Color(0x00000000),
+                  ],
+                  stops: [0.0, 1.0],
+                ),
+              ),
+              child: Center(child: _buildBroadcastMessage(latest)),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1088,22 +1110,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
 
   // 构建单条播报消息
   Widget _buildBroadcastMessage(BroadcastMessage message) {
-    Color textColor;
-    switch (message.type) {
-      case BroadcastMessageType.damage:
-        textColor = Colors.red;
-        break;
-      case BroadcastMessageType.heal:
-        textColor = Colors.green;
-        break;
-      case BroadcastMessageType.item:
-        textColor = Colors.yellow;
-        break;
-      case BroadcastMessageType.system:
-        textColor = Colors.white;
-        break;
-    }
-
+    // 关键区域：提示框文字统一为白色、居中显示
+    const Color textColor = Colors.white;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Text(
@@ -1113,8 +1121,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           fontSize: 10,
           fontWeight: FontWeight.w500,
         ),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        softWrap: true, // 关键区域：允许文本自动换行，适应更长提示
       ),
     );
   }
@@ -1134,6 +1142,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
               maxHeight: MediaQuery.of(context).size.height * 0.7,
             ),
             decoration: BoxDecoration(
+              // 关键区域：统一边角为5（设置对话框外层容器）
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -1144,7 +1153,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 ],
                 stops: const [0.0, 0.5, 1.0],
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(5),
               border: Border.all(
                 color: Colors.white.withOpacity(0.2),
                 width: 1,
@@ -1169,6 +1178,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
+                    // 关键区域：标题栏圆角统一为5
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -1178,8 +1188,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                       ],
                     ),
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
+                      topLeft: Radius.circular(5),
+                      topRight: Radius.circular(5),
                     ),
                     border: Border(
                       bottom: BorderSide(
@@ -1194,7 +1204,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
+                          // 关键区域：图标容器圆角统一为5
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: const Icon(
                           Icons.settings,
@@ -1220,7 +1231,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            // 关键区域：关闭按钮圆角统一为5
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Icon(
                             Icons.close,
@@ -1257,7 +1269,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                                       Colors.red.shade600.withOpacity(0.2),
                                     ],
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
+                                  // 关键区域：设置对话框中的退出游戏按钮圆角统一为5
+                                  borderRadius: BorderRadius.circular(5),
                                   border: Border.all(
                                     color: Colors.red.withOpacity(0.4),
                                     width: 1,
@@ -1270,7 +1283,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                                       Navigator.of(context).pop();
                                       _showExitConfirmDialog(context);
                                     },
-                                    borderRadius: BorderRadius.circular(12),
+                                    // 关键区域：按钮点击反馈圆角统一为5
+                                    borderRadius: BorderRadius.circular(5),
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
@@ -1487,6 +1501,39 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
         if (isShopVisible) {
           // 打开商店
           gameStateNotifier.toggleShop();
+        }
+      }
+    }
+
+    // 检查炼金机点击（如果存在位置）
+    if (gameState.alchemyStation != null) {
+      final alchPos = gameState.alchemyStation!;
+      final double alchScreenX = mapOffsetX + (alchPos.x * tileSize);
+      final double alchScreenY = mapOffsetY + (alchPos.y * tileSize);
+      final Rect alchRect = Rect.fromLTWH(alchScreenX, alchScreenY, tileSize, tileSize);
+      if (alchRect.contains(localPosition)) {
+        final math.Point<int> alchPoint = math.Point(alchPos.x.toInt(), alchPos.y.toInt());
+        bool isAlchemyVisible = false;
+        if (gameStateNotifier.smoothVisionManager != null) {
+          final opacity = gameStateNotifier.smoothVisionManager!.getTileOpacity(alchPoint);
+          isAlchemyVisible = opacity > 0.0;
+        } else {
+          isAlchemyVisible = gameState.visibleTiles.contains(alchPoint);
+        }
+
+        if (isAlchemyVisible) {
+          // 关键区域：距离判定与宝箱一致（<=1.5）
+          final double playerX = gameState.playerPosition.x;
+          final double playerY = gameState.playerPosition.y;
+          final double distance = math.sqrt(
+            math.pow(playerX - alchPos.x, 2) + math.pow(playerY - alchPos.y, 2)
+          );
+          if (distance <= 1.5) {
+            gameStateNotifier.toggleAlchemy();
+          } else {
+            gameStateNotifier.addBroadcastMessage('距离太远，无法操作炼金机', BroadcastMessageType.system);
+          }
+          return;
         }
       }
     }
@@ -2105,8 +2152,9 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
         builder: (context, ref, child) {
           final gameState = ref.watch(optimizedGameStateProvider);
           
-          // 当背包打开时隐藏摇杆
-          if (gameState.showInventory) {
+          // 关键区域：当背包、商店或炼金界面打开时隐藏并遮挡摇杆
+          // 说明：确保商店页面与炼金页面位于摇杆之上（视觉与触控均不受摇杆影响）
+          if (gameState.showInventory || gameState.showShop || gameState.showAlchemy) {
             return const SizedBox.shrink();
           }
           
@@ -2267,6 +2315,35 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
             ),
 
         ],
+      ),
+    );
+  }
+
+  // 关键区域：左下角显示玩家坐标 X/Y，实时更新（不拦截交互）
+  Widget _buildPlayerCoordinates(OptimizedGameState gameState) {
+    final int gridX = gameState.playerPosition.x.round();
+    final int gridY = gameState.playerPosition.y.round();
+    return Positioned(
+      left: 8,
+      bottom: 8,
+      child: IgnorePointer(
+        ignoring: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.55),
+            borderRadius: BorderRadius.circular(5), // 统一圆角为5
+            border: Border.all(color: Colors.white24, width: 1),
+          ),
+          child: Text(
+            'X: $gridX  Y: $gridY',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2677,14 +2754,19 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 // 设置按钮（右上角）
                 _buildSettingsButton(),
                 
-                // 播报框（设置按钮左边）
-                _buildBroadcastBox(gameState),
+                // 播报框（移至最顶层外层Stack显示，避免被遮挡）
                 
                 // 角色信息面板（左侧）
                 _buildCharacterInfoView(gameState),
                 
                 // 商店界面（独立组件，避免不必要的刷新）
                 const ShopView(),
+
+                // 炼金界面（独立组件，按需显示）
+                const AlchemyView(),
+
+                // 炼金抽奖特效覆盖层（按需显示）
+                const AlchemyEffectOverlay(),
                 
                 // 物品使用进度条（动态显示）
                 const ItemUsageProgress(),
@@ -2765,11 +2847,16 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           // 交互控制组件（最高优先级，不受伤害效果影响）
           // 移动控制（摇杆）
           _buildMovementControls(),
+          // 关键区域：在左下角常显玩家坐标（不影响操作）
+          _buildPlayerCoordinates(gameState),
           
           // 功能按钮
           _buildActionButtons(gameState),
           // 宝箱搜索页面叠加层（整页覆盖，拦截交互）
           const ChestSearchOverlay(),
+
+          // 关键区域：提示框置于最上层，不被任何叠加层遮挡
+          _buildBroadcastBox(gameState),
           
         ],
       ),
@@ -3070,6 +3157,31 @@ class _GameAreaPainter extends CustomPainter {
           final bool isVisible = gameState.visibleTiles.contains(shopPoint);
           if (isVisible) {
             _drawShop(canvas, shopX, shopY, tileSize, shopOpacity);
+          }
+        }
+      }
+    }
+    
+    // 绘制炼金机
+    if (gameState.alchemyStation != null) {
+      final stationPos = gameState.alchemyStation!;
+      final double alcX = mapOffsetX + (stationPos.x * tileSize);
+      final double alcY = mapOffsetY + (stationPos.y * tileSize);
+
+      // 只在屏幕范围内且可见时绘制炼金机
+      if (alcX > -tileSize && alcX < size.width && 
+          alcY > -tileSize && alcY < size.height) {
+        final math.Point<int> alcPoint = math.Point(stationPos.x.toInt(), stationPos.y.toInt());
+        double alcOpacity = 1.0;
+        if (smoothVisionManager != null) {
+          alcOpacity = smoothVisionManager!.getTileOpacity(alcPoint);
+          if (alcOpacity > 0.0) {
+            _drawAlchemy(canvas, alcX, alcY, tileSize, alcOpacity);
+          }
+        } else {
+          final bool isVisible = gameState.visibleTiles.contains(alcPoint);
+          if (isVisible) {
+            _drawAlchemy(canvas, alcX, alcY, tileSize, alcOpacity);
           }
         }
       }
@@ -3440,6 +3552,57 @@ class _GameAreaPainter extends CustomPainter {
     canvas.drawRect(shopRect, borderPaint);
   }
 
+  /// 绘制炼金机
+  void _drawAlchemy(Canvas canvas, double x, double y, double tileSize, double opacity) {
+    final Rect rect = Rect.fromLTWH(x, y, tileSize, tileSize);
+    
+    // 背景（青色，与商店区分）
+    final Paint bgPaint = Paint()..color = Colors.teal.shade600.withOpacity(opacity);
+    canvas.drawRect(rect, bgPaint);
+
+    // 关键区域：简化的炼金坩埚图标（避免引入多余资源）
+    final double cauldronWidth = tileSize * 0.65;
+    final double cauldronHeight = tileSize * 0.45;
+    final double cx = x + (tileSize - cauldronWidth) / 2;
+    final double cy = y + tileSize * 0.50;
+
+    // 坩埚主体
+    final Paint bodyPaint = Paint()
+      ..color = Colors.black.withOpacity(opacity)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(cx, cy, cauldronWidth, cauldronHeight),
+        const Radius.circular(6),
+      ),
+      bodyPaint,
+    );
+
+    // 坩埚边口
+    final Paint rimPaint = Paint()
+      ..color = Colors.grey.shade400.withOpacity(opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final Rect rimRect = Rect.fromLTWH(cx, cy - tileSize * 0.06, cauldronWidth, tileSize * 0.12);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rimRect, const Radius.circular(6)),
+      rimPaint,
+    );
+
+    // 冒泡效果
+    final Paint bubblePaint = Paint()..color = Colors.greenAccent.withOpacity(opacity);
+    canvas.drawCircle(Offset(x + tileSize * 0.45, y + tileSize * 0.35), tileSize * 0.05, bubblePaint);
+    canvas.drawCircle(Offset(x + tileSize * 0.55, y + tileSize * 0.25), tileSize * 0.04, bubblePaint);
+    canvas.drawCircle(Offset(x + tileSize * 0.40, y + tileSize * 0.22), tileSize * 0.03, bubblePaint);
+
+    // 边框
+    final Paint borderPaint = Paint()
+      ..color = Colors.white.withOpacity(opacity * 0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRect(rect, borderPaint);
+  }
+
   /// 绘制宝箱
   void _drawChest(Canvas canvas, double chestX, double chestY, double tileSize, double opacity) {
     final Rect chestRect = Rect.fromLTWH(chestX, chestY, tileSize, tileSize);
@@ -3710,8 +3873,6 @@ class _GameAreaPainter extends CustomPainter {
       case 5:
         return Colors.amber.shade400; // 金色
       case 6:
-        return Colors.orange.shade400; // 橙色
-      case 7:
         return Colors.red.shade400; // 红色
       default:
         return Colors.grey.shade600; // 默认无色

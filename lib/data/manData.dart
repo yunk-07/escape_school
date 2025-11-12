@@ -30,6 +30,8 @@ final List<Map<String, dynamic>> manData = const [
     'food': 10,
     'maxFood': 90,    // 最大饱食度（可调整）
     'maxOxygen': 10.0,  // 最大氧气值
+    // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
+    'rarityBoost': 0.0,
   },
   {
     'name': '已经困了',
@@ -44,6 +46,8 @@ final List<Map<String, dynamic>> manData = const [
     'food': 80,
     'maxFood': 100,
     'maxOxygen': 10.0,  // 最大氧气值
+    // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
+    'rarityBoost': 0.0,
   },
   {
     'name': '速度之王',
@@ -58,20 +62,24 @@ final List<Map<String, dynamic>> manData = const [
     'food': 20,
     'maxFood': 20,
     'maxOxygen': 10.0,  // 最大氧气值
+    // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
+    'rarityBoost': 0.0,
   },
 
-{
+  {
     'name': '开发者',
     'image': 'images/man/sleep.png',
-    'gold': 1000,
+    'gold': 100000,
     'hp': 1000,
     'maxHp': 1000,
     'san': 1000,
     'maxSan': 1000,
-    'description': '睡觉何尝不是战斗的方式？',
+    'description': '九倍倍率出不了货气死我了',
     'moveSpeed': 200.0,  // 移动速度：200像素/秒
-    'food': 200,
-    'maxFood': 200,
-    'maxOxygen': 15.0,  // 最大氧气值（开发者有更多氧气）
+    'food': 2000,
+    'maxFood': 2000,
+    'maxOxygen': 150.0,  // 最大氧气值（开发者有更多氧气）
+    // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
+    'rarityBoost': 990.0,
   },
 ];

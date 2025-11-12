@@ -41,17 +41,31 @@ class ItemSpawner {
   static double _getSpawnProbability(int level) {
     return _levelProbabilities[level] ?? 1.0;
   }
+
+  // 关键区域：按角色概率增幅(rarityBoost)提升高品质物品的权重
+  // 说明：rarityBoost 为 0.0 表示默认概率；0.1 表示高品质（等级为4/5/6）权重 +10%
+  static double _applyRarityBoost(double baseWeight, int level, double rarityBoost) {
+    final double boost = rarityBoost <= 0 ? 0.0 : rarityBoost;
+    // 关键区域：仅对4、5、6级物品应用增幅
+    if (level >= 4) {
+      return baseWeight * (1.0 + boost);
+    }
+    return baseWeight;
+  }
   
   /// 随机选择一个物品进行刷新
   /// 使用加权随机算法，高等级物品概率更低
-  static Item? _selectRandomItem() {
+  static Item? _selectRandomItem({double rarityBoost = 0.0}) {
     final spawnableItems = _spawnableItems;
     if (spawnableItems.isEmpty) return null;
     
-    // 计算总权重
+    // 计算总权重（接入角色概率增幅）
     double totalWeight = 0.0;
+    final weights = <Item, double>{};
     for (final item in spawnableItems) {
-      totalWeight += _getSpawnProbability(item.level);
+      final w = _applyRarityBoost(_getSpawnProbability(item.level), item.level, rarityBoost);
+      weights[item] = w;
+      totalWeight += w;
     }
     
     if (totalWeight <= 0) return null;
@@ -59,11 +73,10 @@ class ItemSpawner {
     // 生成随机数并选择物品
     final randomValue = _random.nextDouble() * totalWeight;
     double currentWeight = 0.0;
-    
-    for (final item in spawnableItems) {
-      currentWeight += _getSpawnProbability(item.level);
+    for (final entry in weights.entries) {
+      currentWeight += entry.value;
       if (randomValue <= currentWeight) {
-        return item;
+        return entry.key;
       }
     }
     
@@ -78,9 +91,14 @@ class ItemSpawner {
     for (int y = 0; y < MapData.testMap.length; y++) {
       for (int x = 0; x < MapData.testMap[y].length; x++) {
         final terrain = MapData.testMap[y][x];
-        // 只在草地和路径上刷新物品
-        if (terrain == 'grass' || terrain == 'path') {
+        // 关键区域：建筑内刷新物品更多
+        // 说明：将建筑格纳入可刷新位置，并对建筑格施加更高权重（重复加入），使其刷新概率更高。
+        if (terrain == 'building') {
           walkablePositions.add(Point(x, y));
+          walkablePositions.add(Point(x, y));
+          walkablePositions.add(Point(x, y)); // 建筑权重：3倍
+        } else if (terrain == 'grass' || terrain == 'path') {
+          walkablePositions.add(Point(x, y)); // 室外权重：1倍
         }
       }
     }
@@ -130,6 +148,7 @@ class ItemSpawner {
     Point<int> playerPosition,
     List<Point<int>> chestPositions,
     Map<Point<int>, List<dynamic>> existingGroundItems,
+    {double rarityBoost = 0.0}
   ) {
     // 检查地图上的物品数量是否已达上限
     if (existingGroundItems.length >= _maxItemsOnMap) {
@@ -137,7 +156,7 @@ class ItemSpawner {
     }
     
     // 选择要刷新的物品
-    final selectedItem = _selectRandomItem();
+    final selectedItem = _selectRandomItem(rarityBoost: rarityBoost);
     if (selectedItem == null) {
       return null;
     }
@@ -178,6 +197,7 @@ class ItemSpawner {
       case 3: return '蓝色';
       case 4: return '紫色';
       case 5: return '橙色';
+      case 6: return '红色';
       default: return '未知';
     }
   }
@@ -191,6 +211,7 @@ class ItemSpawner {
       case 3: return '#0080FF'; // 蓝色
       case 4: return '#8000FF'; // 紫色
       case 5: return '#FF8000'; // 橙色
+      case 6: return '#FF0000'; // 红色
       default: return '#808080'; // 默认灰色
     }
   }
@@ -222,24 +243,29 @@ class ItemSpawner {
 
   /// 为宝箱选择随机物品（使用相同的等级概率系统）
   /// 宝箱中的物品概率稍微向高等级倾斜
-  static Item? selectRandomChestItem() {
+  static Item? selectRandomChestItem({double rarityBoost = 0.0}) {
     final chestItems = allItems.where((item) => item.level >= 0).toList();
     if (chestItems.isEmpty) return null;
     
     // 宝箱使用修改后的概率权重（高等级物品概率稍微提高）
      final chestProbabilities = <int, double>{
-       0: 30.0,  // 无色物品 - 30% (降低)
-       1: 25.0,  // 白色物品 - 25% (降低)
+       0: 20.0,  // 无色物品 - 30% (降低)
+       1: 20.0,  // 白色物品 - 25% (降低)
        2: 20.0,  // 绿色物品 - 20% (提高)
-       3: 12.0,  // 蓝色物品 - 12% (提高)
-       4: 5.0,   // 紫色物品 - 5% (提高)
-       5: 1.0,   // 橙色物品 - 1% (提高)
+       3: 20.0,  // 蓝色物品 - 12% (提高)
+       4: 10.0,   // 紫色物品 - 5% (提高)
+       5: 8.0,   // 橙色物品 - 1% (提高)
+       6: 2.0,   // 红色物品 - 0.5% (提高)
      };
     
     // 计算总权重
     double totalWeight = 0.0;
+    final weights = <Item, double>{};
     for (final item in chestItems) {
-      totalWeight += chestProbabilities[item.level] ?? 1.0;
+      final base = chestProbabilities[item.level] ?? 1.0;
+      final w = _applyRarityBoost(base, item.level, rarityBoost);
+      weights[item] = w;
+      totalWeight += w;
     }
     
     if (totalWeight <= 0) return null;
@@ -248,10 +274,10 @@ class ItemSpawner {
     final randomValue = _random.nextDouble() * totalWeight;
     double currentWeight = 0.0;
     
-    for (final item in chestItems) {
-      currentWeight += chestProbabilities[item.level] ?? 1.0;
+    for (final entry in weights.entries) {
+      currentWeight += entry.value;
       if (randomValue <= currentWeight) {
-        return item;
+        return entry.key;
       }
     }
     
@@ -260,12 +286,12 @@ class ItemSpawner {
   }
 
   /// 为宝箱生成多个随机物品
-  static List<Item> generateChestItems({int minItems = 1, int maxItems = 3}) {
+  static List<Item> generateChestItems({int minItems = 1, int maxItems = 3, double rarityBoost = 0.0}) {
     final items = <Item>[];
     final itemCount = minItems + _random.nextInt(maxItems - minItems + 1);
     
     for (int i = 0; i < itemCount; i++) {
-      final item = selectRandomChestItem();
+      final item = selectRandomChestItem(rarityBoost: rarityBoost);
       if (item != null) {
         items.add(item);
       }
@@ -294,6 +320,98 @@ class ItemSpawner {
     } catch (_) {
       // 若未配置 gold 道具，安全跳过，不抛错
     }
+
+    return items;
+  }
+
+  // 关键区域：建筑内高品质物品概率提升（宝箱）
+  // 说明：当宝箱位于建筑地形（MapData.testMap[y][x] == 'building'）时，提高高等级物品的选择权重。
+  static Item? selectRandomChestItemAt(Point<int> chestPosition, {double rarityBoost = 0.0}) {
+    final chestItems = allItems.where((item) => item.level >= 0).toList();
+    if (chestItems.isEmpty) return null;
+
+    // 基础宝箱概率（原有设定：略向高等级倾斜）
+    final baseChestProbabilities = <int, double>{
+      0: 20.0,
+      1: 20.0,
+      2: 20.0,
+      3: 20.0,
+      4: 10.0,
+      5: 8.0,
+      6: 2.0,
+    };
+
+    // 建筑内倍率：降低低品质，提升高品质
+    // 注：倍率仅在建筑地形生效，其他地形倍率为 1.0
+    final buildingMultipliers = <int, double>{
+      0: 0.7,
+      1: 0.85,
+      2: 1.2,
+      3: 1.5,
+      4: 1.8,
+      5: 2.2,
+      6: 2.5,
+    };
+
+    final terrain = MapData.testMap[chestPosition.y][chestPosition.x];
+    final inBuilding = terrain == 'building';
+
+    double totalWeight = 0.0;
+    final weights = <Item, double>{};
+    for (final item in chestItems) {
+      final base = baseChestProbabilities[item.level] ?? 1.0;
+      final multiplier = inBuilding ? (buildingMultipliers[item.level] ?? 1.0) : 1.0;
+      final w = _applyRarityBoost(base * multiplier, item.level, rarityBoost);
+      weights[item] = w;
+      totalWeight += w;
+    }
+
+    if (totalWeight <= 0) return null;
+
+    final randomValue = _random.nextDouble() * totalWeight;
+    double currentWeight = 0.0;
+    for (final entry in weights.entries) {
+      currentWeight += entry.value;
+      if (randomValue <= currentWeight) {
+        return entry.key;
+      }
+    }
+
+    return chestItems.last;
+  }
+
+  /// 根据宝箱位置生成多个随机物品（建筑内提升高品质概率）
+  static List<Item> generateChestItemsAtPosition(Point<int> chestPosition, {int minItems = 1, int maxItems = 3, double rarityBoost = 0.0}) {
+    final items = <Item>[];
+    final itemCount = minItems + _random.nextInt(maxItems - minItems + 1);
+
+    for (int i = 0; i < itemCount; i++) {
+      final item = selectRandomChestItemAt(chestPosition, rarityBoost: rarityBoost);
+      if (item != null) {
+        items.add(item);
+      }
+    }
+
+    // 同步保留金币堆叠逻辑
+    try {
+      final goldTemplate = allItems.firstWhere((i) => i.id == 'gold');
+      final goldCount = 1 + _random.nextInt(10);
+      items.add(Item(
+        id: goldTemplate.id,
+        name: goldTemplate.name,
+        image: goldTemplate.image,
+        description: goldTemplate.description,
+        effects: goldTemplate.effects,
+        type: goldTemplate.type,
+        count: goldCount,
+        availableInShop: goldTemplate.availableInShop,
+        basePrice: goldTemplate.basePrice,
+        usageTime: goldTemplate.usageTime,
+        level: goldTemplate.level,
+        equipmentSlot: goldTemplate.equipmentSlot,
+        equipEffects: goldTemplate.equipEffects,
+      ));
+    } catch (_) {}
 
     return items;
   }

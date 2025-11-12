@@ -259,7 +259,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                                 title[index],
                                                 style: TextStyle(
                                                   fontSize: isLandscape ? 70 : 80,
-                                                  fontFamily: 'MicC',
                                                   color: Colors.red,
                                                   shadows: const [
                                                     Shadow(
@@ -305,7 +304,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                               child: Container(
                                                 decoration: BoxDecoration(
                                                   // 与按钮圆角保持一致，避免遮罩外溢
-                                                  borderRadius: BorderRadius.circular(15),
+                                                  // 关键区域：开始页面圆角统一为 5（遮罩层）
+                                                  borderRadius: BorderRadius.circular(5),
                                                   color: Colors.black.withOpacity(1.0 - _buttonFadeAnimation.value),
                                                 ),
                                               ),
@@ -371,7 +371,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     const Color(0xFFCC0000),
                   ],
             ),
-            borderRadius: BorderRadius.circular(15),
+            // 关键区域：开始页面圆角统一为 5（开始按钮主体）
+            borderRadius: BorderRadius.circular(5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(_isButtonHovered ? 0.8 : 0.6),
@@ -405,9 +406,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                         Colors.transparent,
                       ],
                     ),
+                    // 关键区域：开始页面圆角统一为 5（按钮顶部高光）
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(15),
-                      topRight: Radius.circular(15),
+                      topLeft: Radius.circular(5),
+                      topRight: Radius.circular(5),
                     ),
                   ),
                 ),
@@ -418,7 +420,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
+                      // 关键区域：开始页面圆角统一为 5（悬停光晕层）
+                      borderRadius: BorderRadius.circular(5),
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -440,7 +443,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     fontSize: _isButtonHovered 
                       ? (isLandscape ? 30 : 34)
                       : (isLandscape ? 28 : 32),
-                    fontFamily: 'MicC',
+                  
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     shadows: [
