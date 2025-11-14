@@ -287,7 +287,8 @@ class NormalGhost extends Ghost {
       : super(
     name: '普通鬼',
     imagePath: 'images/gui.png',
-    color: Colors.grey,
+    // 关键区域：普通鬼颜色调整为黑色
+    color: Colors.black,
     detectionRange: 8,
     baseSpeed: 90.0,  // 使用与玩家相似的移动速度
     cooldownTime: 60,
@@ -321,7 +322,7 @@ class FastGhost extends Ghost {
 
   @override
   Map<String, int> attackEffects() {
-    return {'san': -3, 'food': -2};
+    return {'san': -10, 'food': -2};
   }
 
   @override
@@ -367,7 +368,7 @@ class TricksterGhost extends Ghost {
 
   @override
   Map<String, int> attackEffects() {
-    return {'san': -10, 'food': -5};
+    return {'san': -10, 'moveSpeed': -5};
   }
 
   @override

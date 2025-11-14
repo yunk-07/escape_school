@@ -471,11 +471,11 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
             Colors.blue,
           ),
 
-          // 关键区域：饱食度进度条（0~100）
+          // 关键区域：饱食度进度条（使用动态 maxFood 上限）
           _buildStatWithBar(
             '饱食度',
             ((stats['food'] ?? 0) as num).toDouble(),
-            100.0,
+            ((stats['maxFood'] ?? 100) as num).toDouble(),
             Icons.restaurant,
             Colors.green,
           ),
@@ -974,57 +974,89 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                       child: ClipRRect(
                         // 关键区域：统一圆角为5
                         borderRadius: BorderRadius.circular(5),
-                        child: equipped == null
-                            // 关键区域：占位图标改为中文文字（短标签），居中显示
-                            ? Center(
-                                child: Text(
-                                  _slotShortText(slot),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.grey.shade300,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              )
-                            : (equipped.image.isNotEmpty
-                                // 关键区域：显示装备贴图（支持资源缺失回退）
-                                ? Image.asset(
-                                    equipped.image,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (c, e, s) => Center(
-                                      // 关键区域：贴图加载失败时，用中文文字回退（按 level 着色）
+                        child: Stack(
+                          children: [
+                            // 关键区域：装备底层内容（图片或文字）
+                            Positioned.fill(
+                              child: equipped == null
+                                  ? Center(
                                       child: Text(
                                         _slotShortText(slot),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          color: _getItemLevelColor(equipped!.level),
+                                          color: Colors.grey.shade300,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
+                                    )
+                                  : (equipped.image.isNotEmpty
+                                      ? Image.asset(
+                                          equipped.image,
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, e, s) => Center(
+                                            child: Text(
+                                              _slotShortText(slot),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: _getItemLevelColor(equipped!.level),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : Center(
+                                          child: Text(
+                                            _slotShortText(slot),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: _getItemLevelColor(equipped!.level),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        )),
+                            ),
+                            // 关键区域：装备栏右下角显示耐久（仅对具备格挡的装备）
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Builder(
+                                builder: (context) {
+                                  if (equipped == null) return const SizedBox.shrink();
+                                  final int maxDur = equipped.equipEffects?['armorValue'] ?? 0;
+                                  final bool show = (equipped.type == '装备') && maxDur > 0;
+                                  if (!show) return const SizedBox.shrink();
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.75),
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: _getItemLevelColor(equipped.level), width: 0.5),
                                     ),
-                                  )
-                                : Center(
-                                    // 关键区域：无贴图装备，显示中文文字（按 level 着色）
                                     child: Text(
-                                      _slotShortText(slot),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: _getItemLevelColor(equipped!.level),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                      '${equipped.count}/${maxDur}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 7,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  )),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1298,8 +1330,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                        top: 1,
                        left: 1,
                        right: 8, // 为可能的数量显示留出空间
-                       child: Text(
-                         item.count > 1 ? '${item.name} x ${item.count}' : item.name,
+                        child: Text(
+                          (item.type == '物品' && item.count > 1) ? '${item.name} x ${item.count}' : item.name,
                          style: const TextStyle(
                            color: Colors.white,
                            fontSize: 6, // 缩小文字尺寸适应10列布局
@@ -1316,6 +1348,33 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                          overflow: TextOverflow.ellipsis,
                        ),
                      ),
+                    // 关键区域：右下角显示耐久（仅对具备格挡的装备）
+                    Positioned(
+                      bottom: 1,
+                      right: 1,
+                      child: Builder(
+                        builder: (context) {
+                          final int maxDur = item.equipEffects?['armorValue'] ?? 0;
+                          final bool show = (item.type == '装备') && maxDur > 0;
+                          if (!show) return const SizedBox.shrink();
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              '${item.count}/${maxDur}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 6,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1454,7 +1513,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   ),
                   
                   // 数量显示 - 右上角
-                  if (item.count > 1)
+                  if (item.type == '物品' && item.count > 1)
                     Positioned(
                       top: 2,
                       right: 2,
@@ -1487,6 +1546,34 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                         ),
                       ),
                     ),
+                  // 关键区域：右下角显示耐久（仅对具备格挡的装备）
+                  Positioned(
+                    bottom: 2,
+                    right: 2,
+                    child: Builder(
+                      builder: (context) {
+                        final int maxDur = item.equipEffects?['armorValue'] ?? 0;
+                        final bool show = (item.type == '装备') && maxDur > 0;
+                        if (!show) return const SizedBox.shrink();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.75),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(color: _getItemLevelColor(item.level), width: 0.5),
+                          ),
+                          child: Text(
+                            '${item.count}/${maxDur}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 7,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1675,10 +1762,19 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                       ),
                     ),
                     Text(
-                      '数量: $quantity',
+                      (() {
+                        final bool isEquip = _slotForItem(item) != null;
+                        if (!isEquip) {
+                          return '数量: $quantity';
+                        }
+                        final int max = item.equipEffects?['armorValue'] ?? 0;
+                        if (max > 0) {
+                          return '耐久: ${item.count}/$max';
+                        }
+                        return '耐久: ${item.count}';
+                      })(),
                       style: TextStyle(
                         color: Colors.cyanAccent.withOpacity(0.75),
-                        // 关键区域：全体缩小 —— 副标题文字尺寸
                         fontSize: 11,
                       ),
                     ),
@@ -1725,6 +1821,65 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 ),
               ),
               const SizedBox(height: 16),
+              if ((item.type == '装备') && ((item.equipEffects?['armorValue'] ?? 0) > 0)) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withOpacity(0.05),
+                        Colors.white.withOpacity(0.02),
+                      ],
+                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+                  ),
+                  child: Builder(
+                    builder: (context) {
+                      final int level = item.level;
+                      final Map<int, double> ratios = const {
+                        1: 0.20,
+                        2: 0.40,
+                        3: 0.50,
+                        4: 0.60,
+                        5: 0.70,
+                        6: 0.90,
+                      };
+                      final double armorShare = ratios[level] ?? 0.0;
+                      final int percent = (armorShare * 100).round();
+                      final int maxDur = item.equipEffects?['armorValue'] ?? 0;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.security,
+                                color: _getItemLevelColor(item.level),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '护甲免疫伤害：$percent%',
+                                style: TextStyle(
+                                  color: _getItemLevelColor(item.level),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // 关键区域：移除“使用效果”标题文本；效果列表支持滚动查看
               if (item.effects.isNotEmpty) ...[
@@ -2031,6 +2186,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return '资产';
       case 'oxygenBonus':
         return '肺活量';
+      case 'armorValue':
+        return '耐久';
       default:
         return effectKey;
     }

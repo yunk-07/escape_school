@@ -695,6 +695,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     final hp = _toInt(stats['hp'], _toInt(live['hp'], 0));
     final maxHp = _toInt(stats['maxHp'], _toInt(live['maxHp'], 100));
     final food = _toInt(stats['food'], _toInt(live['food'], 0));
+    final maxFood = _toInt(stats['maxFood'], _toInt(live['maxFood'], 100));
     final san = _toInt(stats['san'], _toInt(live['san'], 0));
     final maxSan = _toInt(stats['maxSan'], _toInt(live['maxSan'], 250));
     final moveSpeed = _toInt(stats['moveSpeed'], _toInt(live['moveSpeed'], 100));
@@ -722,7 +723,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
           ),
           const SizedBox(height: 8),
           _buildDataRow('生命值', '$hp/$maxHp'),
-          _buildDataRow('饱食度', '$food'),
+          _buildDataRow('饱食度', '$food/$maxFood'),
           _buildDataRow('精神值', '$san/$maxSan'),
           _buildDataRow('移动速度', '$moveSpeed'),
           _buildDataRow('金币', '$gold'),
@@ -926,18 +927,8 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     );
   }
 
-  // 根据物品类型获取边框颜色
   Color _getItemBorderColor(String type) {
-    switch (type) {
-      case 'food':
-        return Colors.green.withOpacity(0.6);
-      case 'tool':
-        return Colors.blue.withOpacity(0.6);
-      case 'weapon':
-        return Colors.red.withOpacity(0.6);
-      default:
-        return Colors.grey.withOpacity(0.6);
-    }
+    return Colors.grey.withOpacity(0.6);
   }
 
   // 关键区域：按物品等级返回底色（与背包页面一致）
@@ -954,9 +945,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
       case 5:
         return Colors.amber.shade400; // 金色
       case 6:
-        return Colors.orange.shade400; // 橙色
-      case 7:
-        return Colors.red.shade400; // 红色
+        return Colors.red.shade400; //// 橙色
       default:
         return Colors.grey.shade600; // 默认无色
     }

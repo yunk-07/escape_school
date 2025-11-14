@@ -4,6 +4,7 @@
 import 'dart:math';
 import '../data/props.dart';
 import '../data/mapData.dart';
+import 'zones.dart';
 
 /// 物品刷新器类
 /// 负责在地图上随机刷新物品，根据物品等级设置不同的刷新概率
@@ -389,6 +390,30 @@ class ItemSpawner {
       final item = selectRandomChestItemAt(chestPosition, rarityBoost: rarityBoost);
       if (item != null) {
         items.add(item);
+      }
+    }
+
+    final zoneName = getZoneNameAt(chestPosition.x, chestPosition.y);
+    if (zoneName == '校长办公室') {
+      if (_random.nextDouble() < 0.25) {
+        try {
+          final t = allItems.firstWhere((i) => i.id == 'goldbar');
+          items.add(Item(
+            id: t.id,
+            name: t.name,
+            image: t.image,
+            description: t.description,
+            effects: t.effects,
+            type: t.type,
+            count: 1,
+            availableInShop: t.availableInShop,
+            basePrice: t.basePrice,
+            usageTime: t.usageTime,
+            level: t.level,
+            equipmentSlot: t.equipmentSlot,
+            equipEffects: t.equipEffects,
+          ));
+        } catch (_) {}
       }
     }
 

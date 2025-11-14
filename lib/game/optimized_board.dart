@@ -820,13 +820,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                   ),
                 ),
                 
-                // 技能内容
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: _buildSkillsList(gameState),
-                  ),
-                ),
+                Flexible(child: SizedBox.shrink()),
               ],
             ),
           ),
@@ -1858,12 +1852,6 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           
           // 饱食度条（橘色）
           _buildFoodBar(currentFood, maxFood),
-          
-          // 施法进度条（如果正在施法）
-          if (gameState.currentCastingSkillId != null) ...[
-            const SizedBox(width: 20),
-            _buildCastingBar(gameState.castingProgress, gameState.currentCastingSkillId!),
-          ],
         ],
       ),
     );
@@ -2191,71 +2179,6 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 技能按钮组 - 为每个技能创建单独的按钮
-          ...characterSkills.map((skill) {
-            final skillState = notifier.getSkillState(skill.id);
-            final bool isOnCooldown = skillState?.isOnCooldown(skill.cooldownSeconds) ?? false;
-            final bool isCasting = skillState?.isCurrentlyCasting ?? false;
-            final int remainingCooldown = skillState?.getRemainingCooldown(skill.cooldownSeconds) ?? 0;
-            final int remainingCastTime = skillState?.getRemainingCastTime(skill.castTimeSeconds) ?? 0;
-            
-            return GestureDetector(
-              onTap: (isOnCooldown || isCasting) ? null : () {
-                notifier.useSkill(skill.id);
-              },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: (isOnCooldown || isCasting) 
-                    ? Colors.grey.withOpacity(0.5)
-                    : Colors.purple.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
-                      offset: const Offset(2, 2),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    // 技能图标
-                    const Center(
-                      child: Icon(
-                        Icons.auto_fix_high,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    // 冷却时间或施法时间显示
-                    if (isOnCooldown || isCasting)
-                      Positioned(
-                        bottom: 2,
-                        right: 2,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: isCasting ? Colors.orange : Colors.red,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isCasting ? '$remainingCastTime' : '$remainingCooldown',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
           
           // 背包按钮（背包打开时隐藏）
           if (!gameState.showInventory)
@@ -2337,6 +2260,37 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           ),
           child: Text(
             'X: $gridX  Y: $gridY',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZoneLabel(OptimizedGameState gameState) {
+    final zoneName = gameState.currentZoneName;
+    final until = gameState.zoneNameVisibleUntil;
+    if (zoneName == null || zoneName.isEmpty || until == null || DateTime.now().isAfter(until)) {
+      return const SizedBox.shrink();
+    }
+    return Positioned(
+      top: 130,
+      left: 110,
+      child: IgnorePointer(
+        ignoring: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.55),
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: Colors.white24, width: 1),
+          ),
+          child: Text(
+            zoneName,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 12,
@@ -2578,9 +2532,16 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           _buildStatRow('移动速度', '${stats['moveSpeed']?.toInt() ?? 100}', 
                        Icons.directions_run, Colors.orange, 1.0),
           
-          // 饱食度
-          _buildStatRow('饱食度', '${stats['food']}', 
-                       Icons.restaurant, Colors.green, stats['food'] / 100.0),
+          // 饱食度（使用动态上限）
+          _buildStatRow(
+            '饱食度',
+            '${stats['food']}/${stats['maxFood']}',
+            Icons.restaurant,
+            Colors.green,
+            (((stats['food'] ?? 0) as num).toDouble() /
+                    (((stats['maxFood'] ?? 100) as num).toDouble()))
+                .clamp(0.0, 1.0),
+          ),
           
           // 金币
           _buildStatRow('金币', '${stats['gold']}', 
@@ -2849,6 +2810,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           _buildMovementControls(),
           // 关键区域：在左下角常显玩家坐标（不影响操作）
           _buildPlayerCoordinates(gameState),
+          _buildZoneLabel(gameState),
           
           // 功能按钮
           _buildActionButtons(gameState),

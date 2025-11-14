@@ -36,7 +36,6 @@ class CharacterConfig {
   
   // 特殊属性
   final Map<String, dynamic> specialAbilities; // 特殊能力
-  final List<String> startingItems;            // 初始物品
   final double maxOxygen;                      // 最大氧气值
 
   const CharacterConfig({
@@ -55,7 +54,6 @@ class CharacterConfig {
     this.moveSpeed = 100.0,
     this.collisionScale = 0.8,
     this.specialAbilities = const {},
-    this.startingItems = const [],
     this.maxOxygen = 10.0,
   });
 
@@ -77,7 +75,6 @@ class CharacterConfig {
       moveSpeed: map['moveSpeed']?.toDouble() ?? 100.0,
       collisionScale: map['collisionScale']?.toDouble() ?? 0.8,
       specialAbilities: Map<String, dynamic>.from(map['specialAbilities'] ?? {}),
-      startingItems: List<String>.from(map['startingItems'] ?? []),
       maxOxygen: map['maxOxygen']?.toDouble() ?? 10.0,
     );
   }
@@ -100,7 +97,6 @@ class CharacterConfig {
       'moveSpeed': moveSpeed,
       'collisionScale': collisionScale,
       'specialAbilities': specialAbilities,
-      'startingItems': startingItems,
       'maxOxygen': maxOxygen,
     };
   }
@@ -128,7 +124,6 @@ class CharacterConfigs {
         'cooking': true,        // 可以烹饪
         'foodBonus': 1.5,      // 食物效果加成
       },
-      startingItems: ['knife'], // 初始携带刀具
     ),
     
     // 困倦者角色
@@ -150,7 +145,6 @@ class CharacterConfigs {
         'sleepRecover': true,   // 睡眠恢复能力
         'sanityBonus': 1.2,    // 理智恢复加成
       },
-      startingItems: ['pillow'], // 初始携带枕头
     ),
     
 

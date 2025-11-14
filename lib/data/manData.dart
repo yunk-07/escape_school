@@ -32,6 +32,8 @@ final List<Map<String, dynamic>> manData = const [
     'maxOxygen': 10.0,  // 最大氧气值
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
+    // 关键区域：初始物品（props.dart 的 id），用于验证机制
+    'initialItems': const ['hanbao'],
   },
   {
     'name': '已经困了',
@@ -81,5 +83,7 @@ final List<Map<String, dynamic>> manData = const [
     'maxOxygen': 150.0,  // 最大氧气值（开发者有更多氧气）
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 990.0,
+    // 关键区域：初始物品（使用 props.dart 中的物品 id）
+    'initialItems': const ['m-three-armor_fangdan'],
   },
 ];

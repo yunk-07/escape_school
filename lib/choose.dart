@@ -360,6 +360,8 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
             'moveSpeed': widget.character['moveSpeed'],
             'gold': (widget.character['gold'] as num).toDouble(),
             'food': (widget.character['food'] as num).toDouble(),
+            'maxFood': ((widget.character['maxFood'] ?? widget.character['food']) as num).toDouble(),
+            'initialItems': widget.character['initialItems'],
             'image': widget.character['image'], // 添加image字段
           },
           characterImage: widget.character['image'],

@@ -1,23 +1,27 @@
 // data/props.dart
-// 物品数据配置文件 - 包含物品的基本信息、效果和使用时间
-// 关键区域：统一物品类型为“物品/装备”，并为装备提供部位与加成
-// 关键区域：装备栏类别与 equipmentSlot 对应关系（备注在此）：
-// - 武器 -> equipmentSlot: 'weapon'
-// - 护甲 -> equipmentSlot: 'armor'
-// - 头部 -> equipmentSlot: 'head'
-// - 背包 -> equipmentSlot: 'bag'  
-// - 裤子 -> equipmentSlot: 'pants'
-// - 鞋子 -> equipmentSlot: 'shoes'
-// 关键区域：effects 支持可变上限修改
-// 支持的效果键：
-// - hp:        修改生命值（按当前 maxHp 夹取）
-// - maxHp:     修改生命值上限（至少为 1；若降低会夹取 hp）
-// - food:      修改饱食度（按当前 maxFood 夹取）
-// - maxFood:   修改饱食度上限（至少为 1；若降低会夹取 food）
-// - san:       修改精神值（按 0..250 夹取）
-// - moveSpeed: 修改移动速度（不设上限，最小 1）
-// - gold:      修改金币
-// - oxygenBonus: 修改氧气上限（已在状态机中处理）
+// 物品数据配置文件：定义物品基础信息、使用效果与装备加成
+// 关键区域：类型与槽位映射
+// - 类型字段支持："物品"、"装备"；兼容中文类型 "武器/甲/头/背包/裤子/鞋"
+// - 槽位对应：weapon / armor / head / bag / pants / shoes
+//   兼容：类型为中文时按 _slotForItem 映射到对应槽位（如 "甲" -> armor、"背包" -> bag）
+// 关键区域：效果与加成的区别
+// - effects：消耗类使用效果（仅在点击“使用”时生效）
+// - equipEffects：装备类佩戴加成（仅在“装备”后生效）
+//   注意：inventoryBonus 与 armorValue 仅在 equipEffects 中生效
+// 关键区域：护甲耐久说明
+// - 护甲最大耐久由 equipEffects["armorValue"] 提供
+// - 当前耐久使用 Item.count 记录；显示为 count/armorValue
+// - 护甲抗伤机制：先削弱 50% 伤害，再按等级比例分配到护甲与玩家
+// 关键区域：effects 支持的键 
+// - hp：修改生命值（按当前 maxHp 夹取）
+// - maxHp：修改生命值上限（至少为 1；若降低会夹取 hp）
+// - food：修改饱食度（按当前 maxFood 夹取）
+// - maxFood：修改饱食度上限（至少为 1；若降低会夹取 food）
+// - san：修改精神值（按 0..250 夹取）
+// - moveSpeed：修改移动速度（不设上限，最小 1）
+// - gold：修改金币
+// - oxygenBonus：修改氧气上限（已在状态机中处理）
+// - inventoryBonus：背包容量增益（仅 equipEffects 生效，effects 中忽略）
 class Item {
   final String id;
   final String name;
@@ -332,5 +336,46 @@ final List<Item> allItems = [
     level: 6,
     availableInShop: false,
     usageTime: 0,
+  ),
+  // 关键区域：新增护甲物品（防弹衣），装备到 armor 槽位，提供护甲耐久
+  Item(
+    id: 'm-three-armor_fangdan',
+    name: 'M3轻型',
+    image: 'images/items/m-three-fangdan.png',
+    description: '可格挡大量伤害，耐久耗尽后失去格挡能力',
+    effects: const {'armorValue': 40,'moveSpeed':-5},
+    type: '装备',
+    equipmentSlot: 'armor',
+    equipEffects: const {'armorValue': 40,'moveSpeed':-5},
+    count: 40,
+    level: 6,
+    availableInShop: true,
+    basePrice: 200,
+  ),
+  Item(
+    id: 'm-one-armor_fangdan',
+    name: 'M1轻型',
+    image: 'images/items/m-one-fangdan.png',
+    description: '可格挡大量伤害，耐久耗尽后失去格挡能力',
+    effects: const {'armorValue': 40,'moveSpeed':-1},
+    type: '装备',
+    equipmentSlot: 'armor',
+    equipEffects: const {'armorValue': 40,'moveSpeed':-1},
+    count: 40,
+    level: 2,
+    availableInShop: true,
+    basePrice: 60,
+  ),
+  Item(
+    id: 'divingmask',
+    name: '潜水面罩',
+    image: 'images/items/divingmask.png',
+    description: '水里或许有什么东西',
+    effects: const {'oxygenBonus': 20},
+    type: '装备',
+    equipmentSlot: 'head',
+    equipEffects: const {'oxygenBonus': 20},
+    count: 1,
+    level: 3,
   ),
 ];

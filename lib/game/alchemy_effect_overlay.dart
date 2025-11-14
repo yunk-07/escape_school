@@ -263,58 +263,55 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 220,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    scrollDirection: Axis.horizontal,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: trackItems.length,
-                    itemBuilder: (context, index) {
-                      final Item it = trackItems[index];
-                      // 关键区域：滚动项不显示名称与等级，仅显示图像
-                      final Color color = _levelColor(it.level);
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          left: index == 0 ? (viewportWidth / 2 - _itemWidth / 2) : 0,
-                          right: _itemSpacing,
-                        ),
-                        child: Container(
-                          width: _itemWidth,
-                          height: 220,
-                          decoration: BoxDecoration(
-                            // 关键区域：取消物品背后黑色正方形蒙版
-                            color: Colors.transparent,
-                            // 关键区域：炼金页面圆角统一为 5
-                            borderRadius: BorderRadius.circular(5),
+                if (!_hasStopped)
+                  // 关键区域：停止后隐藏轮播项，仅保留最终特写
+                  SizedBox(
+                    height: 220,
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: trackItems.length,
+                      itemBuilder: (context, index) {
+                        final Item it = trackItems[index];
+                        final Color color = _levelColor(it.level);
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            left: index == 0 ? (viewportWidth / 2 - _itemWidth / 2) : 0,
+                            right: _itemSpacing,
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ClipRRect(
-                                  // 关键区域：炼金页面圆角统一为 5
-                                  borderRadius: BorderRadius.circular(5),
-                                  child: (it.image.isNotEmpty)
-                                      ? Image.asset(
-                                          it.image,
-                                          width: 80,
-                                          height: 80,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.inventory, color: Colors.white, size: 48),
-                                        )
-                                      : const Icon(Icons.inventory, color: Colors.white, size: 48),
-                                ),
-                                // 关键区域：名称与等级在滚动中不显示
-                              ],
+                          child: Container(
+                            width: _itemWidth,
+                            height: 220,
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(5),
+                                    child: (it.image.isNotEmpty)
+                                        ? Image.asset(
+                                            it.image,
+                                            width: 80,
+                                            height: 80,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.inventory, color: Colors.white, size: 48),
+                                          )
+                                        : const Icon(Icons.inventory, color: Colors.white, size: 48),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
 
                 // 关键区域：取消中心边框高亮框，物品无边框
 
