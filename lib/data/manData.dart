@@ -84,6 +84,6 @@ final List<Map<String, dynamic>> manData = const [
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 990.0,
     // 关键区域：初始物品（使用 props.dart 中的物品 id）
-    'initialItems': const ['m-three-armor_fangdan'],
+    'initialItems': const ['m-three-armor_fangdan','wine'],
   },
 ];

@@ -316,7 +316,6 @@ class ItemSpawner {
         usageTime: goldTemplate.usageTime,
         level: goldTemplate.level,
         equipmentSlot: goldTemplate.equipmentSlot,
-        equipEffects: goldTemplate.equipEffects,
       ));
     } catch (_) {
       // 若未配置 gold 道具，安全跳过，不抛错
@@ -411,7 +410,6 @@ class ItemSpawner {
             usageTime: t.usageTime,
             level: t.level,
             equipmentSlot: t.equipmentSlot,
-            equipEffects: t.equipEffects,
           ));
         } catch (_) {}
       }
@@ -434,7 +432,6 @@ class ItemSpawner {
         usageTime: goldTemplate.usageTime,
         level: goldTemplate.level,
         equipmentSlot: goldTemplate.equipmentSlot,
-        equipEffects: goldTemplate.equipEffects,
       ));
     } catch (_) {}
 

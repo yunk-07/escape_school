@@ -36,14 +36,14 @@ class Item {
   final int level;           // 新增：物品等级（1-7）
   // 关键区域：装备专属字段
   final String? equipmentSlot; // 装备部位：weapon/armor/head/bag/pants/shoes
-  final Map<String, int>? equipEffects; // 装备效果加成（佩戴生效）
+  // final Map<String, int>? equipEffects; // 装备效果加成（佩戴生效）
 
   Item({
     required this.id,
     required this.name,
     required this.image,
     required this.description,
-    required this.effects,
+    this.effects = const {},
     this.type = '物品', // 默认类型为“物品”
     this.count = 1,
     this.availableInShop = false, // 默认不在商店出售
@@ -51,7 +51,7 @@ class Item {
     this.usageTime = 2000, // 默认使用时间2秒
     this.level = 1, // 默认等级1（无色）
     this.equipmentSlot,
-    this.equipEffects,
+    // this.equipEffects,
   });
 }
 
@@ -232,7 +232,6 @@ final List<Item> allItems = [
     effects: const {},
     type: '装备',
     equipmentSlot: 'weapon',
-    equipEffects: const {'moveSpeed': 3},
     level: 2,
     availableInShop: false,
   ),
@@ -241,10 +240,9 @@ final List<Item> allItems = [
     name: '校服',
     image: 'images/items/xiaofu.png',
     description: '普通校服，增加最大生命值',
-    effects: const {},
+    effects: const {'maxHp': 10},
     type: '装备',
     equipmentSlot: 'armor',
-    equipEffects: const {'maxHp': 10},
     level: 2,
     availableInShop: true,
     basePrice: 80,
@@ -254,10 +252,9 @@ final List<Item> allItems = [
     name: '帽子',
     image: 'images/items/hat.png',
     description: '普通帽子，更加专注',
-    effects: const {},
+    effects: const {'san': 5},
     type: '装备',
     equipmentSlot: 'head',
-    equipEffects: const {'san': 5},
     level: 2,
     availableInShop: true,
     basePrice: 20,
@@ -270,21 +267,20 @@ final List<Item> allItems = [
     effects: const {'maxHp': -40,'moveSpeed': 70,'san': 20},
     type: '装备',
     equipmentSlot: 'head',
-    equipEffects: const {'maxHp': -40,'moveSpeed': 70,'san': 20},
     level: 4,
     availableInShop: true,
     basePrice: 20,
   ),
   Item(
-    id: 'hand_gloves',
-    name: '手套', 
-    image: 'images/items/hand_gloves.png',
-    description: '保暖手套，略增氧气上限',
-    effects: const {},
+    id: 'speed_gloves',
+    name: '动力手套', 
+    image: 'images/items/speedGloves.png',
+    description: '禁忌的九号之力',
+    effects: const {'moveSpeed': 40,'punish': 1},
     type: '武器', // 关键区域：手套归类为“武器”
     equipmentSlot: 'weapon', // 关键区域：对应武器槽
-    equipEffects: const {'oxygenBonus': 1},
-    level: 2,
+
+    level: 4,
     availableInShop: false,
   ),
   Item(
@@ -295,7 +291,6 @@ final List<Item> allItems = [
     effects: const {'maxHp': 10},
     type: '装备',
     equipmentSlot: 'pants',
-    equipEffects: const {'maxHp': 10},
     level: 2,
     availableInShop: true,
     basePrice: 80,
@@ -321,7 +316,6 @@ final List<Item> allItems = [
     type: '背包', // 关键区域：背包归类为“背包”
     // 关键区域：背包装备到 bag 槽位，装备效果为增加2格背包容量
     equipmentSlot: 'bag',
-    equipEffects: const {'inventoryBonus': 2},
     level: 1,
     availableInShop: true,
     basePrice: 20,
@@ -346,7 +340,6 @@ final List<Item> allItems = [
     effects: const {'armorValue': 40,'moveSpeed':-5},
     type: '装备',
     equipmentSlot: 'armor',
-    equipEffects: const {'armorValue': 40,'moveSpeed':-5},
     count: 40,
     level: 6,
     availableInShop: true,
@@ -360,7 +353,6 @@ final List<Item> allItems = [
     effects: const {'armorValue': 40,'moveSpeed':-1},
     type: '装备',
     equipmentSlot: 'armor',
-    equipEffects: const {'armorValue': 40,'moveSpeed':-1},
     count: 40,
     level: 2,
     availableInShop: true,
@@ -374,8 +366,30 @@ final List<Item> allItems = [
     effects: const {'oxygenBonus': 20},
     type: '装备',
     equipmentSlot: 'head',
-    equipEffects: const {'oxygenBonus': 20},
     count: 1,
     level: 3,
+  ),
+  Item(
+    id: 'wine',
+    name: '啤酒',
+    image: 'images/items/wine.png',
+    description: '你会吃处分的',
+    effects: const {'moveSpeed': -10,'maxHp': 4,'san': 20,'punish': 2},
+    type:'物品',
+    level: 3,
+    usageTime: 2000,
+  ),
+  Item(
+    id: 'm-two-bag',
+    name: 'M2背包',
+    image: 'images/items/m-two-bag.png',
+    description: '普通背包',
+    type: '背包', // 关键区域：背包归类为“背包”
+    // 关键区域：背包装备到 bag 槽位，装备效果为增加2格背包容量
+    equipmentSlot: 'bag',
+    effects: const {'inventoryBonus': 8,'moveSpeed': -5},
+    level: 3,
+    availableInShop: true,
+    basePrice: 80,
   ),
 ];

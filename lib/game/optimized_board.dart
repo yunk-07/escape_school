@@ -1029,6 +1029,67 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
     );
   }
 
+  // 关键区域：右上角“处分单”显示 —— 左侧紧邻设置按钮
+  Widget _buildPunishmentCard(OptimizedGameState gameState) {
+    final int maxPun = ((gameState.characterStats['maxPunish'] ?? 10) as num).toInt();
+    final int pun = ((gameState.characterStats['punish'] ?? 0) as num).toInt().clamp(0, maxPun);
+    return Positioned(
+      top: 40,
+      right: 80, // 紧邻设置按钮左侧（设置按钮 right: 20，间隔约60）
+      child: Container(
+        width: 175,
+        height: 50,
+        decoration: BoxDecoration(
+          gradient: ui_theme.UITheme.progressBackground(),
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              offset: const Offset(2, 2),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 8),
+            const Text(
+              '处分',
+              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: List.generate(maxPun, (index) {
+                  final bool filled = index < pun;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    width: 8,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(0),
+                      border: Border.all(color: Colors.white24, width: 1),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: filled
+                            ? [Colors.redAccent.withOpacity(0.9), Colors.redAccent.withOpacity(0.6)]
+                            : [Colors.white10, Colors.white12],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
 
 
   // 关键区域：提示方式改为——中上位置显示一个长方形小方框，显示一条消息
@@ -2714,6 +2775,8 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 
                 // 设置按钮（右上角）
                 _buildSettingsButton(),
+                // 处分单（右上角设置按钮左侧）
+                _buildPunishmentCard(gameState),
                 
                 // 播报框（移至最顶层外层Stack显示，避免被遮挡）
                 

@@ -510,6 +510,9 @@ Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> character
     'rarityBoost': ((characterData['rarityBoost'] ?? 0.0) as num).toDouble(),
     // 关键区域：新增护甲耐久字段，默认 0（未装备）
     'armor': 0.0,
+    // 关键区域：新增处分机制 —— 初始处分与上限
+    'punish': ((characterData['punish'] ?? 0) as num).toDouble(),
+    'maxPunish': 10.0,
   };
 }
 
@@ -714,7 +717,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 关键区域：护甲装备耐久用 count 表示——装备时不扣数量，直接移除该件
     final invItem = inventory[idx];
     // 关键区域：任意槽位的护甲（含 armorValue）均按耐久件处理（不消耗数量）
-    final bool isArmorWithBlock = ((invItem.equipEffects?['armorValue'] ?? 0) > 0);
+    final bool isArmorWithBlock = ((invItem.effects?['armorValue'] ?? 0) > 0);
     if (isArmorWithBlock) {
       inventory.removeAt(idx);
     } else {
@@ -732,7 +735,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: invItem.usageTime,
           level: invItem.level,
           equipmentSlot: invItem.equipmentSlot,
-          equipEffects: invItem.equipEffects,
         );
       } else {
         inventory.removeAt(idx);
@@ -741,11 +743,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 关键区域：护甲耐久同步到角色状态，效果中剔除 armorValue
     if (isArmorWithBlock) {
-      final Map<String, int> effectsNoArmor = Map<String, int>.from(item.equipEffects ?? const {});
+      final Map<String, int> effectsNoArmor = Map<String, int>.from(item.effects ?? const {});
       effectsNoArmor.remove('armorValue');
-      _applyEquipEffects(effectsNoArmor);
+      _applyeffects(effectsNoArmor);
     } else {
-      _applyEquipEffects(item.equipEffects ?? const {});
+      _applyeffects(item.effects ?? const {});
     }
 
     // 更新状态：设置槽位与背包
@@ -784,7 +786,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final bool needsNewSlot = isEquipment || !hasSameId;
 
     // 预测卸下后的容量（考虑 inventoryBonus 撤销）
-    final int deltaCapacity = -(equipped.equipEffects?['inventoryBonus'] ?? 0);
+    final int deltaCapacity = -(equipped.effects?['inventoryBonus'] ?? 0);
     final int futureCapacityRaw = state.inventoryCapacity + deltaCapacity;
     final int futureCapacity = futureCapacityRaw.clamp(1, state.maxInventoryCapacity);
     final int futureInvLen = preInventory.length > futureCapacity ? futureCapacity : preInventory.length;
@@ -796,7 +798,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     // 关键区域：撤回装备效果（剔除护甲耐久），并同步耐久回物品
-    Map<String, int> effectsForRemoval = Map<String, int>.from(equipped.equipEffects ?? const {});
+    Map<String, int> effectsForRemoval = Map<String, int>.from(equipped.effects ?? const {});
     if (slot == 'armor' && (effectsForRemoval['armorValue'] ?? 0) > 0) {
       effectsForRemoval.remove('armorValue');
       // 关键区域：直接使用装备件自身的 count 作为耐久写回来源
@@ -817,7 +819,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         usageTime: equipped.usageTime,
         level: equipped.level,
         equipmentSlot: equipped.equipmentSlot,
-        equipEffects: equipped.equipEffects,
       );
       state = state.copyWith(equipmentSlots: updatedSlotsPre);
       // 角色护甲清零
@@ -825,7 +826,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       ch['armor'] = 0.0;
       state = state.copyWith(characterStats: ch);
     }
-    _removeEquipEffects(effectsForRemoval);
+    _removeeffects(effectsForRemoval);
 
     // 将装备返回到背包（合并数量）
     final inventory = List<Item>.from(state.playerInventory);
@@ -844,7 +845,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         usageTime: equipped.usageTime,
         level: equipped.level,
         equipmentSlot: equipped.equipmentSlot,
-        equipEffects: equipped.equipEffects,
+
       ));
     } else {
       // 非装备类型仍可合并（例如消耗品）
@@ -864,7 +865,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: existing.usageTime,
           level: existing.level,
           equipmentSlot: existing.equipmentSlot,
-          equipEffects: existing.equipEffects,
+
         );
       } else {
         inventory.add(Item(
@@ -880,7 +881,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: equipped.usageTime,
           level: equipped.level,
           equipmentSlot: equipped.equipmentSlot,
-          equipEffects: equipped.equipEffects,
+
         ));
       }
     }
@@ -901,7 +902,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   // 关键区域：应用装备效果（与道具使用效果一致的规则）
-  void _applyEquipEffects(Map<String, int> effects) {
+  void _applyeffects(Map<String, int> effects) {
     final character = Map<String, dynamic>.from(state.characterStats);
 
     effects.forEach((effectType, value) {
@@ -988,10 +989,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   // 关键区域：撤回装备效果（取反应用）
-  void _removeEquipEffects(Map<String, int> effects) {
+  void _removeeffects(Map<String, int> effects) {
     final reversed = <String, int>{};
     effects.forEach((k, v) => reversed[k] = -v);
-    _applyEquipEffects(reversed);
+    _applyeffects(reversed);
   }
 
   // 关键区域：装备槽持久化（SharedPreferences）
@@ -1053,19 +1054,19 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             effects: const {},
             type: '装备',
             equipmentSlot: normalizedSlot,
-            equipEffects: const {},
+
           ),
         );
         // 关键区域：护甲耐久用 count 表示——恢复时同步耐久并剔除 armorValue
-        if (normalizedSlot == 'armor' && ((item.equipEffects?['armorValue'] ?? 0) > 0)) {
+        if (normalizedSlot == 'armor' && ((item.effects?['armorValue'] ?? 0) > 0)) {
           final ch = Map<String, dynamic>.from(state.characterStats);
           ch['armor'] = item.count.toDouble();
           state = state.copyWith(characterStats: ch);
-          final Map<String, int> effectsNoArmor = Map<String, int>.from(item.equipEffects ?? const {});
+          final Map<String, int> effectsNoArmor = Map<String, int>.from(item.effects ?? const {});
           effectsNoArmor.remove('armorValue');
-          _applyEquipEffects(effectsNoArmor);
+          _applyeffects(effectsNoArmor);
         } else {
-          _applyEquipEffects(item.equipEffects ?? const {});
+          _applyeffects(item.effects ?? const {});
         }
         updatedSlots[normalizedSlot] = item;
       }
@@ -1729,20 +1730,29 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 检查并生成新的鬼
   void _checkAndSpawnGhosts() {
     final currentGhostCount = state.ghostManager.ghosts.length;
-    const maxGhosts = 8; // 最大鬼数量
-    const minGhosts = 3; // 最小鬼数量
-    
-    print('👻 检查鬼数量 - 当前: $currentGhostCount, 最大: $maxGhosts, 最小: $minGhosts');
-    
+    final int punish = ((state.characterStats['punish'] ?? 0) as num).toInt().clamp(0, 10);
+    final int minGhosts = (1 + (punish ~/ 3)).clamp(1, 8);
+    final int maxGhosts = (6 + punish).clamp(minGhosts, 12);
+
+    print('👻 检查鬼数量 - 当前: $currentGhostCount, 处分: $punish, 最小: $minGhosts, 最大: $maxGhosts'); 
+
     if (currentGhostCount < minGhosts) {
-      // 如果鬼数量太少，生成新的鬼
-      final spawnCount = minGhosts - currentGhostCount;
+      final spawnCount = (minGhosts - currentGhostCount).clamp(1, 3);
       _spawnRandomGhosts(spawnCount);
     } else if (currentGhostCount < maxGhosts) {
-      // 随机决定是否生成新的鬼（30%概率）
       final random = Random();
-      if (random.nextDouble() < 0.3) {
+      final double probability = 0.2 + (punish * 0.05); // 处分越高，生成概率越高
+      if (random.nextDouble() < probability.clamp(0.0, 0.8)) {
         _spawnRandomGhosts(1);
+      }
+    } else if (currentGhostCount > maxGhosts) {
+      // 处分较低时，尝试减少鬼数量（随机移除一个）
+      final random = Random();
+      if (random.nextDouble() < 0.2) {
+        final ghosts = state.ghostManager.ghosts;
+        if (ghosts.isNotEmpty) {
+          state.ghostManager.removeGhost(ghosts[random.nextInt(ghosts.length)]);
+        }
       }
     }
   }
@@ -1927,7 +1937,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final List<MapEntry<String, Item>> candidates = state.equipmentSlots.entries
         .where((e) => e.value != null)
         .map((e) => MapEntry(e.key, e.value!))
-        .where((e) => (e.value.equipEffects?['armorValue'] ?? 0) > 0 && e.value.count > 0)
+        .where((e) => (e.value.effects?['armorValue'] ?? 0) > 0 && e.value.count > 0)
         .toList();
     if (candidates.isEmpty) {
       return damage;
@@ -1976,7 +1986,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: armorItem.usageTime,
       level: armorItem.level,
       equipmentSlot: armorItem.equipmentSlot,
-      equipEffects: armorItem.equipEffects,
+
     );
     state = state.copyWith(equipmentSlots: updatedSlots);
     return toPlayer;
@@ -2840,7 +2850,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
               usageTime: invItem.usageTime,
               level: invItem.level,
               equipmentSlot: invItem.equipmentSlot,
-              equipEffects: invItem.equipEffects,
+
             );
             remaining -= addCount;
           }
@@ -2873,7 +2883,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: item.usageTime,
           level: item.level,
           equipmentSlot: item.equipmentSlot,
-          equipEffects: item.equipEffects,
+
         ));
         remaining -= toAdd;
       }
@@ -2992,7 +3002,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
               usageTime: invItem.usageTime,
               level: invItem.level,
               equipmentSlot: invItem.equipmentSlot,
-              equipEffects: invItem.equipEffects,
+
             );
             remaining -= addCount;
           }
@@ -3021,7 +3031,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: item.usageTime,
           level: item.level,
           equipmentSlot: item.equipmentSlot,
-          equipEffects: item.equipEffects,
+
         );
 
         if (targetIndex >= inventory.length) {
@@ -3099,7 +3109,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: itemA.usageTime,
       level: newLevel,
       equipmentSlot: itemA.equipmentSlot,
-      equipEffects: itemA.equipEffects,
+
     );
 
     // 消耗材料
@@ -3119,7 +3129,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: itemA.usageTime,
           level: itemA.level,
           equipmentSlot: itemA.equipmentSlot,
-          equipEffects: itemA.equipEffects,
+
         );
       } else {
         inventory.removeAt(indexA);
@@ -3146,7 +3156,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: firstItem.usageTime,
           level: firstItem.level,
           equipmentSlot: firstItem.equipmentSlot,
-          equipEffects: firstItem.equipEffects,
+
         );
       } else {
         inventory.removeAt(first);
@@ -3170,7 +3180,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: secondItem.usageTime,
           level: secondItem.level,
           equipmentSlot: secondItem.equipmentSlot,
-          equipEffects: secondItem.equipEffects,
+
         );
       } else {
         inventory.removeAt(adjustedSecond);
@@ -3282,7 +3292,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: template.usageTime,
       level: template.level,
       equipmentSlot: template.equipmentSlot,
-      equipEffects: template.equipEffects,
+
     );
 
     // 消耗材料：按堆叠索引批量扣减
@@ -3305,7 +3315,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: cur.usageTime,
           level: cur.level,
           equipmentSlot: cur.equipmentSlot,
-          equipEffects: cur.equipEffects,
+
         );
       } else {
         inventory.removeAt(idx);
@@ -3442,7 +3452,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: template.usageTime,
       level: template.level,
       equipmentSlot: template.equipmentSlot,
-      equipEffects: template.equipEffects,
+
     );
 
     // 消耗材料：按堆叠索引批量扣减
@@ -3465,7 +3475,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: cur.usageTime,
           level: cur.level,
           equipmentSlot: cur.equipmentSlot,
-          equipEffects: cur.equipEffects,
+
         );
       } else {
         inventory.removeAt(idx);
@@ -3501,7 +3511,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final itemToDrop = inventory[itemIndex];
     
     // 关键区域：护甲装备的 count 表示耐久——丢弃时整件丢弃，保持耐久
-    final bool isArmorWithBlock = (itemToDrop.type == '装备' && ((itemToDrop.equipEffects?['armorValue'] ?? 0) > 0));
+    final bool isArmorWithBlock = (itemToDrop.type == '装备' && ((itemToDrop.effects?['armorValue'] ?? 0) > 0));
     if (isArmorWithBlock) {
       inventory.removeAt(itemIndex);
       _dropItemToGround(itemToDrop, state.playerPosition.toPoint());
@@ -3521,7 +3531,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: itemToDrop.usageTime,
           level: itemToDrop.level,
           equipmentSlot: itemToDrop.equipmentSlot,
-          equipEffects: itemToDrop.equipEffects,
+
         );
         final singleItem = Item(
           id: itemToDrop.id,
@@ -3536,7 +3546,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: itemToDrop.usageTime,
           level: itemToDrop.level,
           equipmentSlot: itemToDrop.equipmentSlot,
-          equipEffects: itemToDrop.equipEffects,
+
         );
         _dropItemToGround(singleItem, state.playerPosition.toPoint());
       } else {
@@ -3863,6 +3873,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           }
           hasEffect = true;
           break;
+        case 'punish':
+          // 关键区域：处分值按 0..10 夹取
+          final currentPun = (character['punish'] ?? 0).toDouble();
+          final double maxPun = (character['maxPunish'] ?? 10).toDouble();
+          final int deltaPun = isGold ? (value * quantityToConsume) : value;
+          final double newPun = (currentPun + deltaPun).clamp(0, maxPun);
+          character['punish'] = newPun;
+          hasEffect = true;
+          break;
       }
     });
     
@@ -4029,7 +4048,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
               usageTime: invItem.usageTime,
               level: invItem.level,
               equipmentSlot: invItem.equipmentSlot,
-              equipEffects: invItem.equipEffects,
+
             );
             remaining -= addCount;
           }
@@ -4060,7 +4079,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: removed.usageTime,
           level: removed.level,
           equipmentSlot: removed.equipmentSlot,
-          equipEffects: removed.equipEffects,
+
         ));
         remaining -= toAdd;
       }

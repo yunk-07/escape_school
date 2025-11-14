@@ -1033,7 +1033,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                               child: Builder(
                                 builder: (context) {
                                   if (equipped == null) return const SizedBox.shrink();
-                                  final int maxDur = equipped.equipEffects?['armorValue'] ?? 0;
+                                  final int maxDur = equipped.effects?['armorValue'] ?? 0;
                                   final bool show = (equipped.type == '装备') && maxDur > 0;
                                   if (!show) return const SizedBox.shrink();
                                   return Container(
@@ -1354,7 +1354,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                       right: 1,
                       child: Builder(
                         builder: (context) {
-                          final int maxDur = item.equipEffects?['armorValue'] ?? 0;
+                          final int maxDur = item.effects?['armorValue'] ?? 0;
                           final bool show = (item.type == '装备') && maxDur > 0;
                           if (!show) return const SizedBox.shrink();
                           return Container(
@@ -1552,7 +1552,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     right: 2,
                     child: Builder(
                       builder: (context) {
-                        final int maxDur = item.equipEffects?['armorValue'] ?? 0;
+                        final int maxDur = item.effects?['armorValue'] ?? 0;
                         final bool show = (item.type == '装备') && maxDur > 0;
                         if (!show) return const SizedBox.shrink();
                         return Container(
@@ -1767,7 +1767,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                         if (!isEquip) {
                           return '数量: $quantity';
                         }
-                        final int max = item.equipEffects?['armorValue'] ?? 0;
+                        final int max = item.effects?['armorValue'] ?? 0;
                         if (max > 0) {
                           return '耐久: ${item.count}/$max';
                         }
@@ -1821,7 +1821,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 ),
               ),
               const SizedBox(height: 16),
-              if ((item.type == '装备') && ((item.equipEffects?['armorValue'] ?? 0) > 0)) ...[
+              if ((item.type == '装备') && ((item.effects?['armorValue'] ?? 0) > 0)) ...[
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -1849,7 +1849,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                       };
                       final double armorShare = ratios[level] ?? 0.0;
                       final int percent = (armorShare * 100).round();
-                      final int maxDur = item.equipEffects?['armorValue'] ?? 0;
+                      final int maxDur = item.effects?['armorValue'] ?? 0;
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1881,33 +1881,34 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 const SizedBox(height: 12),
               ],
 
-              // 关键区域：移除“使用效果”标题文本；效果列表支持滚动查看
-              if (item.effects.isNotEmpty) ...[
+              // 关键区域：详情页改为显示 effects（避免与 effects 重复维护）
+              if ((item.effects ?? const {}).isNotEmpty) ...[
                 Container(
                   constraints: const BoxConstraints(maxHeight: 160), // 效果过多时滚动，大小保持不变
                   child: SingleChildScrollView(
                     child: Column(
-                      children: item.effects.entries.map((effect) {
+                      children: (item.effects ?? const {}).entries.map((effect) {
                         final effectName = _getEffectName(effect.key);
                         final effectValue = effect.value;
-                        final isPositive = effectValue > 0;
+                        final bool isPunish = effect.key == 'punish';
+                        final bool isPositive = isPunish ? (effectValue < 0) : (effectValue > 0);
+                        final Color displayColor = isPositive ? Colors.green : Colors.red;
 
                         return Container(
                           // 关键区域：全体缩小 —— 效果条内边距与间距减小
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                           margin: const EdgeInsets.symmetric(vertical: 2),
                           decoration: BoxDecoration(
-                            // 关键区域：效果条圆角统一为5
                             borderRadius: BorderRadius.circular(5),
                             border: Border.all(
-                              color: (isPositive ? Colors.green : Colors.red).withOpacity(0.35),
+                              color: displayColor.withOpacity(0.35),
                               width: 1,
                             ),
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                (isPositive ? Colors.green : Colors.red).withOpacity(0.10),
+                                displayColor.withOpacity(0.10),
                                 Colors.black.withOpacity(0.10),
                               ],
                             ),
@@ -1916,16 +1917,16 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                             children: [
                               Icon(
                                 _getEffectIcon(effect.key),
-                                color: isPositive ? Colors.green : Colors.red,
-                                // 关键区域：全体缩小 —— 效果图标尺寸
+                                color: displayColor,
                                 size: 14,
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '$effectName: ${isPositive ? '+' : ''}$effectValue',
+                                isPunish
+                                    ? '$effectName: ${_punishText(effectValue)}'
+                                    : '$effectName: ${isPositive ? '+' : ''}$effectValue',
                                 style: TextStyle(
-                                  color: isPositive ? Colors.green : Colors.red,
-                                  // 关键区域：全体缩小 —— 效果文字尺寸
+                                  color: displayColor,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -2186,6 +2187,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return '资产';
       case 'oxygenBonus':
         return '肺活量';
+      case 'punish':
+        return '处分';
       case 'armorValue':
         return '耐久';
       default:
@@ -2208,9 +2211,27 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return Icons.monetization_on;
       case 'oxygenBonus':
         return Icons.air;
+      case 'punish':
+        return Icons.assignment;
       default:
         return Icons.help;
     }
+  }
+
+  String _punishText(dynamic value) {
+    int v;
+    if (value is num) {
+      v = value.toInt();
+    } else {
+      return value?.toString() ?? '';
+    }
+    if (v == 1) return '警告';
+    if (v == 2) return '记过';
+    if (v == 3) return '通报批评';
+    if (v == 4) return '处分';
+    if (v == 5) return '留校察看';
+    if (v >= 6 && v <= 10) return '面临退学';
+    return v.toString();
   }
 
   /// 格式化数值为小数点后两位显示
