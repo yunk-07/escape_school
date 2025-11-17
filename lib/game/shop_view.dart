@@ -111,8 +111,8 @@ class _ShopContent extends ConsumerWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.black.withOpacity(0.7),
-              Colors.black.withOpacity(0.9),
+              Colors.black.withValues(alpha: 0.7),
+              Colors.black.withValues(alpha: 0.9),
             ],
           ),
         ),
@@ -132,12 +132,12 @@ class _ShopContent extends ConsumerWidget {
               // 关键区域：统一圆角为5
               borderRadius: BorderRadius.circular(5),
               border: Border.all(
-                color: Colors.amber.withOpacity(0.3),
+                color: Colors.amber.withValues(alpha: 0.3),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 20,
                   spreadRadius: 5,
                   offset: const Offset(0, 10),
@@ -171,8 +171,8 @@ class _ShopContent extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.amber.shade700.withOpacity(0.95),
-            Colors.orange.shade600.withOpacity(0.95),
+            Colors.amber.shade700.withValues(alpha: 0.95),
+            Colors.orange.shade600.withValues(alpha: 0.95),
           ],
         ),
         borderRadius: const BorderRadius.only(
@@ -182,7 +182,7 @@ class _ShopContent extends ConsumerWidget {
         // 关键区域：标题栏阴影微调以增强立体感
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.30),
+            color: Colors.black.withValues(alpha: 0.30),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -197,10 +197,10 @@ class _ShopContent extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
+                  color: Colors.white.withValues(alpha: 0.18),
                   // 统一圆角为5
                   borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
                 ),
                 child: const Icon(
                   Icons.store,
@@ -254,7 +254,7 @@ class _ShopContent extends ConsumerWidget {
                   // 关键区域：金币徽标阴影增强立体感
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.amber.withOpacity(0.45),
+                      color: Colors.amber.withValues(alpha: 0.45),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -266,7 +266,7 @@ class _ShopContent extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         // 统一圆角为5
                         borderRadius: BorderRadius.circular(5),
                       ),
@@ -312,7 +312,7 @@ class _ShopContent extends ConsumerWidget {
                   // 关键区域：退出按钮阴影微调
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.red.withOpacity(0.35),
+                      color: Colors.red.withValues(alpha: 0.35),
                       blurRadius: 6,
                       offset: const Offset(0, 3),
                     ),
@@ -356,11 +356,11 @@ class _ShopContent extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   // 统一圆角为5
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -373,7 +373,7 @@ class _ShopContent extends ConsumerWidget {
                       child: Text(
                         '可购买物品',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -434,24 +434,24 @@ class _ShopContent extends ConsumerWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.black.withOpacity(0.35),
-                Colors.black.withOpacity(0.6),
+                Colors.black.withValues(alpha: 0.35),
+                Colors.black.withValues(alpha: 0.6),
               ],
             ),
             // 统一圆角为5
             borderRadius: BorderRadius.circular(5),
             border: Border.all(
               color: canBuy 
-                  ? Colors.green.withOpacity(0.6) 
+                  ? Colors.green.withValues(alpha: 0.6) 
                   : isInStock 
-                      ? Colors.orange.withOpacity(0.4)
-                      : Colors.red.withOpacity(0.4),
+                      ? Colors.orange.withValues(alpha: 0.4)
+                      : Colors.red.withValues(alpha: 0.4),
               width: 2,
             ),
             // 关键区域：商品卡片阴影增强立体感
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.45),
+                color: Colors.black.withValues(alpha: 0.45),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
               ),
@@ -466,12 +466,12 @@ class _ShopContent extends ConsumerWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 // 统一圆角为5
                 borderRadius: BorderRadius.circular(5),
                 border: Border.all(
                   // 关键区域：按物品等级着色图片边框
-                  color: _getItemLevelColor(item.item.level).withOpacity(0.85),
+                  color: _getItemLevelColor(item.item.level).withValues(alpha: 0.85),
                   width: 1,
                 ),
               ),
@@ -497,7 +497,7 @@ class _ShopContent extends ConsumerWidget {
                       ),
                       child: Icon(
                         Icons.inventory,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         size: 30,
                       ),
                     );
@@ -533,7 +533,7 @@ class _ShopContent extends ConsumerWidget {
                   Text(
                     item.item.description,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 11,
                     ),
                     maxLines: 2,
@@ -552,8 +552,8 @@ class _ShopContent extends ConsumerWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              Colors.amber.shade600.withOpacity(0.95),
-                              Colors.amber.shade400.withOpacity(0.95),
+                              Colors.amber.shade600.withValues(alpha: 0.95),
+                              Colors.amber.shade400.withValues(alpha: 0.95),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -561,7 +561,7 @@ class _ShopContent extends ConsumerWidget {
                           // 统一圆角为5
                           borderRadius: BorderRadius.circular(5),
                           border: Border.all(
-                            color: Colors.amber.shade200.withOpacity(0.7),
+                            color: Colors.amber.shade200.withValues(alpha: 0.7),
                             width: 0.8,
                           ),
                         ),
@@ -584,10 +584,10 @@ class _ShopContent extends ConsumerWidget {
                                   Text(
                                     '$basePrice',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(alpha: 0.7),
                                       fontSize: 10,
                                       decoration: TextDecoration.lineThrough,
-                                      decorationColor: Colors.white.withOpacity(0.6),
+                                      decorationColor: Colors.white.withValues(alpha: 0.6),
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -615,12 +615,12 @@ class _ShopContent extends ConsumerWidget {
                           gradient: LinearGradient(
                             colors: isInStock
                                 ? [
-                                    Colors.blue.shade600.withOpacity(0.85),
-                                    Colors.blue.shade400.withOpacity(0.85),
+                                    Colors.blue.shade600.withValues(alpha: 0.85),
+                                    Colors.blue.shade400.withValues(alpha: 0.85),
                                   ]
                                 : [
-                                    Colors.red.shade600.withOpacity(0.85),
-                                    Colors.red.shade400.withOpacity(0.85),
+                                    Colors.red.shade600.withValues(alpha: 0.85),
+                                    Colors.red.shade400.withValues(alpha: 0.85),
                                   ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -660,14 +660,14 @@ class _ShopContent extends ConsumerWidget {
                   disabledForegroundColor: Colors.grey.shade400,
                   // 关键区域：按钮立体感
                   elevation: canBuy ? 6 : 1,
-                  shadowColor: canBuy ? Colors.green.withOpacity(0.45) : Colors.transparent,
+                  shadowColor: canBuy ? Colors.green.withValues(alpha: 0.45) : Colors.transparent,
                   shape: RoundedRectangleBorder(
                     // 统一圆角为5
                     borderRadius: BorderRadius.circular(5),
                     side: BorderSide(
                       color: canBuy 
-                          ? Colors.green.shade400.withOpacity(0.6)
-                          : Colors.grey.shade500.withOpacity(0.3),
+                          ? Colors.green.shade400.withValues(alpha: 0.6)
+                          : Colors.grey.shade500.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -706,11 +706,11 @@ class _ShopContent extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withValues(alpha: 0.35),
                   // 统一圆角为5
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     width: 0.8,
                   ),
                 ),
@@ -787,10 +787,10 @@ class _ShopRefreshTimerState extends ConsumerState<ShopRefreshTimer> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -799,14 +799,14 @@ class _ShopRefreshTimerState extends ConsumerState<ShopRefreshTimer> {
         children: [
           Icon(
             Icons.refresh,
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             size: 12,
           ),
           const SizedBox(width: 4),
           Text(
             '刷新: ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),

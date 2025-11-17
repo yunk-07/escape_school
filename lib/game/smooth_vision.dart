@@ -3,7 +3,6 @@
 // 支持圆形视野边界和墙体遮挡效果
 
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'enhanced_vision.dart';
 
 /// 瓦片的视野状态
@@ -89,7 +88,6 @@ class SmoothVisionManager {
   Set<math.Point<int>> _currentVisibleTiles = {};
   
   // 上次更新时间
-  DateTime _lastUpdateTime = DateTime.now();
   
   // 性能优化：缓存需要渲染的瓦片
   Map<math.Point<int>, double> _cachedRenderableTiles = {};
@@ -150,7 +148,6 @@ class SmoothVisionManager {
     }
 
     _currentVisibleTiles = currentTiles;
-    _lastUpdateTime = currentTime;
     
     // 如果有变化，使缓存失效
     if (hasChanges) {

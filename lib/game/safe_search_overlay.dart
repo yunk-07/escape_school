@@ -1,7 +1,6 @@
-// game/chest_search_overlay.dart
-// 新文件作用：宝箱搜索页面的叠加层UI，左侧为玩家背包，右侧为宝箱内容；
-// 支持拖拽或点击将宝箱物品放入背包，关闭后未转移物品掉落到地上。
-// 关键区域：逐个搜索动画——仅对“当前待揭示的首个物品”显示旋转搜索图标覆盖，其余待揭示显示蒙版。
+// game/safe_search_overlay.dart
+// 新文件作用：保险箱专属搜索页面叠加层UI，左侧为玩家背包，右侧为保险箱内容；
+// 与宝箱页面分离，采用蓝灰金属主题与独立布局，仅在探索保险箱时显示。
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -9,21 +8,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'optimized_game_state.dart';
 import 'package:escape_from_school/data/props.dart';
 
-class ChestSearchOverlay extends ConsumerStatefulWidget {
-  const ChestSearchOverlay({Key? key}) : super(key: key);
+class SafeSearchOverlay extends ConsumerStatefulWidget {
+  const SafeSearchOverlay({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<ChestSearchOverlay> createState() => _ChestSearchOverlayState();
+  ConsumerState<SafeSearchOverlay> createState() => _SafeSearchOverlayState();
 }
 
-class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with SingleTickerProviderStateMixin {
+class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with SingleTickerProviderStateMixin {
   late final AnimationController _spinController;
 
   @override
   void initState() {
     super.initState();
-    // 关键区域：旋转控制器——持续旋转，用于“当前搜索中的物品”覆盖图标
-    // 优化：略微延长时长，结合后续缓动与轻微半径抖动，降低机械感
     _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
       ..repeat();
   }
@@ -39,29 +36,25 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
     final gameState = ref.watch(optimizedGameStateProvider);
     final notifier = ref.read(optimizedGameStateProvider.notifier);
 
-    // 未打开搜索页面则不显示
     if (!gameState.isChestSearchOpen) {
       return const SizedBox.shrink();
     }
 
-    // 若当前探索的是保险箱，交由 SafeSearchOverlay 显示，本组件不显示
     final bool isSafe = gameState.currentExploringChest != null &&
         gameState.safePositions.contains(gameState.currentExploringChest!);
-    if (isSafe) {
+    if (!isSafe) {
       return const SizedBox.shrink();
     }
 
-    // 关键区域：整页叠加层，拦截交互；根据当前探索的是宝箱还是保险箱切换主题
     return Positioned.fill(
       child: Container(
-        // 关键区域：整页叠加层采用径向渐变，增强空间感与层次
         decoration: BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.center,
             radius: 1.2,
             colors: [
-              (isSafe ? Colors.blueGrey.shade900 : Colors.black).withOpacity(0.85),
-              (isSafe ? Colors.blueGrey.shade800 : Colors.black).withOpacity(0.70),
+              Colors.blueGrey.shade900.withValues(alpha: 0.90),
+              Colors.blueGrey.shade800.withValues(alpha: 0.75),
             ],
           ),
         ),
@@ -71,17 +64,16 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 顶部：标题与关闭按钮
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
-                      children: [
-                        Icon(isSafe ? Icons.lock : Icons.search, color: isSafe ? Colors.lightBlueAccent : Colors.amber, size: 20),
-                        const SizedBox(width: 8),
+                      children: const [
+                        Icon(Icons.lock, color: Colors.lightBlueAccent, size: 20),
+                        SizedBox(width: 8),
                         Text(
-                          isSafe ? '保险箱搜索' : '宝箱搜索',
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          '保险箱搜索',
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -92,53 +84,46 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                       icon: const Icon(Icons.close, color: Colors.white),
                       label: const Text('关闭', style: TextStyle(color: Colors.white)),
                       style: TextButton.styleFrom(
-                        backgroundColor: (isSafe ? Colors.blue.withOpacity(0.28) : Colors.red.withOpacity(0.3)),
+                        backgroundColor: Colors.blue.withValues(alpha: 0.28),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        // 关键区域：统一圆角为5
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                // 主体：左右两栏
                 Expanded(
                   child: Row(
                     children: [
-                      // 左侧：玩家背包
                       Expanded(
                         flex: 1,
                         child: Container(
                           decoration: BoxDecoration(
-                            // 美化：左侧面板采用柔和渐变背景 + 阴影，增强立体感
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Colors.blueGrey.shade900.withOpacity(0.87),
-                                Colors.blueGrey.shade800.withOpacity(0.76),
+                                Colors.blueGrey.shade900.withValues(alpha: 0.87),
+                                Colors.blueGrey.shade800.withValues(alpha: 0.76),
                               ],
                             ),
-                            // 关键区域：统一圆角为5
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: Colors.blueGrey.shade400.withOpacity(0.5)),
+                            border: Border.all(color: Colors.blueGrey.shade400.withValues(alpha: 0.5)),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.45), blurRadius: 14, offset: const Offset(0, 6)),
-                              BoxShadow(color: Colors.white.withOpacity(0.05), blurRadius: 6, offset: const Offset(-1, -1)),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 14, offset: const Offset(0, 6)),
+                              BoxShadow(color: Colors.white.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(-1, -1)),
                             ],
                           ),
-                          // 关键区域：面板前景高光（与背包页面一致），增强质感
                           foregroundDecoration: BoxDecoration(
-                            // 关键区域：统一圆角为5
                             borderRadius: BorderRadius.circular(5),
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white.withOpacity(0.06),
-                                Colors.transparent,
-                                Colors.white.withOpacity(0.02),
-                              ],
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.06),
+                                  Colors.transparent,
+                                  Colors.white.withValues(alpha: 0.02),
+                                ],
                               stops: const [0.0, 0.55, 1.0],
                             ),
                           ),
@@ -158,53 +143,47 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // 右侧：宝箱内容
                       Expanded(
                         flex: 1,
                         child: Container(
                           decoration: BoxDecoration(
-                            // 美化：右侧面板采用柔和渐变背景 + 阴影，增强立体感
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                (isSafe ? Colors.blueGrey.shade900 : Colors.black).withValues(alpha: 0.88),
-                                (isSafe ? Colors.blueGrey.shade800 : Colors.black).withValues(alpha: 0.79),
+                                Colors.blueGrey.shade900.withValues(alpha: 0.88),
+                                Colors.blueGrey.shade800.withValues(alpha: 0.79),
                               ],
                             ),
-                            // 关键区域：统一圆角为5
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: (isSafe ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.6)),
+                            border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.6)),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 16, offset: const Offset(0, 7)),
-                              BoxShadow(color: (isSafe ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2)),
+                              BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2)),
                             ],
                           ),
-                          // 关键区域：面板前景高光（与背包页面一致），增强质感
                           foregroundDecoration: BoxDecoration(
-                            // 关键区域：统一圆角为5
                             borderRadius: BorderRadius.circular(5),
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.06),
-                                Colors.transparent,
-                                Colors.white.withValues(alpha: 0.02),
-                              ],
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.06),
+                                  Colors.transparent,
+                                  Colors.white.withValues(alpha: 0.02),
+                                ],
                               stops: const [0.0, 0.55, 1.0],
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 关键区域：Material Icons 无“宝箱”图标，使用库存图标替代，避免编译错误
-                              _panelHeader(isSafe ? '保险箱' : '宝箱', isSafe ? Icons.lock : Icons.inventory_2, isSafe ? Colors.lightBlueAccent : Colors.amber),
+                              _panelHeader('保险箱', Icons.lock, Colors.lightBlueAccent),
                               const Divider(height: 1, color: Colors.white24),
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: _buildChestGrid(gameState, notifier, isSafe),
+                                  child: _buildSafeGrid(gameState, notifier),
                                 ),
                               ),
                             ],
@@ -229,7 +208,6 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
         children: [
           Icon(icon, color: color, size: 16),
           const SizedBox(width: 8),
-          // 关键区域：标题采用“胶囊标签”风格（参考背包页面）
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
@@ -238,24 +216,22 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                 end: Alignment.bottomRight,
                 colors: [
                   color.withValues(alpha: 0.28),
-                  (color == Colors.amber ? Colors.orange.shade800 : Colors.cyan.shade800).withValues(alpha: 0.32),
+                  Colors.cyan.shade800.withValues(alpha: 0.32),
                 ],
               ),
-              // 关键区域：统一圆角为5，并轻量美化
               borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: (color == Colors.amber ? Colors.amberAccent : Colors.cyanAccent).withValues(alpha: 0.35), width: 1),
+              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.35), width: 1),
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 3)),
               ],
             ),
-            child: Text(title, style: TextStyle(color: (color == Colors.amber ? Colors.amberAccent : Colors.cyanAccent).withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text(title, style: TextStyle(color: Colors.cyanAccent.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  // 左侧背包网格：显示现有物品，并作为 DragTarget 接收宝箱物品
   Widget _buildInventoryGrid(OptimizedGameState gameState, OptimizedGameStateNotifier notifier) {
     final capacity = gameState.inventoryCapacity;
     return GridView.builder(
@@ -279,7 +255,6 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             return Container(
               decoration: BoxDecoration(
                 color: hasItem ? Colors.black.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.3),
-                // 关键区域：统一圆角为5
                 borderRadius: BorderRadius.circular(5),
                 border: Border.all(
                   color: hovering ? Colors.cyanAccent.withValues(alpha: 0.8) : Colors.white24,
@@ -299,7 +274,6 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
       children: [
         Positioned.fill(
           child: Container(
-            // 关键区域：背包格子使用柔和渐变与内边距，提升立体与饱满度
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -309,13 +283,10 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                   Colors.black.withValues(alpha: 0.18),
                 ],
               ),
-              // 关键区域：统一圆角为5
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: Colors.white24, width: 0.8),
             ),
-            // 关键区域：前景高光叠加（与背包页面一致）
             foregroundDecoration: BoxDecoration(
-              // 关键区域：统一圆角为5
               borderRadius: BorderRadius.circular(5),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -353,17 +324,16 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             overflow: TextOverflow.ellipsis,
           ),
         ),
-          if (item.count > 1)
-            Positioned(
-              bottom: 2,
-              right: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                // 关键区域：统一圆角为5
-                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
-                child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
-              ),
+        if (item.count > 1)
+          Positioned(
+            bottom: 2,
+            right: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
+              child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
             ),
+          ),
       ],
     );
   }
@@ -377,44 +347,38 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
     );
   }
 
-  // 右侧宝箱网格：显示已揭示的物品，支持点击和拖拽到左侧背包
-  Widget _buildChestGrid(OptimizedGameState gameState, OptimizedGameStateNotifier notifier, bool isSafeTheme) {
+  Widget _buildSafeGrid(OptimizedGameState gameState, OptimizedGameStateNotifier notifier) {
     final visibleItems = gameState.chestVisibleItems;
     final pendingItems = gameState.chestPendingItems;
     final totalCount = visibleItems.length + pendingItems.length;
 
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 6,
+        crossAxisCount: 5,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
         childAspectRatio: 1.0,
       ),
       itemCount: totalCount,
       itemBuilder: (context, index) {
-        // 关键区域：揭示瞬间“突进”动画
-        // 使用 AnimatedSwitcher 在待揭示 → 已揭示切换时执行 scale 过渡
         final bool isRevealed = index < visibleItems.length;
         Widget tileChild;
         String tileKey;
 
         if (isRevealed) {
-          // 已揭示物品：可点击、可拖拽
           final item = visibleItems[index];
           tileChild = Draggable<Item>(
             data: item,
             feedback: _dragFeedback(item),
-            childWhenDragging: Opacity(opacity: 0.4, child: _chestItemTile(item, notifier)),
-            child: _chestItemTile(item, notifier),
+            childWhenDragging: Opacity(opacity: 0.4, child: _safeItemTile(item, notifier)),
+            child: _safeItemTile(item, notifier),
           );
           tileKey = 'revealed-${item.name}-${index}';
         } else {
-          // 待揭示物品：首个显示旋转搜索覆盖，其余显示静态蒙版
           final pendingIndex = index - visibleItems.length;
-          final isActiveSearching = pendingIndex == 0; // 仅首个待揭示显示旋转
+          final isActiveSearching = pendingIndex == 0;
           final Item? currentPendingItem = isActiveSearching && pendingItems.isNotEmpty ? pendingItems.first : null;
-          // 关键区域：未揭示物品不显示任何级别颜色，仅使用中性样式
-          tileChild = _pendingItemTile(currentPendingItem, isActiveSearching, isSafeTheme);
+          tileChild = _pendingItemTile(currentPendingItem, isActiveSearching);
           tileKey = 'pending-${pendingIndex}';
         }
 
@@ -432,13 +396,11 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
     );
   }
 
-  // 关键区域：宝箱物品瓷砖——点击快速放入背包
-  Widget _chestItemTile(Item item, OptimizedGameStateNotifier notifier) {
+  Widget _safeItemTile(Item item, OptimizedGameStateNotifier notifier) {
     return InkWell(
       onTap: () => notifier.transferChestItemToInventory(item),
       child: Container(
         decoration: BoxDecoration(
-          // 关键区域：已揭示物品采用渐变背景 + 等级边框与阴影，增强立体感
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -447,18 +409,14 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
               Colors.black.withValues(alpha: 0.30),
             ],
           ),
-          // 关键区域：统一圆角为5
           borderRadius: BorderRadius.circular(5),
-          // 关键区域：已揭示物品按等级着色边框与阴影
-          border: Border.all(color: _getItemLevelColor(item.level).withValues(alpha: 0.85), width: 1),
+          border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.85), width: 1),
           boxShadow: [
-            BoxShadow(color: _getItemLevelColor(item.level).withValues(alpha: 0.24), blurRadius: 7, offset: const Offset(0, 3)),
+            BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.24), blurRadius: 7, offset: const Offset(0, 3)),
             BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 6)),
           ],
         ),
-        // 关键区域：前景高光叠加（与背包页面一致）
         foregroundDecoration: BoxDecoration(
-          // 关键区域：统一圆角为5
           borderRadius: BorderRadius.circular(5),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -498,47 +456,40 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-          if (item.count > 1)
-            Positioned(
-              bottom: 2,
-              right: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                // 关键区域：统一圆角为5
-                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
-                child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+            if (item.count > 1)
+              Positioned(
+                bottom: 2,
+                right: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
+                  child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  // 关键区域：待揭示物品蒙版——首个显示旋转搜索图标，其余显示静态蒙版
-  // 修改：未揭示阶段不显示颜色，但动画强度随物品等级增大（不泄露具体颜色，仅变化动效）
-  Widget _pendingItemTile(Item? item, bool isActive, bool isSafeTheme) {
+  Widget _pendingItemTile(Item? item, bool isActive) {
     return Container(
       decoration: BoxDecoration(
-        // 关键区域：待揭示阶段使用中性渐变，不泄露任何等级颜色
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.grey.shade900.withValues(alpha: 0.40),
-            Colors.black.withValues(alpha: 0.30),
+            Color(0xFF1A1F24),
+            Color(0xFF0F1418),
           ],
         ),
-        // 关键区域：统一圆角为5
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: isSafeTheme ? Colors.lightBlueAccent.withValues(alpha: 0.35) : Colors.white24, width: 1),
+        border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.35), width: 1),
         boxShadow: [
-          BoxShadow(color: (isSafeTheme ? Colors.lightBlueAccent : Colors.black).withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 3)),
+          BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 3)),
         ],
       ),
-      // 关键区域：前景高光叠加（与背包页面一致）
       foregroundDecoration: BoxDecoration(
-        // 关键区域：统一圆角为5
         borderRadius: BorderRadius.circular(5),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -553,33 +504,26 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
       ),
       child: Stack(
         children: [
-          // 模糊蒙版效果（简化：弱透明层）
-          Positioned.fill(
-            child: Container(color: Colors.black.withValues(alpha: 0.14)),
-          ),
-          // 旋转搜索图标（仅当前项）
+          Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.14))),
           Center(
             child: isActive
                 ? AnimatedBuilder(
                     animation: _spinController,
                     builder: (context, child) {
-                      // 关键区域：动画强度随物品等级增大（level 1..7）
                       final int lvl = (item?.level ?? 1).clamp(1, 7);
-                      // 关键区域：取消放大镜，仅保留小圆点旋转
-                      final double speedFactor = 1.0; // 基准旋转速度（圆点绕转）
-                      final double baseGlow = 3.0 + (lvl - 1) * 1.5; // 3 .. 12
-                      final double size = 22 + (lvl - 1) * 2.5; // 22 .. 37.0
-                      final double dotSize = 4.0 + (lvl * 0.4); // 中心圆点尺寸（随等级微增）
+                      final double speedFactor = 1.0;
+                      final double baseGlow = 3.0 + (lvl - 1) * 1.5;
+                      final double size = 22 + (lvl - 1) * 2.5;
+                      final double dotSize = 4.0 + (lvl * 0.4);
                       return Container(
                         width: size + 8,
                         height: size + 8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           boxShadow: [
-                            BoxShadow(color: (isSafeTheme ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.35), blurRadius: baseGlow, spreadRadius: 0.0),
+                            BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.35), blurRadius: baseGlow, spreadRadius: 0.0),
                           ],
                         ),
-                        // 关键区域：只保留小圆点沿轨道环绕，无放大镜
                         child: Transform.rotate(
                           angle: _spinController.value * 2 * math.pi * speedFactor,
                           child: SizedBox(
@@ -591,19 +535,19 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                                 width: dotSize,
                                 height: dotSize,
                                 decoration: BoxDecoration(
-                                  color: isSafeTheme ? Colors.lightBlueAccent : Colors.amber,
+                                  color: Colors.lightBlueAccent,
                                   shape: BoxShape.circle,
                                   boxShadow: [
-                                    BoxShadow(color: (isSafeTheme ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.45), blurRadius: baseGlow, spreadRadius: 0.0),
+                                    BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.45), blurRadius: baseGlow, spreadRadius: 0.0),
                                   ],
                                 ),
                               ),
                             ),
                           ),
                         ),
-                  );
-                },
-              )
+                      );
+                    },
+                  )
                 : const SizedBox.shrink(),
           ),
         ],
@@ -618,7 +562,6 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          // 关键区域：拖拽反馈采用渐变与等级边框，提升立体与辨识度
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -627,12 +570,10 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
               Colors.black.withValues(alpha: 0.25),
             ],
           ),
-          // 关键区域：统一圆角为5
           borderRadius: BorderRadius.circular(5),
-          // 关键区域：拖拽反馈边框按等级着色
-          border: Border.all(color: _getItemLevelColor(item.level).withValues(alpha: 0.9)),
+          border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.9)),
           boxShadow: [
-            BoxShadow(color: _getItemLevelColor(item.level).withValues(alpha: 0.30), blurRadius: 8, offset: const Offset(0, 3)),
+            BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.30), blurRadius: 8, offset: const Offset(0, 3)),
           ],
         ),
         child: Padding(
@@ -649,23 +590,22 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
     );
   }
 
-  // 关键区域：按物品等级返回颜色（与背包页面/结算页保持一致）
   Color _getItemLevelColor(int level) {
     switch (level) {
       case 1:
-        return Colors.grey.shade600; // 无色
+        return Colors.grey.shade600;
       case 2:
-        return Colors.green.shade400; // 绿色
+        return Colors.green.shade400;
       case 3:
-        return Colors.blue.shade400; // 蓝色
+        return Colors.blue.shade400;
       case 4:
-        return Colors.purple.shade400; // 紫色
+        return Colors.purple.shade400;
       case 5:
-        return Colors.amber.shade400; // 金色
+        return Colors.amber.shade400;
       case 6:
-        return Colors.red.shade400; // 红色
+        return Colors.red.shade400;
       default:
-        return Colors.grey.shade600; // 默认无色
+        return Colors.grey.shade600;
     }
   }
 

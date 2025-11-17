@@ -167,6 +167,7 @@ class OptimizedGameState {
   final OptimizedMovementState movementState;
   final List<List<String>> map;
   final List<Point<int>> chestPositions;
+  final List<Point<int>> safePositions; // 关键区域：保险箱位置列表（仅在建筑物内刷新）
   // 关键区域：固定刷新宝箱的位置（开局在玩家脚底生成的宝箱）
   final Point<int>? fixedChestPosition;
   final List<Item> playerInventory;
@@ -271,6 +272,7 @@ class OptimizedGameState {
     required this.movementState,
     required this.map,
     required this.chestPositions,
+    required this.safePositions,
     this.fixedChestPosition,
     required this.playerInventory,
     // 关键区域：扩展装备槽默认键为六类，保持与UI一致
@@ -350,6 +352,7 @@ class OptimizedGameState {
     OptimizedMovementState? movementState,
     List<List<String>>? map,
     List<Point<int>>? chestPositions,
+    List<Point<int>>? safePositions,
     Point<int>? fixedChestPosition,
     List<Item>? playerInventory,
     Map<String, Item?>? equipmentSlots,
@@ -420,6 +423,7 @@ class OptimizedGameState {
       movementState: movementState ?? this.movementState,
       map: map ?? this.map,
       chestPositions: chestPositions ?? this.chestPositions,
+      safePositions: safePositions ?? this.safePositions,
       fixedChestPosition: fixedChestPosition ?? this.fixedChestPosition,
       playerInventory: playerInventory ?? this.playerInventory,
       equipmentSlots: equipmentSlots ?? this.equipmentSlots,
@@ -565,6 +569,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
   OxygenSystem? _oxygenSystem; // 氧气系统
+  final bool _enableGhostSpawn; // 关键区域：控制是否启动鬼生成定时器（用于避免默认provider产生重复计时器）
   
   // 状态更新锁，防止竞争条件
   bool _isUpdatingStats = false;
@@ -582,6 +587,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   OptimizedGameStateNotifier(Map<String, dynamic> characterData)
       : _characterData = characterData,
+        _enableGhostSpawn = true,
         super(
     OptimizedGameState(
       characterStats: _createInitialCharacterStats(characterData),
@@ -589,6 +595,43 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       movementState: const OptimizedMovementState(),
       map: MapData.testMap,
       chestPositions: [], // 初始为空，将在 _initializeGame 中随机生成
+      safePositions: [], // 初始为空，将在 _initializeGame 中随机生成
+      playerInventory: [], // 玩家从空背包开始
+      visibleTiles: {},
+      visibleMap: List.generate(
+        MapData.testMap.length,
+        (y) => List.generate(MapData.testMap[0].length, (x) => false),
+      ),
+      ghostManager: GhostManager(map: MapData.testMap),
+      showInventory: false,
+      showCharacterInfo: false,
+      showShop: false,
+      isGameOver: false,
+      deathReason: '',
+      characterSkills: const [],
+      skillStates: const {},
+      gameStartTime: DateTime.now(),
+      gameEndTime: null,
+      maxOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+      currentOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+      oxygenRecoveryManager: OxygenRecoveryManager(),
+    ),
+  ) {
+    _initializeGame();
+  }
+
+  // 关键区域：无鬼生成版本（用于默认provider，避免重复鬼生成检查）
+  OptimizedGameStateNotifier.noGhost(Map<String, dynamic> characterData)
+      : _characterData = characterData,
+        _enableGhostSpawn = false,
+        super(
+    OptimizedGameState(
+      characterStats: _createInitialCharacterStats(characterData),
+      playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
+      movementState: const OptimizedMovementState(),
+      map: MapData.testMap,
+      chestPositions: [], // 初始为空，将在 _initializeGame 中随机生成
+      safePositions: [], // 初始为空，将在 _initializeGame 中随机生成
       playerInventory: [], // 玩家从空背包开始
       visibleTiles: {},
       visibleMap: List.generate(
@@ -624,6 +667,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _initializeGhosts();
     _setRandomPlayerSpawn();
     _initializeChests(); // 初始化随机宝箱位置
+    _initializeSafes(); // 关键区域：初始化保险箱位置（仅建筑内）
     _spawnFixedChestUnderPlayer(); // 关键区域：开局在玩家脚底下生成固定宝箱
     // 关键区域：初始化装备为空并覆盖持久化记录（符合“开局装备栏为空”）
     final clearedSlots = <String, Item?>{
@@ -649,7 +693,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _startShopRefreshTimer(); // 启动商店刷新检查定时器
     _startItemSpawnTimer(); // 启动物品刷新定时器
     _startGhostUpdateTimer(); // 启动鬼的更新定时器
-    _startGhostSpawnTimer(); // 启动鬼的生成定时器
+    if (_enableGhostSpawn) {
+      _startGhostSpawnTimer(); // 启动鬼的生成定时器
+    }
     _updateVision();
   }
 
@@ -982,10 +1028,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         case 'armorValue':
           // 关键区域：护甲耐久由装备 count 管理，效果不直接改动角色
           break;
+        case 'punish':
+          final double currentPun = (character['punish'] ?? 0).toDouble();
+          final double maxPun = (character['maxPunish'] ?? 10).toDouble();
+          final double newPun = (currentPun + value).clamp(0, maxPun);
+          character['punish'] = newPun;
+          break;
       }
     });
 
-    state = state.copyWith(characterStats: character);
+    _safeUpdateCharacterStats((_) => character, '装备效果应用');
   }
 
   // 关键区域：撤回装备效果（取反应用）
@@ -1864,14 +1916,19 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     _isUpdatingStats = true;
     try {
-      // 获取最新状态
       final currentStats = Map<String, dynamic>.from(state.characterStats);
-      
-      // 应用更新函数
+      // 应用更新函数（基于当前快照）
       final updatedStats = updateFunction(currentStats);
-      
-      // 更新状态
-      state = state.copyWith(characterStats: updatedStats);
+      // 仅合并“被更新的键”，保留最新状态中的其它键值
+      final latestStats = Map<String, dynamic>.from(state.characterStats);
+      updatedStats.forEach((key, value) {
+        final prev = currentStats[key];
+        final bool changed = !currentStats.containsKey(key) || prev != value;
+        if (changed) {
+          latestStats[key] = value;
+        }
+      });
+      state = state.copyWith(characterStats: latestStats);
     } finally {
       _isUpdatingStats = false;
     }
@@ -2504,6 +2561,28 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     print('openChestAtPosition - 开始探索宝箱: (${chestPosition.x}, ${chestPosition.y})');
   }
 
+  /// 打开指定位置的保险箱（点击时使用）
+  void openSafeAtPosition(Point<int> safePosition) {
+    if (!state.safePositions.contains(safePosition)) {
+      return;
+    }
+    if (state.isExploringChest) {
+      cancelChestExploration();
+    }
+    final initialItems = _getRandomSafeItemsAtPosition(safePosition);
+    state = state.copyWith(
+      isExploringChest: true,
+      isChestSearchOpen: true,
+      currentExploringChest: safePosition,
+      chestExplorationProgress: 0.0,
+      chestExplorationStartTime: DateTime.now(),
+      chestPendingItems: initialItems,
+      chestVisibleItems: const [],
+    );
+    _startChestExplorationTimer(safePosition);
+    addBroadcastMessage('开始探索保险箱...', BroadcastMessageType.item);
+  }
+
   /// 打开宝箱（原有的距离检查方法）
   void openChest() {
     print('openChest - 开始执行');
@@ -2601,6 +2680,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return buildingTiles ~/ 50;
   }
 
+  // 关键区域：计算目标保险箱数量（比宝箱更少更稀有）
+  // 说明：按宝箱目标数量的40%生成保险箱数量；当宝箱目标为0时保险箱也为0；
+  // 当宝箱目标为1时，至少生成1个保险箱以保证存在感。
+  int _computeTargetSafeCount() {
+    final int chestTarget = _computeTargetChestCount();
+    if (chestTarget <= 0) return 0;
+    if (chestTarget == 1) return 1;
+    return (chestTarget * 2) ~/ 5; // 40%
+  }
+
   /// 获取固定的测试宝箱位置（三个相邻的宝箱）
 
 
@@ -2632,6 +2721,108 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
     
     return selectedPositions;
+  }
+
+  /// 获取保险箱随机物品（仅 Lv3/4/5/6）
+  List<Item> _getRandomSafeItemsAtPosition(Point<int> position, {int minItems = 1, int maxItems = 3}) {
+    final int count = minItems + math.Random().nextInt(maxItems - minItems + 1);
+    final List<Item> candidates = allItems
+        .where((it) => it.type == '物品' && it.level >= 3 && it.level <= 6 && it.id != 'gold')
+        .toList();
+
+    if (candidates.isEmpty) {
+      return const [];
+    }
+
+    // 建筑内倍率（复用宝箱权重倾斜）
+    final terrain = MapData.testMap[position.y][position.x];
+    final bool inBuilding = terrain == 'building';
+    final Map<int, double> base = {
+      3: 20.0,
+      4: 10.0,
+      5: 8.0,
+      6: 2.0,
+    };
+    final Map<int, double> mult = {
+      3: 1.5,
+      4: 1.8,
+      5: 2.2,
+      6: 2.5,
+    };
+    final double rarityBoost = ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
+
+    List<Item> result = [];
+    for (int i = 0; i < count; i++) {
+      double totalWeight = 0.0;
+      final Map<Item, double> weights = {};
+      for (final it in candidates) {
+        final double b = base[it.level] ?? 1.0;
+        final double m = inBuilding ? (mult[it.level] ?? 1.0) : 1.0;
+        final double w = _applyRarityBoostForSafe(b * m, it.level, rarityBoost);
+        weights[it] = w;
+        totalWeight += w;
+      }
+      if (totalWeight <= 0.0) break;
+      final double roll = math.Random().nextDouble() * totalWeight;
+      double acc = 0.0;
+      Item? picked;
+      for (final entry in weights.entries) {
+        acc += entry.value;
+        if (roll <= acc) {
+          picked = entry.key;
+          break;
+        }
+      }
+      if (picked != null) {
+        result.add(picked);
+      }
+    }
+
+    return result;
+  }
+
+  double _applyRarityBoostForSafe(double baseWeight, int level, double rarityBoost) {
+    final double boost = rarityBoost <= 0 ? 0.0 : rarityBoost;
+    if (level >= 4) {
+      return baseWeight * (1.0 + boost);
+    }
+    return baseWeight;
+  }
+
+  /// 初始化保险箱位置（数量规则与宝箱保持一致）
+  void _initializeSafes() {
+    final targetCount = _computeTargetSafeCount();
+    final random = math.Random();
+    final suitablePositions = _getChestSuitablePositions();
+    final selected = <Point<int>>[];
+    while (selected.length < math.min(targetCount, suitablePositions.length)) {
+      final pos = suitablePositions[random.nextInt(suitablePositions.length)];
+      if (!selected.contains(pos)) {
+        selected.add(pos);
+      }
+    }
+    state = state.copyWith(safePositions: selected);
+  }
+
+  /// 智能补充保险箱：只在数量不足时添加
+  void _replenishSafesIfNeeded() {
+    final currentCount = state.safePositions.length;
+    final targetCount = _computeTargetSafeCount();
+    if (currentCount >= targetCount) return;
+    final needToAdd = targetCount - currentCount;
+    final existing = Set<Point<int>>.from(state.safePositions);
+    final suitablePositions = _getChestSuitablePositions();
+    final available = suitablePositions.where((p) => !existing.contains(p)).toList();
+    if (available.isEmpty) return;
+    final random = math.Random();
+    final newPositions = <Point<int>>[];
+    final maxAdd = math.min(needToAdd, available.length);
+    for (int i = 0; i < maxAdd; i++) {
+      final idx = random.nextInt(available.length);
+      newPositions.add(available.removeAt(idx));
+    }
+    final updated = List<Point<int>>.from(state.safePositions)..addAll(newPositions);
+    state = state.copyWith(safePositions: updated);
   }
 
   /// 初始化宝箱位置
@@ -3902,15 +4093,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             availableInShop: item.availableInShop,
             basePrice: item.basePrice,
             usageTime: item.usageTime,
+            level: item.level,
+            equipmentSlot: item.equipmentSlot,
           );
         } else {
           inventory.removeAt(itemIndex);
         }
       }
       
-      // 更新游戏状态
+      // 先安全合并角色属性，再更新其它状态字段
+      _safeUpdateCharacterStats((_) => character, '物品使用完成');
       state = state.copyWith(
-        characterStats: character,
         playerInventory: inventory,
         isUsingItem: false,
         currentUsingItem: null,
@@ -3956,6 +4149,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             availableInShop: item.availableInShop,
             basePrice: item.basePrice,
             usageTime: item.usageTime,
+            level: item.level,
+            equipmentSlot: item.equipmentSlot,
           );
         } else {
           inventory.removeAt(itemIndex);
@@ -4155,15 +4350,21 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       addBroadcastMessage('关闭宝箱，未取走物品已掉落在地上', BroadcastMessageType.item);
     }
 
-    // 移除对应的宝箱
+    // 移除对应的容器（宝箱或保险箱）
     final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
+    final updatedSafePositions = List<Point<int>>.from(state.safePositions);
     if (chestPos != null) {
-      updatedChestPositions.remove(chestPos);
+      if (updatedChestPositions.contains(chestPos)) {
+        updatedChestPositions.remove(chestPos);
+      } else if (updatedSafePositions.contains(chestPos)) {
+        updatedSafePositions.remove(chestPos);
+      }
     }
 
     // 重置相关状态并关闭页面
     state = state.copyWith(
       chestPositions: updatedChestPositions,
+      safePositions: updatedSafePositions,
       isChestSearchOpen: false,
       chestPendingItems: const [],
       chestVisibleItems: const [],
@@ -4175,6 +4376,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 智能补充宝箱：只在宝箱数量不足时添加新宝箱
     _replenishChestsIfNeeded();
+    _replenishSafesIfNeeded();
   }
 
   /// 触发游戏结束
@@ -4615,6 +4817,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       movementState: const OptimizedMovementState(),
       map: MapData.testMap,
       chestPositions: [],
+      safePositions: [],
       playerInventory: [],
       visibleTiles: {},
       visibleMap: List.generate(
@@ -5179,8 +5382,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
 /// 优化的游戏状态提供者
 final optimizedGameStateProvider = StateNotifierProvider<OptimizedGameStateNotifier, OptimizedGameState>((ref) {
-  // 使用厨师角色作为默认角色
-  return OptimizedGameStateNotifier(manData[0]); // 使用manData中的第一个角色（厨师）
+  // 关键区域：默认provider使用“无鬼生成”版本，避免产生重复的鬼生成定时器
+  return OptimizedGameStateNotifier.noGhost(manData[0]);
 });
 
 /// 优化的玩家位置提供者

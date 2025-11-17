@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'choose.dart';
 import 'package:escape_from_school/game/music.dart';
@@ -207,9 +206,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(0.3),
+                  Colors.black.withValues(alpha: 0.3),
                   Colors.transparent,
-                  Colors.black.withOpacity(0.5),
+                  Colors.black.withValues(alpha: 0.5),
                 ],
                 stops: const [0.0, 0.4, 1.0],
               ),
@@ -306,7 +305,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                                   // 与按钮圆角保持一致，避免遮罩外溢
                                                   // 关键区域：开始页面圆角统一为 5（遮罩层）
                                                   borderRadius: BorderRadius.circular(5),
-                                                  color: Colors.black.withOpacity(1.0 - _buttonFadeAnimation.value),
+                                                  color: Colors.black.withValues(alpha: 1.0 - _buttonFadeAnimation.value),
                                                 ),
                                               ),
                                             ),
@@ -375,13 +374,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(_isButtonHovered ? 0.8 : 0.6),
+                color: Colors.black.withValues(alpha: _isButtonHovered ? 0.8 : 0.6),
                 offset: Offset(0, _isButtonHovered ? 12 : 8),
                 blurRadius: _isButtonHovered ? 25 : 20,
                 spreadRadius: _isButtonHovered ? 3 : 2,
               ),
               BoxShadow(
-                color: Colors.red.withOpacity(_isButtonHovered ? 0.6 : 0.4),
+                color: Colors.red.withValues(alpha: _isButtonHovered ? 0.6 : 0.4),
                 offset: const Offset(0, 0),
                 blurRadius: _isButtonHovered ? 20 : 15,
                 spreadRadius: _isButtonHovered ? 2 : 1,
@@ -402,7 +401,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.white.withOpacity(_isButtonHovered ? 0.4 : 0.3),
+                        Colors.white.withValues(alpha: _isButtonHovered ? 0.4 : 0.3),
                         Colors.transparent,
                       ],
                     ),
@@ -426,9 +425,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.white.withOpacity(0.1),
+                          Colors.white.withValues(alpha: 0.1),
                           Colors.transparent,
-                          Colors.white.withOpacity(0.05),
+                          Colors.white.withValues(alpha: 0.05),
                         ],
                       ),
                     ),

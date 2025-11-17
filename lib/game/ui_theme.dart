@@ -40,21 +40,29 @@ class UITheme {
   // —— 辅助：颜色微调（避免额外依赖） ——
   static Color _tint(Color c, double amount) {
     amount = amount.clamp(0.0, 1.0);
+    final int a = (c.a * 255).round();
+    final int r = (c.r * 255).round();
+    final int g = (c.g * 255).round();
+    final int b = (c.b * 255).round();
     return Color.fromARGB(
-      c.alpha,
-      c.red + ((255 - c.red) * amount).round(),
-      c.green + ((255 - c.green) * amount).round(),
-      c.blue + ((255 - c.blue) * amount).round(),
+      a,
+      r + ((255 - r) * amount).round(),
+      g + ((255 - g) * amount).round(),
+      b + ((255 - b) * amount).round(),
     );
   }
 
   static Color _shade(Color c, double amount) {
     amount = amount.clamp(0.0, 1.0);
+    final int a = (c.a * 255).round();
+    final int r = (c.r * 255).round();
+    final int g = (c.g * 255).round();
+    final int b = (c.b * 255).round();
     return Color.fromARGB(
-      c.alpha,
-      (c.red * (1 - amount)).round(),
-      (c.green * (1 - amount)).round(),
-      (c.blue * (1 - amount)).round(),
+      a,
+      (r * (1 - amount)).round(),
+      (g * (1 - amount)).round(),
+      (b * (1 - amount)).round(),
     );
   }
 }

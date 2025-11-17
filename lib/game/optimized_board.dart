@@ -24,6 +24,7 @@ import 'package:escape_from_school/game/alchemy_view.dart';
 import 'package:escape_from_school/game/item_usage_progress.dart';
 import 'package:escape_from_school/game/chest_exploration_progress.dart';
 import 'package:escape_from_school/game/chest_search_overlay.dart';
+import 'package:escape_from_school/game/safe_search_overlay.dart';
 import 'package:escape_from_school/game/oxygen_system.dart';
 import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
 import 'package:escape_from_school/game/music.dart';
@@ -259,7 +260,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
 
   Future<void> _preloadImages() async {
     // 加载地形图片
-    final terrainTypes = ['grass', 'wall', 'water', 'path', 'building', 'woods', 'shop', 'chest'];
+    final terrainTypes = ['grass', 'wall', 'water', 'path', 'building', 'woods', 'shop', 'chest', 'safe'];
     
     try {
       for (String terrain in terrainTypes) {
@@ -1529,6 +1530,39 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           }
         } else {
           print('宝箱不可见，无法交互');
+        }
+      }
+    }
+
+    // 检查保险箱点击
+    if (gameState.safePositions.isNotEmpty) {
+      for (final safePos in gameState.safePositions) {
+        final double safeScreenX = mapOffsetX + (safePos.x * tileSize);
+        final double safeScreenY = mapOffsetY + (safePos.y * tileSize);
+        final Rect safeRect = Rect.fromLTWH(safeScreenX, safeScreenY, tileSize, tileSize);
+        if (safeRect.contains(localPosition)) {
+          final math.Point<int> safePoint = math.Point(safePos.x.toInt(), safePos.y.toInt());
+          bool isSafeVisible = false;
+          if (gameStateNotifier.smoothVisionManager != null) {
+            final opacity = gameStateNotifier.smoothVisionManager!.getTileOpacity(safePoint);
+            isSafeVisible = opacity > 0.0;
+          } else {
+            isSafeVisible = gameState.visibleTiles.contains(safePoint);
+          }
+          if (isSafeVisible) {
+            final double playerX = gameState.playerPosition.x;
+            final double playerY = gameState.playerPosition.y;
+            final double distance = math.sqrt(
+              math.pow(playerX - safePos.x, 2) + math.pow(playerY - safePos.y, 2)
+            );
+            if (distance <= 1.5) {
+              gameStateNotifier.openSafeAtPosition(safePos);
+              return;
+            } else {
+              gameStateNotifier.addBroadcastMessage('距离太远，无法打开保险箱', BroadcastMessageType.system);
+              return;
+            }
+          }
         }
       }
     }
@@ -2877,8 +2911,9 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           
           // 功能按钮
           _buildActionButtons(gameState),
-          // 宝箱搜索页面叠加层（整页覆盖，拦截交互）
+          // 宝箱/保险箱搜索页面叠加层（整页覆盖，拦截交互）
           const ChestSearchOverlay(),
+          const SafeSearchOverlay(),
 
           // 关键区域：提示框置于最上层，不被任何叠加层遮挡
           _buildBroadcastBox(gameState),
@@ -3091,7 +3126,7 @@ class _GameAreaPainter extends CustomPainter {
             // 使用贴图渲染，应用透明度
             final Rect srcRect = Rect.fromLTWH(0, 0, terrainImage.width.toDouble(), terrainImage.height.toDouble());
             final Paint imagePaint = Paint()
-              ..color = Colors.white.withOpacity(tileOpacity);
+              ..color = Colors.white.withValues(alpha: tileOpacity);
             canvas.drawImageRect(terrainImage, srcRect, tileRect, imagePaint);
           } else {
             // 回退到颜色渲染（使用改进的颜色和渐变效果）
@@ -3238,8 +3273,30 @@ class _GameAreaPainter extends CustomPainter {
           }
         }
         
-        _drawChest(canvas, chestX, chestY, tileSize, chestOpacity);
+      _drawChest(canvas, chestX, chestY, tileSize, chestOpacity);
+    }
+
+    // 绘制保险箱（仅在可见时）
+    for (final safePos in gameState.safePositions) {
+      final double safeX = mapOffsetX + (safePos.x * tileSize);
+      final double safeY = mapOffsetY + (safePos.y * tileSize);
+      if (safeX > -tileSize && safeX < size.width && safeY > -tileSize && safeY < size.height) {
+        final math.Point<int> safePoint = math.Point(safePos.x.toInt(), safePos.y.toInt());
+        double safeOpacity = 1.0;
+        if (smoothVisionManager != null) {
+          safeOpacity = smoothVisionManager!.getTileOpacity(safePoint);
+          if (safeOpacity <= 0.0) {
+            continue;
+          }
+        } else {
+          final bool isVisible = gameState.visibleTiles.contains(safePoint);
+          if (!isVisible) {
+            continue;
+          }
+        }
+        _drawSafe(canvas, safeX, safeY, tileSize, safeOpacity);
       }
+    }
     }
     
     // 绘制地面物品
@@ -3722,6 +3779,28 @@ class _GameAreaPainter extends CustomPainter {
     canvas.drawRect(chestRect, glowPaint);
   }
 
+  void _drawSafe(Canvas canvas, double safeX, double safeY, double tileSize, double opacity) {
+    final ui.Image? safeImage = terrainImages['safe'];
+    final Rect safeRect = Rect.fromLTWH(safeX, safeY, tileSize, tileSize);
+    if (safeImage != null) {
+      final Rect srcRect = Rect.fromLTWH(0, 0, safeImage.width.toDouble(), safeImage.height.toDouble());
+      final Paint imagePaint = Paint()..color = Colors.white.withValues(alpha: opacity);
+      canvas.drawImageRect(safeImage, srcRect, safeRect, imagePaint);
+    } else {
+      final Paint paint = Paint()..color = Colors.lightBlueAccent.withValues(alpha: opacity);
+      canvas.drawRRect(RRect.fromRectAndRadius(safeRect, const Radius.circular(6)), paint);
+      final Paint border = Paint()
+        ..color = Colors.blueAccent.withValues(alpha: opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      canvas.drawRRect(RRect.fromRectAndRadius(safeRect, const Radius.circular(6)), border);
+      final double lockSize = tileSize * 0.28;
+      final Rect lockRect = Rect.fromCenter(center: Offset(safeX + tileSize / 2, safeY + tileSize / 2), width: lockSize, height: lockSize);
+      final Paint lockPaint = Paint()..color = Colors.blueGrey.withValues(alpha: opacity);
+      canvas.drawRRect(RRect.fromRectAndRadius(lockRect, const Radius.circular(4)), lockPaint);
+    }
+  }
+
   /// 绘制地面物品
   void _drawGroundItems(Canvas canvas, double itemX, double itemY, double tileSize, List<dynamic> items, double opacity) {
     if (items.isEmpty) return;
@@ -3748,7 +3827,7 @@ class _GameAreaPainter extends CustomPainter {
 
         // 关键区域：为地面物品添加按等级的边框颜色（最小改动，不引入额外特效）
         final Paint levelBorderPaint = Paint()
-          ..color = _getItemLevelColor(item.level).withOpacity(opacity * 0.85)
+          ..color = _getItemLevelColor(item.level).withValues(alpha: opacity * 0.85)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5;
         canvas.drawRRect(
@@ -3765,7 +3844,7 @@ class _GameAreaPainter extends CustomPainter {
     // 如果有多个物品，显示数量
     if (items.length > 1) {
       final Paint textBackgroundPaint = Paint()
-        ..color = Colors.black.withOpacity(0.7 * opacity);
+        ..color = Colors.black.withValues(alpha: 0.7 * opacity);
       
       // 绘制数量背景圆圈
       final double badgeRadius = tileSize * 0.12;
