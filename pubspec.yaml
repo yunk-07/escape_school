@@ -29,6 +29,7 @@ dependencies:
   # UI and Animation
   cupertino_icons: ^1.0.8
   flutter_animate: ^4.5.0
+  material_design_icons_flutter: ^5.0.0
   
   # Math and Utilities
   vector_math: ^2.1.4

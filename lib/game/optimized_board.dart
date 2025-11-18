@@ -30,6 +30,7 @@ import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
 import 'package:escape_from_school/game/music.dart';
 import 'package:escape_from_school/game/ui_theme.dart' as ui_theme; // 关键区域：引入 UI 主题工具（避免作用域歧义）
 import 'package:escape_from_school/data/props.dart'; // 关键区域：引入物品定义，确保预加载覆盖所有物品图片
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
   final Map<String, dynamic> characterStats;
@@ -2263,6 +2264,114 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
     );
   }
 
+  Widget _buildWeaponControls() {
+    return Positioned(
+      bottom: 50,
+      right: 30,
+      child: Consumer(
+        builder: (context, ref, child) {
+          final gameState = ref.watch(optimizedGameStateProvider);
+          if (gameState.showInventory || gameState.showShop || gameState.showAlchemy) {
+            return const SizedBox.shrink();
+          }
+          final hasWeapon = (gameState.equipmentSlots['weapon'] != null);
+          if (!hasWeapon) {
+            return const SizedBox.shrink();
+          }
+          final bool showAmmo = gameState.selectedAttackMode == AttackMode.ranged && gameState.weaponMagazineSize > 0;
+          final String ammoText = showAmmo ? '${gameState.weaponClipAmmo}/${gameState.weaponTotalAmmo}' : '';
+          final Color ammoColor = (gameState.weaponClipAmmo <= 0) ? Colors.redAccent : Colors.white;
+          final bool canReload = showAmmo && !gameState.isReloading && gameState.weaponClipAmmo < gameState.weaponMagazineSize && gameState.weaponTotalAmmo > 0;
+          final double reloadProgress = gameState.isReloading ? gameState.reloadProgress : 0.0;
+          final notifier = ref.read(optimizedGameStateProvider.notifier);
+
+          return SizedBox(
+            width: 260,
+            height: 160,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (showAmmo) Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black.withOpacity(0.35),
+                        border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(MdiIcons.ammunition, color: Colors.amber, size: 18),
+                          const SizedBox(width: 6),
+                          Text(ammoText, style: TextStyle(color: ammoColor, fontSize: 14, fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 72,
+                            height: 28,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      color: Colors.white.withOpacity(0.10),
+                                    ),
+                                  ),
+                                ),
+                                if (gameState.isReloading)
+                                  Positioned.fill(
+                                    child: FractionallySizedBox(
+                                      alignment: Alignment.centerLeft,
+                                      widthFactor: reloadProgress,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(6),
+                                          color: Colors.lightBlueAccent.withOpacity(0.35),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                Text(gameState.isReloading ? '换弹中' : '换弹', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                                Positioned.fill(
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: canReload ? () => notifier.startReload() : null,
+                                      splashColor: Colors.white24,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // const SizedBox(height: 10),
+                JoystickController(
+                  showCancelArea: true,
+                  onMove: (dx, dy, intensity) {
+                    notifier.onWeaponJoystickMove(dx, dy, intensity);
+                  },
+                  onRelease: (canceled, dx, dy, intensity) {
+                    notifier.onWeaponJoystickRelease(canceled, dx, dy, intensity);
+                  },
+                  onStop: () {},
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // 构建功能按钮
   Widget _buildActionButtons(OptimizedGameState gameState) {
     final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
@@ -2626,6 +2735,16 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           // 移动速度
           _buildStatRow('移动速度', '${stats['moveSpeed']?.toInt() ?? 100}', 
                        Icons.directions_run, Colors.orange, 1.0),
+
+          // 子弹显示（在饱食度条上方，仅远程模式）
+          if (gameState.selectedAttackMode == AttackMode.ranged && gameState.weaponMagazineSize > 0)
+            _buildStatRow(
+              '子弹',
+              '${gameState.weaponClipAmmo}/${gameState.weaponTotalAmmo}',
+              MdiIcons.ammunition,
+              (gameState.weaponClipAmmo <= 0) ? Colors.redAccent : Colors.amber,
+              1.0,
+            ),
           
           // 饱食度（使用动态上限）
           _buildStatRow(
@@ -2905,6 +3024,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           // 交互控制组件（最高优先级，不受伤害效果影响）
           // 移动控制（摇杆）
           _buildMovementControls(),
+          _buildWeaponControls(),
           // 关键区域：在左下角常显玩家坐标（不影响操作）
           _buildPlayerCoordinates(gameState),
           _buildZoneLabel(gameState),
@@ -3381,6 +3501,128 @@ class _GameAreaPainter extends CustomPainter {
         tileSize / 3,
         playerPaint,
       );
+    }
+    final weaponItem = gameState.equipmentSlots['weapon'];
+    if (weaponItem != null) {
+      final ui.Image? weaponImage = terrainImages[weaponItem.image];
+      final double baseSize = tileSize * 0.6;
+      double dirX = gameState.weaponJoystickX ?? 0.0;
+      double dirY = gameState.weaponJoystickY ?? 0.0;
+      if (gameState.isWeaponAiming) {
+        // use current aiming
+      } else if (gameState.weaponAttackStartTime != null) {
+        // keep last release direction
+      } else {
+        dirX = gameState.playerPosition.facingRight ? 1.0 : -1.0;
+        dirY = 0.0;
+      }
+      final double angle = math.atan2(dirY, dirX == 0.0 && dirY == 0.0 ? 1e-6 : dirX);
+      final double offsetR = tileSize * 0.45;
+      final double wx = playerScreenX + math.cos(angle) * offsetR;
+      final double wy = playerScreenY + math.sin(angle) * offsetR;
+      if (weaponImage != null) {
+        final Rect srcRect = Rect.fromLTWH(0, 0, weaponImage.width.toDouble(), weaponImage.height.toDouble());
+        final Rect dstRect = Rect.fromCenter(center: const Offset(0, 0), width: baseSize, height: baseSize);
+        canvas.save();
+        canvas.translate(wx, wy);
+        canvas.rotate(angle);
+        if (dirX < 0) {
+          canvas.scale(1.0, -1.0);
+        }
+        canvas.drawImageRect(weaponImage, srcRect, dstRect, Paint());
+        canvas.restore();
+      } else {
+        final Rect fallbackRect = Rect.fromCenter(center: Offset(wx, wy), width: baseSize, height: baseSize);
+        final Paint p = Paint()..color = Colors.redAccent;
+        canvas.drawRect(fallbackRect, p);
+      }
+      if (gameState.isWeaponAiming && gameState.selectedAttackMode == AttackMode.ranged) {
+        final double maxDist = gameState.rangedAttackTemplate.distance * tileSize;
+        final Offset aimStart = Offset(wx, wy);
+        final Offset aimEnd = Offset(
+          wx + math.cos(angle) * maxDist,
+          wy + math.sin(angle) * maxDist,
+        );
+        final Paint aimPaint = Paint()
+          ..color = Colors.white.withValues(alpha: 0.7)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(aimStart, aimEnd, aimPaint);
+      }
+      if (gameState.isReloading && gameState.selectedAttackMode == AttackMode.ranged) {
+        final double r = tileSize * 0.55;
+        final Rect ringRect = Rect.fromCircle(center: Offset(wx, wy), radius: r);
+        final double sweep = 2 * math.pi * gameState.reloadProgress;
+        final Paint bg = Paint()
+          ..color = Colors.white.withValues(alpha: 0.15)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6.0;
+        final Paint fg = Paint()
+          ..color = Colors.lightBlueAccent.withValues(alpha: 0.85)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6.0
+          ..strokeCap = StrokeCap.round;
+        canvas.drawArc(ringRect, -math.pi / 2, 2 * math.pi, false, bg);
+        canvas.drawArc(ringRect, -math.pi / 2, sweep, false, fg);
+      }
+      if (gameState.weaponAttackStartTime != null && gameState.selectedAttackMode == AttackMode.melee) {
+        final int elapsed = DateTime.now().difference(gameState.weaponAttackStartTime!).inMilliseconds;
+        int maxDuration = 320;
+        if (elapsed >= 0 && elapsed <= maxDuration) {
+          final double t = (elapsed / maxDuration).clamp(0.0, 1.0);
+          final double alpha = (1.0 - t).clamp(0.0, 1.0);
+          final double radius = gameState.meleeAttackTemplate.distance * tileSize;
+          final double sweep = gameState.meleeAttackTemplate.range;
+          final Rect arcRect = Rect.fromCircle(center: Offset(playerScreenX, playerScreenY), radius: radius);
+          final Paint arcPaint = Paint()
+            ..color = gameState.meleeAttackTemplate.color.withValues(alpha: alpha)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 6.0 * (1.0 - t)
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 4);
+          canvas.drawArc(arcRect, angle - sweep / 2, sweep, false, arcPaint);
+        }
+      }
+      if (gameState.projectiles.isNotEmpty) {
+        for (final p in gameState.projectiles) {
+          final int elapsed = DateTime.now().difference(p.startTime).inMilliseconds;
+          final double maxDistPx = gameState.rangedAttackTemplate.distance * tileSize;
+          final double speedTilesPerSec = gameState.rangedAttackTemplate.range;
+          final double speedPxPerMs = speedTilesPerSec * tileSize / 1000.0;
+          final int maxDuration = speedPxPerMs <= 0 ? 320 : (maxDistPx / speedPxPerMs).ceil();
+          if (elapsed < 0 || elapsed > maxDuration) continue;
+          final double t = (elapsed / maxDuration).clamp(0.0, 1.0);
+          final double alpha = (1.0 - t).clamp(0.0, 1.0);
+          final double travel = math.min(maxDistPx, speedPxPerMs * elapsed);
+          final Offset start = Offset(wx, wy);
+          final Offset end = Offset(
+            wx + math.cos(p.angle) * travel,
+            wy + math.sin(p.angle) * travel,
+          );
+          final Paint corePaint = Paint()
+            ..color = gameState.rangedAttackTemplate.color.withValues(alpha: alpha)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0
+            ..strokeCap = StrokeCap.round
+            ..blendMode = ui.BlendMode.plus;
+          canvas.drawLine(start, end, corePaint);
+
+          final Paint glowPaint = Paint()
+            ..color = gameState.rangedAttackTemplate.color.withValues(alpha: alpha * 0.6)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 4.0
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 3);
+          canvas.drawLine(start, end, glowPaint);
+
+          final Paint tipPaint = Paint()
+            ..color = Colors.white.withValues(alpha: alpha)
+            ..style = PaintingStyle.fill
+            ..blendMode = ui.BlendMode.plus;
+          canvas.drawCircle(end, 2.0, tipPaint);
+        }
+      }
     }
     
     // 绘制圆形视野边界效果
@@ -3946,9 +4188,9 @@ class _GameAreaPainter extends CustomPainter {
   /// 根据物品类型获取颜色
   Color _getItemTypeColor(String itemType) {
     switch (itemType) {
-      case '装备':
+      case 'equipment':
         return Colors.indigo;
-      case '物品':
+      case 'item':
         return Colors.amber;
       case 'food':
         return Colors.green;
@@ -4154,6 +4396,28 @@ class _GameAreaPainter extends CustomPainter {
         ghostSize / 2 + 5,
         warningPaint,
       );
+    }
+
+    // 伤害数字（显示1秒）
+    final DateTime now = DateTime.now();
+    if (ghost.lastDamageShownAt != null && now.difference(ghost.lastDamageShownAt!).inMilliseconds <= 1000) {
+      final String dmgText = '-${ghost.lastDamageShownValue}';
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: dmgText,
+          style: TextStyle(
+            color: Colors.redAccent.withOpacity(finalOpacity),
+            fontSize: tileSize * 0.35,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final Offset textPos = Offset(
+        ghostRect.center.dx - textPainter.width / 2,
+        ghostRect.center.dy - ghostSize / 2 - textPainter.height,
+      );
+      textPainter.paint(canvas, textPos);
     }
   }
 

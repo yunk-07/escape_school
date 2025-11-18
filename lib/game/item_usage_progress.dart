@@ -232,9 +232,9 @@ class ItemUsageProgress extends ConsumerWidget {
   /// 获取物品类型颜色
   Color _getItemTypeColor(String type) {
     switch (type) {
-      case '装备':
+      case 'equipment':
         return Colors.indigo;
-      case '物品':
+      case 'item':
         return Colors.amber;
       case 'potion':
         return Colors.green;

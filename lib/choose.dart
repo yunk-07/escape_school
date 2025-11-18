@@ -361,6 +361,9 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
             'gold': (widget.character['gold'] as num).toDouble(),
             'food': (widget.character['food'] as num).toDouble(),
             'maxFood': ((widget.character['maxFood'] ?? widget.character['food']) as num).toDouble(),
+            // 关键区域：传递战斗基础字段，确保背包页显示正确
+            'baseDamage': ((widget.character['baseDamage'] ?? 0.0) as num).toDouble(),
+            'baseCritChance': ((widget.character['baseCritChance'] ?? 0.0) as num).toDouble(),
             'initialItems': widget.character['initialItems'],
             'image': widget.character['image'], // 添加image字段
           },

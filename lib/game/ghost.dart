@@ -234,6 +234,11 @@ abstract class Ghost {
   bool isInCooldown = false;
   bool isChasing = false;
   bool isInvisible = false; // 冷却期间不可见
+  int maxHp = 100;
+  int hp = 100;
+  DateTime? lastDamageShownAt;
+  int lastDamageShownValue = 0;
+  DateTime? lastMeleeHitAt;
   
   // 新的位置和移动系统
   GhostPosition? position;  // 精确位置
@@ -254,7 +259,7 @@ abstract class Ghost {
     required this.maxAttacks,
     this.fleeDistance = 10, // 默认逃跑10格距离
   }) : remainingAttacks = maxAttacks,
-       movementState = const GhostMovementState();
+        movementState = const GhostMovementState();
 
   // 攻击玩家时的效果
   Map<String, int> attackEffects();
@@ -262,6 +267,13 @@ abstract class Ghost {
   // 重置攻击次数
   void resetAttacks() {
     remainingAttacks = maxAttacks;
+  }
+
+  void applyDamage(int amount) {
+    if (amount <= 0) return;
+    hp = (hp - amount).clamp(0, maxHp);
+    lastDamageShownAt = DateTime.now();
+    lastDamageShownValue = amount;
   }
 
   // 复制方法，用于创建新实例

@@ -167,7 +167,7 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
           }
         }
         // 关键区域：从全量物品池中挑选对应等级的物品（排除金币）
-        final pool = allItems.where((it) => it.type == '物品' && it.level == chosenLevel && it.id != 'gold').toList();
+        final pool = allItems.where((it) => it.type == 'item' && it.level == chosenLevel && it.id != 'gold').toList();
         if (pool.isNotEmpty) {
           mixed.add(pool[rng.nextInt(pool.length)]);
         } else {

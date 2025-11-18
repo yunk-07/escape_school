@@ -489,6 +489,30 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
 
           // 关键区域：移动速度显示（原始速度删除线灰色 + 当前被削弱速度）
           _buildMoveSpeedRow(stats),
+
+          // 战斗属性：伤害/暴击几率/暴击伤害（按当前武器增幅计算）
+          Builder(
+            builder: (context) {
+              final gameState2 = ref.watch(optimizedGameStateProvider);
+              final double baseDamage = ((gameState2.characterStats['baseDamage'] ?? 0) as num).toDouble();
+              final double amp = (gameState2.weaponDamageAmplify ?? 1.0).toDouble();
+              final double effDamage = baseDamage * amp;
+
+              final double baseCritChance = ((gameState2.characterStats['baseCritChance'] ?? 0.0) as num).toDouble();
+              final double critBonus = (gameState2.weaponCritChanceBonus ?? 0.0).toDouble();
+              final double effCritChance = (baseCritChance + critBonus).clamp(0.0, 1.0);
+
+              final double effCritDamage = (gameState2.weaponCritDamage ?? 1.5).toDouble();
+
+              return Column(
+                children: [
+                  _buildStatRow('伤害', _formatCombatValue(effDamage), Icons.local_fire_department, Colors.orange),
+                  _buildStatRow('暴击几率', '${(effCritChance * 100).toStringAsFixed(0)}%', Icons.bolt, Colors.amber),
+                  _buildStatRow('暴击伤害', '${_formatCombatValue(effCritDamage)} 倍', Icons.auto_awesome, Colors.purpleAccent),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -886,18 +910,12 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: DragTarget<Item>(
-            // 关键区域：按中文类型与槽位映射接受拖拽（兼容旧“装备+equipmentSlot”）
-            onWillAccept: (item) {
+            // 关键区域：按英文类型与槽位映射接受拖拽（equipment + equipmentSlot）
+            onWillAcceptWithDetails: (details) {
+              final item = details.data;
               if (item == null) return false;
-              final matchesByType =
-                  (item.type == '武器' && slot == 'weapon') ||
-                  (item.type == '甲' && slot == 'armor') ||
-                  (item.type == '头' && slot == 'head') ||
-                  (item.type == '背包' && slot == 'bag') ||
-                  (item.type == '裤子' && slot == 'pants') ||
-                  (item.type == '鞋' && slot == 'shoes');
-              final matchesLegacy = (item.type == '装备' && (item.equipmentSlot == slot || (item.equipmentSlot == 'hand' && slot == 'bag')));
-              return matchesByType || matchesLegacy;
+              final matchesByType = (item.type == 'equipment' && item.equipmentSlot == slot);
+              return matchesByType;
             },
             onAccept: (item) {
               ref.read(optimizedGameStateProvider.notifier).equipItemToSlot(item, slot);
@@ -1034,7 +1052,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                                 builder: (context) {
                                   if (equipped == null) return const SizedBox.shrink();
                                   final int maxDur = equipped.effects?['armorValue'] ?? 0;
-                                  final bool show = (equipped.type == '装备') && maxDur > 0;
+                                  final bool show = (equipped.type == 'equipment') && maxDur > 0;
                                   if (!show) return const SizedBox.shrink();
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
@@ -1331,7 +1349,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                        left: 1,
                        right: 8, // 为可能的数量显示留出空间
                         child: Text(
-                          (item.type == '物品' && item.count > 1) ? '${item.name} x ${item.count}' : item.name,
+                          (item.type == 'item' && item.count > 1) ? '${item.name} x ${item.count}' : item.name,
                          style: const TextStyle(
                            color: Colors.white,
                            fontSize: 6, // 缩小文字尺寸适应10列布局
@@ -1355,7 +1373,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                       child: Builder(
                         builder: (context) {
                           final int maxDur = item.effects?['armorValue'] ?? 0;
-                          final bool show = (item.type == '装备') && maxDur > 0;
+                          final bool show = (item.type == 'equipment') && maxDur > 0;
                           if (!show) return const SizedBox.shrink();
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
@@ -1513,7 +1531,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                   ),
                   
                   // 数量显示 - 右上角
-                  if (item.type == '物品' && item.count > 1)
+                  if (item.type == 'item' && item.count > 1)
                     Positioned(
                       top: 2,
                       right: 2,
@@ -1553,7 +1571,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     child: Builder(
                       builder: (context) {
                         final int maxDur = item.effects?['armorValue'] ?? 0;
-                        final bool show = (item.type == '装备') && maxDur > 0;
+                        final bool show = (item.type == 'equipment') && maxDur > 0;
                         if (!show) return const SizedBox.shrink();
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
@@ -1783,8 +1801,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 关键区域：标题与内容之间的微分隔线
@@ -1821,7 +1840,102 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 ),
               ),
               const SizedBox(height: 16),
-              if ((item.type == '装备') && ((item.effects?['armorValue'] ?? 0) > 0)) ...[
+              if ((item.weaponParams ?? const {}) .isNotEmpty) ...[
+                Builder(
+                  builder: (context) {
+                    final Map<String, dynamic> params = item.weaponParams ?? const {};
+                    final String typeStr = (params['attackType'] ?? params['近战/远程'] ?? '').toString();
+                    final bool isRanged = (typeStr == 'ranged' || typeStr == '远程');
+                    final double distance = ((params['distance'] ?? params['距离'] ?? 0) as num).toDouble();
+                    final double rangeVal = ((params['range'] ?? params['范围'] ?? 0) as num).toDouble();
+                    final double dmgAmp = ((params['damageAmplify'] ?? params['增幅伤害'] ?? 1.0) as num).toDouble();
+                    final double critDmg = ((params['critDamage'] ?? params['暴击伤害'] ?? 1.5) as num).toDouble();
+                    final double critChance = ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num).toDouble();
+                    final List<Map<String, String>> entries = [
+                      {'k': '攻击类型', 'v': isRanged ? '远程' : '近战'},
+                      {'k': '距离', 'v': '${distance} 格'},
+                      {'k': isRanged ? '子弹速度' : '弧度', 'v': isRanged ? '${rangeVal} 格/秒' : '$rangeVal'},
+                      {'k': '增幅伤害', 'v': '${dmgAmp} 倍'},
+                      {'k': '暴击伤害', 'v': '${critDmg} 倍'},
+                      {'k': '暴击几率加成', 'v': '${(critChance * 100).toStringAsFixed(0)}%'},
+                    ];
+                    final int half = (entries.length + 1) ~/ 2;
+                    final List<Map<String, String>> left = entries.sublist(0, half);
+                    final List<Map<String, String>> right = entries.sublist(half);
+
+                    return Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(5),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withOpacity(0.06),
+                            Colors.white.withOpacity(0.03),
+                          ],
+                        ),
+                        border: Border.all(color: Colors.white.withOpacity(0.10), width: 1),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: left.map((e) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '${e['k']}:',
+                                      style: TextStyle(color: Colors.grey.shade300, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        e['v'] ?? '',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: _getItemLevelColor(item.level), fontSize: 12, fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )).toList(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: right.map((e) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '${e['k']}:',
+                                      style: TextStyle(color: Colors.grey.shade300, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        e['v'] ?? '',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: _getItemLevelColor(item.level), fontSize: 12, fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )).toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+              if ((item.type == 'equipment') && ((item.effects?['armorValue'] ?? 0) > 0)) ...[
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -1940,6 +2054,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                 ),
               ],
             ],
+            ),
           ),
           actions: [
             // 关键区域：按钮样式统一为圆角与边框，保持一致风格
@@ -2022,26 +2137,12 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
     notifier.dropItemFromInventory(item);
   }
 
-  // 关键区域：根据中文类型或旧字段，推断对应装备槽位
+  // 关键区域：根据英文类型返回装备槽位（equipment -> equipmentSlot）
   String? _slotForItem(Item item) {
-    switch (item.type) {
-      case '武器':
-        return 'weapon';
-      case '甲':
-        return 'armor';
-      case '头':
-        return 'head';
-      case '背包':
-        return 'bag';
-      case '裤子':
-        return 'pants';
-      case '鞋':
-        return 'shoes';
-      case '装备':
-        return (item.equipmentSlot == 'hand') ? 'bag' : item.equipmentSlot; // 兼容旧数据
-      default:
-        return null;
+    if (item.type == 'equipment') {
+      return item.equipmentSlot;
     }
+    return null;
   }
 
   /// 构建垃圾桶拖拽区域
@@ -2124,9 +2225,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
   /// 获取物品类型颜色
   Color _getItemTypeColor(String type) {
     switch (type) {
-      case '装备':
+      case 'equipment':
         return Colors.indigo; // 装备统一为靛蓝
-      case '物品':
+      case 'item':
         return Colors.amber;  // 通用物品统一为琥珀
       case 'potion':
         return Colors.green;
@@ -2146,9 +2247,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
   /// 获取物品类型图标
   IconData _getItemTypeIcon(String type) {
     switch (type) {
-      case '装备':
+      case 'equipment':
         return Icons.security; // 统一用盾牌表示装备
-      case '物品':
+      case 'item':
         return Icons.inventory_2; // 通用物品
       case 'potion':
         return Icons.local_pharmacy;
@@ -2249,6 +2350,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
     
     // 显示小数点后两位
     return doubleValue.toStringAsFixed(2);
+  }
+
+  String _formatCombatValue(dynamic value) {
+    if (value == null) return '0';
+    double v;
+    if (value is double) {
+      v = value;
+    } else if (value is int) {
+      v = value.toDouble();
+    } else {
+      v = 0.0;
+    }
+    if (v.isFinite && v.roundToDouble() == v) {
+      return v.toInt().toString();
+    }
+    return v.toStringAsFixed(2);
   }
 
   /// 计算健康百分比（基于生命值和理智值）

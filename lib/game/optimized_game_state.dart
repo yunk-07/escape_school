@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:math' as math;
+import 'dart:ui' as ui; // 关键区域：用于模板中的颜色参数
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -165,6 +166,26 @@ class OptimizedGameState {
   // 注意：characterStats是不可变的，但其内部的Map内容可能会被修改
   final OptimizedPlayerPosition playerPosition;
   final OptimizedMovementState movementState;
+  final double? weaponJoystickX;
+  final double? weaponJoystickY;
+  final double? weaponJoystickIntensity;
+  final bool isWeaponAiming;
+  final DateTime? weaponAttackStartTime;
+  final AttackTemplate meleeAttackTemplate;  // 关键区域：近战模板
+  final AttackTemplate rangedAttackTemplate; // 关键区域：远程模板
+  final AttackMode selectedAttackMode;       // 关键区域：当前选中的攻击模式
+  // 关键区域：武器伤害参数（来源于物品 weaponParams）
+  final double? weaponDamageAmplify;          // 伤害增幅倍数
+  final double? weaponCritDamage;             // 暴击伤害倍数
+  final double? weaponCritChanceBonus;        // 暴击几率加成
+  final int weaponMagazineSize;               
+  final int weaponClipAmmo;                   
+  final int weaponTotalAmmo;                  
+  final List<Projectile> projectiles;         
+  final bool isReloading;
+  final double reloadProgress;
+  final DateTime? reloadStartTime;
+  final int reloadDurationMs;
   final List<List<String>> map;
   final List<Point<int>> chestPositions;
   final List<Point<int>> safePositions; // 关键区域：保险箱位置列表（仅在建筑物内刷新）
@@ -270,6 +291,33 @@ class OptimizedGameState {
     required this.characterStats,
     required this.playerPosition,  
     required this.movementState,
+    this.weaponJoystickX = 0.0,
+    this.weaponJoystickY = 0.0,
+    this.weaponJoystickIntensity = 0.0,
+    this.isWeaponAiming = false,
+    this.weaponAttackStartTime,
+    this.meleeAttackTemplate = const AttackTemplate(
+      color: ui.Color(0xFFFFA000), // 橙色近战效果
+      distance: 1.2,               // 约1.2格半径
+      range: 1.2,                  // 弧形扫过角宽（弧度）
+    ),
+    this.rangedAttackTemplate = const AttackTemplate(
+      color: ui.Color(0xFF00E5FF), // 青色远程子弹
+      distance: 4.0,               // 子弹飞行距离（格）
+      range: 12.0,                 // 子弹速度（格/秒）
+    ),
+    this.selectedAttackMode = AttackMode.melee,
+    this.weaponDamageAmplify = 1.0,
+    this.weaponCritDamage = 1.5,
+    this.weaponCritChanceBonus = 0.0,
+    this.weaponMagazineSize = 0,
+    this.weaponClipAmmo = 0,
+    this.weaponTotalAmmo = 0,
+    this.projectiles = const [],
+    this.isReloading = false,
+    this.reloadProgress = 0.0,
+    this.reloadStartTime,
+    this.reloadDurationMs = 1000,
     required this.map,
     required this.chestPositions,
     required this.safePositions,
@@ -350,6 +398,25 @@ class OptimizedGameState {
     Map<String, dynamic>? characterStats,
     OptimizedPlayerPosition? playerPosition,
     OptimizedMovementState? movementState,
+    double? weaponJoystickX,
+    double? weaponJoystickY,
+    double? weaponJoystickIntensity,
+    bool? isWeaponAiming,
+    DateTime? weaponAttackStartTime,
+    AttackTemplate? meleeAttackTemplate,
+    AttackTemplate? rangedAttackTemplate,
+    AttackMode? selectedAttackMode,
+    double? weaponDamageAmplify,
+    double? weaponCritDamage,
+    double? weaponCritChanceBonus,
+    int? weaponMagazineSize,
+    int? weaponClipAmmo,
+    int? weaponTotalAmmo,
+    List<Projectile>? projectiles,
+    bool? isReloading,
+    double? reloadProgress,
+    DateTime? reloadStartTime,
+    int? reloadDurationMs,
     List<List<String>>? map,
     List<Point<int>>? chestPositions,
     List<Point<int>>? safePositions,
@@ -421,6 +488,25 @@ class OptimizedGameState {
       characterStats: characterStats ?? this.characterStats,
       playerPosition: playerPosition ?? this.playerPosition,
       movementState: movementState ?? this.movementState,
+      weaponJoystickX: weaponJoystickX ?? this.weaponJoystickX ?? 0.0,
+      weaponJoystickY: weaponJoystickY ?? this.weaponJoystickY ?? 0.0,
+      weaponJoystickIntensity: weaponJoystickIntensity ?? this.weaponJoystickIntensity ?? 0.0,
+      isWeaponAiming: isWeaponAiming ?? this.isWeaponAiming,
+      weaponAttackStartTime: weaponAttackStartTime ?? this.weaponAttackStartTime,
+      meleeAttackTemplate: meleeAttackTemplate ?? this.meleeAttackTemplate,
+      rangedAttackTemplate: rangedAttackTemplate ?? this.rangedAttackTemplate,
+      selectedAttackMode: selectedAttackMode ?? this.selectedAttackMode,
+      weaponDamageAmplify: weaponDamageAmplify ?? this.weaponDamageAmplify ?? 1.0,
+      weaponCritDamage: weaponCritDamage ?? this.weaponCritDamage ?? 1.5,
+      weaponCritChanceBonus: weaponCritChanceBonus ?? this.weaponCritChanceBonus ?? 0.0,
+      weaponMagazineSize: weaponMagazineSize ?? this.weaponMagazineSize,
+      weaponClipAmmo: weaponClipAmmo ?? this.weaponClipAmmo,
+      weaponTotalAmmo: weaponTotalAmmo ?? this.weaponTotalAmmo,
+      projectiles: projectiles ?? this.projectiles,
+      isReloading: isReloading ?? this.isReloading,
+      reloadProgress: reloadProgress ?? this.reloadProgress,
+      reloadStartTime: reloadStartTime ?? this.reloadStartTime,
+      reloadDurationMs: reloadDurationMs ?? this.reloadDurationMs,
       map: map ?? this.map,
       chestPositions: chestPositions ?? this.chestPositions,
       safePositions: safePositions ?? this.safePositions,
@@ -517,6 +603,8 @@ Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> character
     // 关键区域：新增处分机制 —— 初始处分与上限
     'punish': ((characterData['punish'] ?? 0) as num).toDouble(),
     'maxPunish': 10.0,
+    'baseDamage': ((characterData['baseDamage'] ?? 0.0) as num).toDouble(),
+    'baseCritChance': ((characterData['baseCritChance'] ?? 0.0) as num).toDouble(),
   };
 }
 
@@ -715,18 +803,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   // 关键区域：装备/卸下逻辑与效果应用
   /// 装备物品到指定槽位（weapon/armor/head/bag/pants/shoes）
   bool equipItemToSlot(Item item, String slot) {
-    // 关键区域：类型与槽位匹配（支持中文类型与旧“装备+equipmentSlot”兼容）
-    final bool matchesByType =
-        (item.type == '武器' && slot == 'weapon') ||
-        (item.type == '甲' && slot == 'armor') ||
-        (item.type == '头' && slot == 'head') ||
-        (item.type == '背包' && slot == 'bag') ||
-        (item.type == '裤子' && slot == 'pants') ||
-        (item.type == '鞋' && slot == 'shoes');
+    // 关键区域：类型与槽位匹配（英文标准：equipment + equipmentSlot）
+    final bool matchesByType = (item.type == 'equipment' && item.equipmentSlot == slot);
 
-    final bool matchesLegacy = (item.type == '装备' && item.equipmentSlot == slot);
-
-    if (!(matchesByType || matchesLegacy)) {
+    if (!matchesByType) {
       return false;
     }
 
@@ -781,6 +861,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: invItem.usageTime,
           level: invItem.level,
           equipmentSlot: invItem.equipmentSlot,
+          weaponParams: invItem.weaponParams,
         );
       } else {
         inventory.removeAt(idx);
@@ -800,6 +881,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
     updatedSlots[slot] = item;
     state = state.copyWith(playerInventory: inventory, equipmentSlots: updatedSlots);
+    if (slot == 'weapon') {
+      _applyWeaponParamsFromItem(item);
+    }
 
     // 播报消息
     addBroadcastMessage('装备了 ${item.name}', BroadcastMessageType.item);
@@ -821,13 +905,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 关键区域：卸下前容量检查（不足则失败并提示“背包空间不足”）
     List<Item> preInventory = List<Item>.from(state.playerInventory);
-    final bool isEquipment = (equipped.type == '装备') ||
-        (equipped.type == '武器') ||
-        (equipped.type == '甲') ||
-        (equipped.type == '头') ||
-        (equipped.type == '背包') ||
-        (equipped.type == '裤子') ||
-        (equipped.type == '鞋');
+    final bool isEquipment = (equipped.type == 'equipment');
     final bool hasSameId = preInventory.indexWhere((i) => i.id == equipped.id) >= 0;
     final bool needsNewSlot = isEquipment || !hasSameId;
 
@@ -891,6 +969,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         usageTime: equipped.usageTime,
         level: equipped.level,
         equipmentSlot: equipped.equipmentSlot,
+        weaponParams: equipped.weaponParams,
 
       ));
     } else {
@@ -911,6 +990,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: existing.usageTime,
           level: existing.level,
           equipmentSlot: existing.equipmentSlot,
+          weaponParams: existing.weaponParams,
 
         );
       } else {
@@ -927,6 +1007,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: equipped.usageTime,
           level: equipped.level,
           equipmentSlot: equipped.equipmentSlot,
+          weaponParams: equipped.weaponParams,
 
         ));
       }
@@ -936,6 +1017,20 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
     updatedSlots[slot] = null;
     state = state.copyWith(playerInventory: inventory, equipmentSlots: updatedSlots);
+    if (slot == 'weapon') {
+      state = state.copyWith(
+        selectedAttackMode: AttackMode.melee,
+        meleeAttackTemplate: const AttackTemplate(color: ui.Color(0xFFFFA000), distance: 1.2, range: 1.2),
+        rangedAttackTemplate: const AttackTemplate(color: ui.Color(0xFF00E5FF), distance: 4.0, range: 12.0),
+        weaponDamageAmplify: 1.0,
+        weaponCritDamage: 1.5,
+        weaponCritChanceBonus: 0.0,
+        weaponMagazineSize: 0,
+        weaponClipAmmo: 0,
+        weaponTotalAmmo: 0,
+        projectiles: const [],
+      );
+    }
 
     if (notify) {
       addBroadcastMessage('卸下了 ${equipped.name}', BroadcastMessageType.item);
@@ -1093,8 +1188,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         final parts = p.split(':');
         if (parts.length != 2) continue;
         final slot = parts[0];
-        // 关键区域：兼容旧持久化键 hand -> bag
-        final normalizedSlot = (slot == 'hand') ? 'bag' : slot;
         final id = parts[1];
         final item = allItems.firstWhere(
           (i) => i.id == id,
@@ -1104,13 +1197,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             image: '',
             description: '',
             effects: const {},
-            type: '装备',
-            equipmentSlot: normalizedSlot,
+            type: 'equipment',
+            equipmentSlot: slot,
 
           ),
         );
         // 关键区域：护甲耐久用 count 表示——恢复时同步耐久并剔除 armorValue
-        if (normalizedSlot == 'armor' && ((item.effects?['armorValue'] ?? 0) > 0)) {
+        if (slot == 'armor' && ((item.effects?['armorValue'] ?? 0) > 0)) {
           final ch = Map<String, dynamic>.from(state.characterStats);
           ch['armor'] = item.count.toDouble();
           state = state.copyWith(characterStats: ch);
@@ -1120,9 +1213,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         } else {
           _applyeffects(item.effects ?? const {});
         }
-        updatedSlots[normalizedSlot] = item;
+        if (slot == 'hand') {
+          // 历史槽位 hand 不再支持，跳过
+          continue;
+        }
+        updatedSlots[slot] = item;
       }
       state = state.copyWith(equipmentSlots: updatedSlots);
+      final Item? weaponItem = updatedSlots['weapon'];
+      if (weaponItem != null) {
+        _applyWeaponParamsFromItem(weaponItem);
+      }
     } catch (_) {}
   }
 
@@ -1606,12 +1707,175 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     
     // 更新氧气系统
     _updateOxygenSystem();
+    _pruneProjectiles();
+    _resolveRangedHits();
+    _resolveMeleeHits();
+    _updateReloadProgress();
     
     // 通过更新动画帧计数器来强制触发UI刷新
     // 这确保了即使玩家不移动，UI也会定期更新
     state = state.copyWith(
       lastAnimationFrame: currentTime,
     );
+  }
+
+  void _resolveRangedHits() {
+    if (state.projectiles.isEmpty) return;
+    if (state.selectedAttackMode != AttackMode.ranged) return;
+    final ghosts = state.ghostManager.ghosts;
+    if (ghosts.isEmpty) return;
+    final double speedTilesPerSec = state.rangedAttackTemplate.range;
+    final double maxDistTiles = state.rangedAttackTemplate.distance;
+    final DateTime now = DateTime.now();
+    final double px = state.playerPosition.x;
+    final double py = state.playerPosition.y;
+    final double offsetR = 0.45;
+    final List<Projectile> remaining = [];
+    for (final p in state.projectiles) {
+      final int elapsed = now.difference(p.startTime).inMilliseconds;
+      if (elapsed < 0) continue;
+      final double travelTiles = math.min(maxDistTiles, (speedTilesPerSec <= 0 ? 0.0 : (speedTilesPerSec * elapsed / 1000.0)));
+      final double sx = px + math.cos(p.angle) * offsetR;
+      final double sy = py + math.sin(p.angle) * offsetR;
+      final double ex = sx + math.cos(p.angle) * travelTiles;
+      final double ey = sy + math.sin(p.angle) * travelTiles;
+
+      bool hitSomeone = false;
+      for (final g in ghosts) {
+        if (g.isInvisible || g.position == null) continue;
+        final double gx = g.position!.x;
+        final double gy = g.position!.y;
+        final double d = _distancePointToSegment(gx, gy, sx, sy, ex, ey);
+        if (d <= 0.35) {
+          final int damage = _computeDamage(isRanged: true);
+          g.applyDamage(damage);
+          if (g.hp <= 0) {
+            state.ghostManager.removeGhost(g);
+          }
+          hitSomeone = true;
+          break;
+        }
+      }
+
+      if (!hitSomeone) {
+        remaining.add(p);
+      }
+    }
+
+    if (remaining.length != state.projectiles.length) {
+      state = state.copyWith(projectiles: remaining, lastAnimationFrame: DateTime.now().millisecondsSinceEpoch);
+    }
+  }
+
+  void _resolveMeleeHits() {
+    final DateTime? start = state.weaponAttackStartTime;
+    if (start == null) return;
+    final int elapsed = DateTime.now().difference(start).inMilliseconds;
+    final int maxDuration = 320;
+    if (elapsed < 0 || elapsed > maxDuration) return;
+    final ghosts = state.ghostManager.ghosts;
+    if (ghosts.isEmpty) return;
+    final double px = state.playerPosition.x;
+    final double py = state.playerPosition.y;
+    final double jx = state.weaponJoystickX ?? 0.0;
+    final double jy = state.weaponJoystickY ?? 0.0;
+    final double angle = math.atan2(jy, (jx == 0.0 && jy == 0.0) ? 1e-6 : jx);
+    final double radius = state.meleeAttackTemplate.distance;
+    final double sweep = state.meleeAttackTemplate.range;
+    for (final g in ghosts) {
+      if (g.isInvisible || g.position == null) continue;
+      if (g.lastMeleeHitAt != null && g.lastMeleeHitAt == start) continue;
+      final double dx = g.position!.x - px;
+      final double dy = g.position!.y - py;
+      final double dist = math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+      final double ang = math.atan2(dy, dx == 0.0 && dy == 0.0 ? 1e-6 : dx);
+      double diff = _normAngle(ang - angle);
+      if (diff.abs() <= sweep / 2) {
+        final int damage = _computeDamage(isRanged: false);
+        g.applyDamage(damage);
+        g.lastMeleeHitAt = start;
+        if (g.hp <= 0) {
+          state.ghostManager.removeGhost(g);
+        }
+      }
+    }
+    state = state.copyWith(lastAnimationFrame: DateTime.now().millisecondsSinceEpoch);
+  }
+
+  double _normAngle(double a) {
+    while (a > math.pi) a -= 2 * math.pi;
+    while (a < -math.pi) a += 2 * math.pi;
+    return a;
+  }
+
+  double _distancePointToSegment(double px, double py, double x1, double y1, double x2, double y2) {
+    final double dx = x2 - x1;
+    final double dy = y2 - y1;
+    if (dx == 0 && dy == 0) {
+      final double ddx = px - x1;
+      final double ddy = py - y1;
+      return math.sqrt(ddx * ddx + ddy * ddy);
+    }
+    final double t = (((px - x1) * dx) + ((py - y1) * dy)) / (dx * dx + dy * dy);
+    final double clampedT = t.clamp(0.0, 1.0);
+    final double cx = x1 + clampedT * dx;
+    final double cy = y1 + clampedT * dy;
+    final double ddx = px - cx;
+    final double ddy = py - cy;
+    return math.sqrt(ddx * ddx + ddy * ddy);
+  }
+
+  int _computeDamage({required bool isRanged}) {
+    final double baseDamage = ((state.characterStats['baseDamage'] ?? 0) as num).toDouble();
+    final double amp = (state.weaponDamageAmplify ?? 1.0).toDouble();
+    double dmg = baseDamage * amp;
+    final double baseCritChance = ((state.characterStats['baseCritChance'] ?? 0.0) as num).toDouble();
+    final double bonusCrit = (state.weaponCritChanceBonus ?? 0.0).toDouble();
+    final double critChance = (baseCritChance + bonusCrit).clamp(0.0, 1.0);
+    final double critMult = (state.weaponCritDamage ?? 1.5).toDouble();
+    if (critChance > 0.0 && math.Random().nextDouble() < critChance) {
+      dmg *= critMult;
+    }
+    final int result = dmg.round();
+    return result <= 0 ? 1 : result;
+  }
+
+  void _pruneProjectiles() {
+    if (state.projectiles.isEmpty) return;
+    final double distTiles = state.rangedAttackTemplate.distance;
+    final double speedTilesPerSec = state.rangedAttackTemplate.range;
+    final int maxMs = speedTilesPerSec <= 0 ? 320 : ((distTiles / speedTilesPerSec) * 1000).ceil();
+    final DateTime now = DateTime.now();
+    final List<Projectile> kept = state.projectiles.where((p) {
+      final int elapsed = now.difference(p.startTime).inMilliseconds;
+      return elapsed <= maxMs;
+    }).toList();
+    if (kept.length != state.projectiles.length) {
+      state = state.copyWith(projectiles: kept);
+    }
+  }
+
+  void _updateReloadProgress() {
+    if (!state.isReloading || state.reloadStartTime == null) return;
+    final int elapsed = DateTime.now().difference(state.reloadStartTime!).inMilliseconds;
+    final double prog = (elapsed / state.reloadDurationMs).clamp(0.0, 1.0);
+    if (prog < 1.0) {
+      state = state.copyWith(reloadProgress: prog);
+      return;
+    }
+    final int mag = state.weaponMagazineSize;
+    final int clip = state.weaponClipAmmo;
+    final int reserve = state.weaponTotalAmmo;
+    if (mag > 0 && clip < mag && reserve > 0) {
+      final int need = mag - clip;
+      final int load = need <= reserve ? need : reserve;
+      state = state.copyWith(
+        weaponClipAmmo: clip + load,
+        weaponTotalAmmo: reserve - load,
+      );
+    }
+    state = state.copyWith(isReloading: false, reloadProgress: 0.0, reloadStartTime: null);
   }
 
   /// 检查商店是否需要刷新
@@ -2472,6 +2736,165 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
   }
 
+  void onWeaponJoystickMove(double x, double y, double intensity) {
+    final newState = state.copyWith(
+      weaponJoystickX: x,
+      weaponJoystickY: y,
+      weaponJoystickIntensity: intensity,
+      isWeaponAiming: intensity > 0.0,
+    );
+    if (newState != state) {
+      state = newState;
+    }
+  }
+
+  void onWeaponJoystickRelease(bool canceled, double x, double y, double intensity) {
+    if (canceled) {
+      state = state.copyWith(
+        weaponJoystickX: 0.0,
+        weaponJoystickY: 0.0,
+        weaponJoystickIntensity: 0.0,
+        isWeaponAiming: false,
+        weaponAttackStartTime: null,
+        lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+      );
+      if (state.selectedAttackMode == AttackMode.ranged) {
+        final int mag = state.weaponMagazineSize;
+        final int clip = state.weaponClipAmmo;
+        final int reserve = state.weaponTotalAmmo;
+        if (mag > 0 && clip < mag && reserve > 0) {
+          final int need = mag - clip;
+          final int load = need <= reserve ? need : reserve;
+          state = state.copyWith(
+            weaponClipAmmo: clip + load,
+            weaponTotalAmmo: reserve - load,
+            lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+          );
+        }
+      }
+      return;
+    }
+    final now = DateTime.now();
+    if (state.selectedAttackMode == AttackMode.melee) {
+      state = state.copyWith(
+        weaponJoystickX: x,
+        weaponJoystickY: y,
+        weaponJoystickIntensity: intensity,
+        isWeaponAiming: false,
+        weaponAttackStartTime: now,
+        lastAnimationFrame: now.millisecondsSinceEpoch,
+      );
+      Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        if (state.weaponAttackStartTime != null && state.weaponAttackStartTime == now) {
+          state = state.copyWith(
+            weaponAttackStartTime: null,
+            lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+          );
+        }
+      });
+    } else {
+      if (state.isReloading) {
+        return;
+      }
+      final int clip = state.weaponClipAmmo;
+      final int mag = state.weaponMagazineSize;
+      if (mag > 0 && clip <= 0) {
+        return;
+      }
+      final double dirX = x;
+      final double dirY = y;
+      final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
+      final List<Projectile> ps = List<Projectile>.from(state.projectiles);
+      ps.add(Projectile(startTime: now, angle: angle));
+      state = state.copyWith(
+        weaponJoystickX: x,
+        weaponJoystickY: y,
+        weaponJoystickIntensity: intensity,
+        isWeaponAiming: false,
+        projectiles: ps,
+        lastAnimationFrame: now.millisecondsSinceEpoch,
+        weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
+      );
+    }
+  }
+
+  void startReload() {
+    if (state.selectedAttackMode != AttackMode.ranged) return;
+    if (state.isReloading) return;
+    final int mag = state.weaponMagazineSize;
+    final int clip = state.weaponClipAmmo;
+    final int reserve = state.weaponTotalAmmo;
+    if (mag <= 0 || reserve <= 0 || clip >= mag) return;
+    state = state.copyWith(
+      isReloading: true,
+      reloadStartTime: DateTime.now(),
+      reloadProgress: 0.0,
+      lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  // 关键区域：设置近战攻击模板（颜色、攻击距离、范围）
+  void setMeleeAttackTemplate(ui.Color color, double distance, double range) {
+    state = state.copyWith(
+      meleeAttackTemplate: AttackTemplate(color: color, distance: distance, range: range),
+    );
+  }
+
+  // 关键区域：设置远程攻击模板（颜色、攻击距离、范围）
+  void setRangedAttackTemplate(ui.Color color, double distance, double range) {
+    state = state.copyWith(
+      rangedAttackTemplate: AttackTemplate(color: color, distance: distance, range: range),
+    );
+  }
+
+  // 关键区域：选择攻击模式（近战/远程）
+  void selectAttackMode(AttackMode mode) {
+    state = state.copyWith(selectedAttackMode: mode);
+  }
+
+  // 关键区域：从物品读取武器模板与伤害参数并应用
+  void _applyWeaponParamsFromItem(Item item) {
+    final params = item.weaponParams ?? const {};
+    final String typeStr = (params['attackType'] ?? params['近战/远程'] ?? 'melee').toString();
+    final AttackMode mode = (typeStr == 'ranged' || typeStr == '远程') ? AttackMode.ranged : AttackMode.melee;
+    final int colorInt = (params['effectColor'] ?? params['颜色效果'] ?? 0xFFFFA000) as int;
+    final double distance = ((params['distance'] ?? params['距离'] ?? (mode == AttackMode.melee ? 1 : 4)) as num).toDouble();
+    final double range = ((params['range'] ?? params['范围'] ?? (mode == AttackMode.melee ? 1.2 : 12.0)) as num).toDouble();
+    final double amp = ((params['damageAmplify'] ?? params['增幅伤害'] ?? 1.0) as num).toDouble();
+    final double critDmg = ((params['critDamage'] ?? params['暴击伤害'] ?? 1.5) as num).toDouble();
+    final double critChance = ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num).toDouble();
+    final int magazine = ((params['magazineSize'] ?? 0) as num).toInt();
+    final int ammoTotal = ((params['ammoTotal'] ?? 0) as num).toInt();
+    final int reloadMs = ((params['reloadMs'] ?? 1000) as num).toInt();
+
+    if (mode == AttackMode.melee) {
+      state = state.copyWith(
+        selectedAttackMode: AttackMode.melee,
+        meleeAttackTemplate: AttackTemplate(color: ui.Color(colorInt), distance: distance, range: range),
+        weaponDamageAmplify: amp,
+        weaponCritDamage: critDmg,
+        weaponCritChanceBonus: critChance,
+        weaponMagazineSize: 0,
+        weaponClipAmmo: 0,
+        weaponTotalAmmo: 0,
+        reloadDurationMs: 1000,
+        );
+    } else {
+      state = state.copyWith(
+        selectedAttackMode: AttackMode.ranged,
+        rangedAttackTemplate: AttackTemplate(color: ui.Color(colorInt), distance: distance, range: range),
+        weaponDamageAmplify: amp,
+        weaponCritDamage: critDmg,
+        weaponCritChanceBonus: critChance,
+        weaponMagazineSize: magazine,
+        weaponClipAmmo: magazine > 0 ? magazine : 0,
+        weaponTotalAmmo: ammoTotal,
+        reloadDurationMs: reloadMs,
+      );
+    }
+  }
+
   /// 切换背包显示
   void toggleInventory() {
     state = state.copyWith(showInventory: !state.showInventory);
@@ -2727,7 +3150,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   List<Item> _getRandomSafeItemsAtPosition(Point<int> position, {int minItems = 1, int maxItems = 3}) {
     final int count = minItems + math.Random().nextInt(maxItems - minItems + 1);
     final List<Item> candidates = allItems
-        .where((it) => it.type == '物品' && it.level >= 3 && it.level <= 6 && it.id != 'gold')
+        .where((it) => it.type == 'item' && it.level >= 3 && it.level <= 6 && it.id != 'gold')
         .toList();
 
     if (candidates.isEmpty) {
@@ -3020,29 +3443,30 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     const int stackLimit = 16;
     int remaining = item.count;
 
-    if (item.type == '物品') {
+    if (item.type == 'item') {
       // 合并到已有堆叠
       for (int i = 0; i < newInventory.length && remaining > 0; i++) {
         final invItem = newInventory[i];
-        if (invItem.id == item.id && invItem.type == '物品') {
+        if (invItem.id == item.id && invItem.type == 'item') {
           final int free = stackLimit - invItem.count;
           if (free > 0) {
             final int addCount = remaining < free ? remaining : free;
-            newInventory[i] = Item(
-              id: invItem.id,
-              name: invItem.name,
-              image: invItem.image,
-              description: invItem.description,
-              effects: invItem.effects,
-              type: invItem.type,
-              count: invItem.count + addCount,
-              availableInShop: invItem.availableInShop,
-              basePrice: invItem.basePrice,
-              usageTime: invItem.usageTime,
-              level: invItem.level,
-              equipmentSlot: invItem.equipmentSlot,
+        newInventory[i] = Item(
+          id: invItem.id,
+          name: invItem.name,
+          image: invItem.image,
+          description: invItem.description,
+          effects: invItem.effects,
+          type: invItem.type,
+          count: invItem.count + addCount,
+          availableInShop: invItem.availableInShop,
+          basePrice: invItem.basePrice,
+          usageTime: invItem.usageTime,
+          level: invItem.level,
+          equipmentSlot: invItem.equipmentSlot,
+          weaponParams: invItem.weaponParams,
 
-            );
+        );
             remaining -= addCount;
           }
         }
@@ -3074,6 +3498,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: item.usageTime,
           level: item.level,
           equipmentSlot: item.equipmentSlot,
+          weaponParams: item.weaponParams,
 
         ));
         remaining -= toAdd;
@@ -3168,33 +3593,34 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       return false;
     }
 
-    // 堆叠逻辑：仅对 type == '物品' 生效
+    // 堆叠逻辑：仅对 type == 'item' 生效
     const int stackLimit = 16;
     int remaining = item.count;
 
-    if (item.type == '物品') {
+    if (item.type == 'item') {
       // 先尝试合并到已有同类堆叠
       for (int i = 0; i < inventory.length && remaining > 0; i++) {
         final invItem = inventory[i];
-        if (invItem.id == item.id && invItem.type == '物品') {
+        if (invItem.id == item.id && invItem.type == 'item') {
           final int free = stackLimit - invItem.count;
           if (free > 0) {
             final int addCount = remaining < free ? remaining : free;
-            inventory[i] = Item(
-              id: invItem.id,
-              name: invItem.name,
-              image: invItem.image,
-              description: invItem.description,
-              effects: invItem.effects,
-              type: invItem.type,
-              count: invItem.count + addCount,
-              availableInShop: invItem.availableInShop,
-              basePrice: invItem.basePrice,
-              usageTime: invItem.usageTime,
-              level: invItem.level,
-              equipmentSlot: invItem.equipmentSlot,
+        inventory[i] = Item(
+          id: invItem.id,
+          name: invItem.name,
+          image: invItem.image,
+          description: invItem.description,
+          effects: invItem.effects,
+          type: invItem.type,
+          count: invItem.count + addCount,
+          availableInShop: invItem.availableInShop,
+          basePrice: invItem.basePrice,
+          usageTime: invItem.usageTime,
+          level: invItem.level,
+          equipmentSlot: invItem.equipmentSlot,
+          weaponParams: invItem.weaponParams,
 
-            );
+        );
             remaining -= addCount;
           }
         }
@@ -3222,6 +3648,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: item.usageTime,
           level: item.level,
           equipmentSlot: item.equipmentSlot,
+          weaponParams: item.weaponParams,
 
         );
 
@@ -3270,7 +3697,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     // 类型与同类检查
-    if (itemA.type != '物品' || itemB.type != '物品') {
+    if (itemA.type != 'item' || itemB.type != 'item') {
       addBroadcastMessage('只能合成“物品”类型', BroadcastMessageType.system);
       return false;
     }
@@ -3300,6 +3727,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: itemA.usageTime,
       level: newLevel,
       equipmentSlot: itemA.equipmentSlot,
+      weaponParams: itemA.weaponParams,
 
     );
 
@@ -3320,6 +3748,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: itemA.usageTime,
           level: itemA.level,
           equipmentSlot: itemA.equipmentSlot,
+          weaponParams: itemA.weaponParams,
 
         );
       } else {
@@ -3347,6 +3776,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: firstItem.usageTime,
           level: firstItem.level,
           equipmentSlot: firstItem.equipmentSlot,
+          weaponParams: firstItem.weaponParams,
 
         );
       } else {
@@ -3371,6 +3801,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: secondItem.usageTime,
           level: secondItem.level,
           equipmentSlot: secondItem.equipmentSlot,
+          weaponParams: secondItem.weaponParams,
 
         );
       } else {
@@ -3461,7 +3892,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 候选与模板产物（按结果等级从现有物品中选择）
     final List<Item> candidates = allItems
-        .where((it) => it.type == '物品' && it.level == resultLevel && it.id != 'gold')
+        .where((it) => it.type == 'item' && it.level == resultLevel && it.id != 'gold')
         .toList();
 
     if (candidates.isEmpty) {
@@ -3483,6 +3914,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: template.usageTime,
       level: template.level,
       equipmentSlot: template.equipmentSlot,
+      weaponParams: template.weaponParams,
 
     );
 
@@ -3506,6 +3938,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: cur.usageTime,
           level: cur.level,
           equipmentSlot: cur.equipmentSlot,
+          weaponParams: cur.weaponParams,
 
         );
       } else {
@@ -3621,7 +4054,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 关键区域：产物为 props.dart 中“现有物品”，按结果等级选择，不生成新物品
     // 说明：仅选择类型为“物品”的模板，且排除金币（id=='gold'）
     final List<Item> candidates = allItems
-        .where((it) => it.type == '物品' && it.level == resultLevel && it.id != 'gold')
+        .where((it) => it.type == 'item' && it.level == resultLevel && it.id != 'gold')
         .toList();
 
     if (candidates.isEmpty) {
@@ -3643,6 +4076,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: template.usageTime,
       level: template.level,
       equipmentSlot: template.equipmentSlot,
+      weaponParams: template.weaponParams,
 
     );
 
@@ -3666,6 +4100,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: cur.usageTime,
           level: cur.level,
           equipmentSlot: cur.equipmentSlot,
+          weaponParams: cur.weaponParams,
 
         );
       } else {
@@ -3702,7 +4137,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final itemToDrop = inventory[itemIndex];
     
     // 关键区域：护甲装备的 count 表示耐久——丢弃时整件丢弃，保持耐久
-    final bool isArmorWithBlock = (itemToDrop.type == '装备' && ((itemToDrop.effects?['armorValue'] ?? 0) > 0));
+    final bool isArmorWithBlock = (itemToDrop.type == 'equipment' && ((itemToDrop.effects?['armorValue'] ?? 0) > 0));
     if (isArmorWithBlock) {
       inventory.removeAt(itemIndex);
       _dropItemToGround(itemToDrop, state.playerPosition.toPoint());
@@ -3722,6 +4157,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: itemToDrop.usageTime,
           level: itemToDrop.level,
           equipmentSlot: itemToDrop.equipmentSlot,
+          weaponParams: itemToDrop.weaponParams,
 
         );
         final singleItem = Item(
@@ -3737,6 +4173,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           usageTime: itemToDrop.usageTime,
           level: itemToDrop.level,
           equipmentSlot: itemToDrop.equipmentSlot,
+          weaponParams: itemToDrop.weaponParams,
 
         );
         _dropItemToGround(singleItem, state.playerPosition.toPoint());
@@ -4095,6 +4532,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             usageTime: item.usageTime,
             level: item.level,
             equipmentSlot: item.equipmentSlot,
+            weaponParams: item.weaponParams,
           );
         } else {
           inventory.removeAt(itemIndex);
@@ -4151,6 +4589,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             usageTime: item.usageTime,
             level: item.level,
             equipmentSlot: item.equipmentSlot,
+            weaponParams: item.weaponParams,
           );
         } else {
           inventory.removeAt(itemIndex);
@@ -4218,15 +4657,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
     final removed = visible.removeAt(index);
 
-    // 堆叠逻辑（仅对 type == '物品' 生效，上限16）
+    // 堆叠逻辑（仅对 type == 'item' 生效，上限16）
     const int stackLimit = 16;
     int remaining = removed.count;
 
-    if (removed.type == '物品') {
+    if (removed.type == 'item') {
       // 先尝试合并到已有同类堆叠
       for (int i = 0; i < inventory.length && remaining > 0; i++) {
         final invItem = inventory[i];
-        if (invItem.id == removed.id && invItem.type == '物品') {
+        if (invItem.id == removed.id && invItem.type == 'item') {
           final int free = stackLimit - invItem.count;
           if (free > 0) {
             final int addCount = remaining < free ? remaining : free;
@@ -4243,6 +4682,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
               usageTime: invItem.usageTime,
               level: invItem.level,
               equipmentSlot: invItem.equipmentSlot,
+              weaponParams: invItem.weaponParams,
 
             );
             remaining -= addCount;
@@ -4261,21 +4701,22 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           return false;
         }
         final int toAdd = remaining > stackLimit ? stackLimit : remaining;
-        inventory.add(Item(
-          id: removed.id,
-          name: removed.name,
-          image: removed.image,
-          description: removed.description,
-          effects: removed.effects,
-          type: removed.type,
-          count: toAdd,
-          availableInShop: removed.availableInShop,
-          basePrice: removed.basePrice,
-          usageTime: removed.usageTime,
-          level: removed.level,
-          equipmentSlot: removed.equipmentSlot,
+            inventory.add(Item(
+              id: removed.id,
+              name: removed.name,
+              image: removed.image,
+              description: removed.description,
+              effects: removed.effects,
+              type: removed.type,
+              count: toAdd,
+              availableInShop: removed.availableInShop,
+              basePrice: removed.basePrice,
+              usageTime: removed.usageTime,
+              level: removed.level,
+              equipmentSlot: removed.equipmentSlot,
+              weaponParams: removed.weaponParams,
 
-        ));
+            ));
         remaining -= toAdd;
       }
     } else {
@@ -5400,3 +5841,26 @@ final optimizedMovementStateProvider = Provider<OptimizedMovementState>((ref) {
 final optimizedVisibleTilesProvider = Provider<Set<Point<int>>>((ref) {
   return ref.watch(optimizedGameStateProvider).visibleTiles;
 });
+// 关键区域：攻击模式枚举（近战/远程）
+enum AttackMode { melee, ranged }
+
+// 关键区域：攻击模板（颜色、攻击距离、范围）
+class AttackTemplate {
+  final ui.Color color;
+  final double distance;
+  final double range;
+  const AttackTemplate({
+    required this.color,
+    required this.distance,
+    required this.range,
+  });
+}
+
+class Projectile {
+  final DateTime startTime;
+  final double angle;
+  const Projectile({
+    required this.startTime,
+    required this.angle,
+  });
+}

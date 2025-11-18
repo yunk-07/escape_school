@@ -14,6 +14,10 @@
  * - maxHp    最大生命值（未设置则默认等于 hp）
  * - maxSan   最大精神值（未设置则默认等于 san）
  * - maxFood  最大饱食度（未设置则默认等于 food）
+ * 
+ * 关键区域：战斗基础字段
+ * - baseDamage      基础伤害（与武器伤害增幅共同作用）
+ * - baseCritChance  基础暴击几率（与武器暴击加成共同作用）
  */
 
 final List<Map<String, dynamic>> manData = const [
@@ -34,6 +38,9 @@ final List<Map<String, dynamic>> manData = const [
     'rarityBoost': 0.0,
     // 关键区域：初始物品（props.dart 的 id），用于验证机制
     'initialItems': const ['hanbao'],
+    // 关键区域：基础伤害与基础暴击几率（用于攻击结算）
+    'baseDamage': 10.0,
+    'baseCritChance': 0.05,
   },
   {
     'name': '已经困了',
@@ -50,6 +57,8 @@ final List<Map<String, dynamic>> manData = const [
     'maxOxygen': 10.0,  // 最大氧气值
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
+    'baseDamage': 8.0,
+    'baseCritChance': 0.04,
   },
   {
     'name': '速度之王',
@@ -66,6 +75,8 @@ final List<Map<String, dynamic>> manData = const [
     'maxOxygen': 10.0,  // 最大氧气值
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
+    'baseDamage': 9.0,
+    'baseCritChance': 0.06,
   },
 
   {
@@ -84,6 +95,8 @@ final List<Map<String, dynamic>> manData = const [
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 990.0,
     // 关键区域：初始物品（使用 props.dart 中的物品 id）
-    'initialItems': const ['m-three-armor_fangdan','wine'],
+    'initialItems': const ['m-three-armor_fangdan','wine','speed_gloves','g-one-gun'],
+    'baseDamage': 20.0,
+    'baseCritChance': 0.20,
   },
 ];

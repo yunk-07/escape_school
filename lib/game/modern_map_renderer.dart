@@ -345,9 +345,9 @@ class MapPainter extends CustomPainter {
   /// 根据物品类型获取颜色
   Color _getItemTypeColor(String itemType) {
     switch (itemType) {
-      case '装备':
+      case 'equipment':
         return Colors.indigo;
-      case '物品':
+      case 'item':
         return Colors.amber;
       case 'food':
         return Colors.green;

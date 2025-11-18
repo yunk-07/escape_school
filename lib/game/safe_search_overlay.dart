@@ -611,9 +611,9 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
 
   IconData _typeIcon(String type) {
     switch (type) {
-      case '装备':
+      case 'equipment':
         return Icons.security;
-      case '物品':
+      case 'item':
         return Icons.inventory_2;
       case 'potion':
         return Icons.local_pharmacy;
