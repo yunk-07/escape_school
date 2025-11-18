@@ -209,6 +209,10 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
   final Map<String, ui.Image> terrainImages = {};
   ui.Image? characterImage;
   bool _hasNavigatedToGameOver = false; // 防止重复导航到游戏结束页面
+  Offset? _aimTouchPoint;
+  double _aimNX = 0.0;
+  double _aimNY = 0.0;
+  bool _aimActive = false;
   
   // 视野边界闪烁动画控制器
   AnimationController? _visionBorderFlashController;
@@ -1440,6 +1444,48 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
         color: Colors.black,
         child: GestureDetector(
           onTapDown: (details) => _handleMapTap(details, gameState),
+          onPanStart: (details) {
+            final hasWeapon = (gameState.equipmentSlots['weapon'] != null);
+            if (!hasWeapon) return;
+            final Offset p = details.localPosition;
+            setState(() {
+              _aimTouchPoint = p;
+              _aimNX = 0.0;
+              _aimNY = 0.0;
+              _aimActive = false;
+            });
+          },
+          onPanUpdate: (details) {
+            final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+            final hasWeapon = (gameState.equipmentSlots['weapon'] != null);
+            if (!hasWeapon) return;
+            final Offset p = details.localPosition;
+            final Offset base = _aimTouchPoint ?? p;
+            final double dx = p.dx - base.dx;
+            final double dy = p.dy - base.dy;
+            final double radius = (MediaQuery.of(context).size.shortestSide * 0.25);
+            final double norm = math.sqrt(dx * dx + dy * dy);
+            final double intensity = (norm / radius).clamp(0.0, 1.0);
+            final double nx = norm > 0.0 ? (dx / norm) : 0.0;
+            final double ny = norm > 0.0 ? (dy / norm) : 0.0;
+            notifier.onWeaponJoystickMove(nx, ny, intensity);
+            setState(() {
+              _aimTouchPoint = base;
+              _aimNX = nx;
+              _aimNY = ny;
+              _aimActive = intensity > 0.05;
+            });
+          },
+          onPanEnd: (details) {
+            final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
+            notifier.onWeaponJoystickMove(0.0, 0.0, 0.0);
+            setState(() {
+              _aimActive = false;
+              _aimTouchPoint = null;
+              _aimNX = 0.0;
+              _aimNY = 0.0;
+            });
+          },
           child: Consumer(
             builder: (context, ref, child) {
               final damageEvent = ref.watch(damageEventProvider);
@@ -1454,6 +1500,10 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                       smoothVisionManager: gameStateNotifier.smoothVisionManager,
                       damageEvent: damageEvent,
                       visionBorderFlashValue: _visionBorderFlashAnimation?.value ?? 1.0,
+                      aimTouchPoint: _aimTouchPoint,
+                      aimNX: _aimNX,
+                      aimNY: _aimNY,
+                      aimActive: _aimActive,
                     ),
                     size: Size.infinite,
                   );
@@ -2284,6 +2334,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
           final bool canReload = showAmmo && !gameState.isReloading && gameState.weaponClipAmmo < gameState.weaponMagazineSize && gameState.weaponTotalAmmo > 0;
           final double reloadProgress = gameState.isReloading ? gameState.reloadProgress : 0.0;
           final notifier = ref.read(optimizedGameStateProvider.notifier);
+          final double fireBtnSize = 72.0; // 关键区域：开火按钮圆形尺寸
 
           return SizedBox(
             width: 260,
@@ -2353,16 +2404,56 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                     ),
                   ],
                 ),
-                // const SizedBox(height: 10),
-                JoystickController(
-                  showCancelArea: true,
-                  onMove: (dx, dy, intensity) {
-                    notifier.onWeaponJoystickMove(dx, dy, intensity);
+                const SizedBox(height: 12),
+                // 关键区域：开火按钮改为圆形，并以按钮滑动方向作为武器朝向
+                GestureDetector(
+                  onTap: () {
+                    notifier.fireWeapon();
                   },
-                  onRelease: (canceled, dx, dy, intensity) {
-                    notifier.onWeaponJoystickRelease(canceled, dx, dy, intensity);
+                  onPanStart: (details) {
+                    if (gameState.equipmentSlots['weapon'] == null) return;
+                    final double cx = fireBtnSize / 2;
+                    final double cy = fireBtnSize / 2;
+                    final double dx = details.localPosition.dx - cx;
+                    final double dy = details.localPosition.dy - cy;
+                    final double norm = math.sqrt(dx * dx + dy * dy);
+                    final double radius = fireBtnSize / 2;
+                    final double intensity = (norm / radius).clamp(0.0, 1.0);
+                    final double nx = norm > 0.0 ? (dx / norm) : 0.0;
+                    final double ny = norm > 0.0 ? (dy / norm) : 0.0;
+                    notifier.onWeaponJoystickMove(nx, ny, intensity);
                   },
-                  onStop: () {},
+                  onPanUpdate: (details) {
+                    if (gameState.equipmentSlots['weapon'] == null) return;
+                    final double cx = fireBtnSize / 2;
+                    final double cy = fireBtnSize / 2;
+                    final double dx = details.localPosition.dx - cx;
+                    final double dy = details.localPosition.dy - cy;
+                    final double norm = math.sqrt(dx * dx + dy * dy);
+                    final double radius = fireBtnSize / 2;
+                    final double intensity = (norm / radius).clamp(0.0, 1.0);
+                    final double nx = norm > 0.0 ? (dx / norm) : 0.0;
+                    final double ny = norm > 0.0 ? (dy / norm) : 0.0;
+                    notifier.onWeaponJoystickMove(nx, ny, intensity);
+                  },
+                  onPanEnd: (details) {
+                    notifier.onWeaponJoystickMove(0.0, 0.0, 0.0);
+                  },
+                  child: SizedBox(
+                    width: fireBtnSize,
+                    height: fireBtnSize,
+                    child: Material(
+                      color: Colors.orangeAccent.withOpacity(0.85),
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: Center(
+                        child: Transform.rotate(
+                          angle: 45 * 3.14159 / 180,
+                          child: Icon(MdiIcons.bullet , color: Colors.white, size: 30, ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2915,8 +3006,26 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // 主游戏区域
-                _buildGameArea(gameState),
+              // 主游戏区域
+              _buildGameArea(gameState),
+              if (_aimActive && _aimTouchPoint != null)
+                Positioned(
+                  left: _aimTouchPoint!.dx - 60,
+                  top: _aimTouchPoint!.dy - 60,
+                  child: SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: CustomPaint(
+                      painter: JoystickPainter(
+                        knobX: _aimNX * ((120 / 2) * 0.8),
+                        knobY: _aimNY * ((120 / 2) * 0.8),
+                        baseColor: const Color(0x66FFFFFF),
+                        knobColor: const Color(0xFFFFFFFF),
+                        size: 120,
+                      ),
+                    ),
+                  ),
+                ),
               
                 // 精神值环形图（左上角）
                 _buildSanityCircle(gameState),
@@ -3178,6 +3287,10 @@ class _GameAreaPainter extends CustomPainter {
   final SmoothVisionManager? smoothVisionManager;
   final DamageEvent? damageEvent;
   final double visionBorderFlashValue; // 视野边界闪烁动画值
+  final Offset? aimTouchPoint;
+  final double aimNX;
+  final double aimNY;
+  final bool aimActive;
 
   _GameAreaPainter({
     required this.gameState,
@@ -3186,6 +3299,10 @@ class _GameAreaPainter extends CustomPainter {
     this.smoothVisionManager,
     this.damageEvent,
     this.visionBorderFlashValue = 1.0, // 默认值为1.0（不闪烁）
+    this.aimTouchPoint,
+    this.aimNX = 0.0,
+    this.aimNY = 0.0,
+    this.aimActive = false,
   });
 
   @override
@@ -3508,13 +3625,9 @@ class _GameAreaPainter extends CustomPainter {
       final double baseSize = tileSize * 0.6;
       double dirX = gameState.weaponJoystickX ?? 0.0;
       double dirY = gameState.weaponJoystickY ?? 0.0;
-      if (gameState.isWeaponAiming) {
-        // use current aiming
-      } else if (gameState.weaponAttackStartTime != null) {
-        // keep last release direction
-      } else {
-        dirX = gameState.playerPosition.facingRight ? 1.0 : -1.0;
-        dirY = 0.0;
+      if (dirX == 0.0 && dirY == 0.0) {
+        dirX = gameState.lastWeaponAimX;
+        dirY = gameState.lastWeaponAimY;
       }
       final double angle = math.atan2(dirY, dirX == 0.0 && dirY == 0.0 ? 1e-6 : dirX);
       final double offsetR = tileSize * 0.45;
@@ -3536,19 +3649,38 @@ class _GameAreaPainter extends CustomPainter {
         final Paint p = Paint()..color = Colors.redAccent;
         canvas.drawRect(fallbackRect, p);
       }
-      if (gameState.isWeaponAiming && gameState.selectedAttackMode == AttackMode.ranged) {
+      // 关键区域：远程预瞄线改为虚线（仅滑动瞄准时显示）
+      if ((gameState.isWeaponAiming || aimActive) && gameState.selectedAttackMode == AttackMode.ranged) {
         final double maxDist = gameState.rangedAttackTemplate.distance * tileSize;
-        final Offset aimStart = Offset(wx, wy);
-        final Offset aimEnd = Offset(
-          wx + math.cos(angle) * maxDist,
-          wy + math.sin(angle) * maxDist,
-        );
-        final Paint aimPaint = Paint()
-          ..color = Colors.white.withValues(alpha: 0.7)
+        final double dx = math.cos(angle);
+        final double dy = math.sin(angle);
+        final Paint dashPaint = Paint()
+          ..color = Colors.white.withValues(alpha: 0.75)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.0
           ..strokeCap = StrokeCap.round;
-        canvas.drawLine(aimStart, aimEnd, aimPaint);
+        final double dash = math.max(6.0, tileSize * 0.12);
+        final double gap = dash * 0.7;
+        double t = 0.0;
+        while (t < maxDist) {
+          final double t2 = math.min(t + dash, maxDist);
+          final Offset p1 = Offset(wx + dx * t, wy + dy * t);
+          final Offset p2 = Offset(wx + dx * t2, wy + dy * t2);
+          canvas.drawLine(p1, p2, dashPaint);
+          t += dash + gap;
+        }
+      }
+      // 关键区域：近战模式预瞄扇形（基于模板的距离与范围）
+      if ((gameState.isWeaponAiming || aimActive) && gameState.selectedAttackMode == AttackMode.melee) {
+        final double radius = gameState.meleeAttackTemplate.distance * tileSize;
+        final double sweep = gameState.meleeAttackTemplate.range;
+        final Rect arcRect = Rect.fromCircle(center: Offset(playerScreenX, playerScreenY), radius: radius);
+        final Paint arcPaint = Paint()
+          ..color = gameState.meleeAttackTemplate.color.withValues(alpha: 0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4.0
+          ..strokeCap = StrokeCap.round;
+        canvas.drawArc(arcRect, angle - sweep / 2, sweep, false, arcPaint);
       }
       if (gameState.isReloading && gameState.selectedAttackMode == AttackMode.ranged) {
         final double r = tileSize * 0.55;
@@ -3566,22 +3698,95 @@ class _GameAreaPainter extends CustomPainter {
         canvas.drawArc(ringRect, -math.pi / 2, 2 * math.pi, false, bg);
         canvas.drawArc(ringRect, -math.pi / 2, sweep, false, fg);
       }
+      // 关键区域：近战挥刀动作效果（从起始角扫到终止角，附带拖影）
       if (gameState.weaponAttackStartTime != null && gameState.selectedAttackMode == AttackMode.melee) {
         final int elapsed = DateTime.now().difference(gameState.weaponAttackStartTime!).inMilliseconds;
-        int maxDuration = 320;
+        const int maxDuration = 420;
         if (elapsed >= 0 && elapsed <= maxDuration) {
           final double t = (elapsed / maxDuration).clamp(0.0, 1.0);
-          final double alpha = (1.0 - t).clamp(0.0, 1.0);
           final double radius = gameState.meleeAttackTemplate.distance * tileSize;
-          final double sweep = gameState.meleeAttackTemplate.range;
+          final double totalSweep = gameState.meleeAttackTemplate.range;
           final Rect arcRect = Rect.fromCircle(center: Offset(playerScreenX, playerScreenY), radius: radius);
-          final Paint arcPaint = Paint()
-            ..color = gameState.meleeAttackTemplate.color.withValues(alpha: alpha)
+
+          // 刀锋当前所在角度区段（随时间推进）
+          final double segmentSweep = math.max(totalSweep * 0.2, 0.35);
+          final double headPos = -totalSweep / 2 + t * totalSweep; // [-sweep/2, +sweep/2]
+          final double segStart = angle + headPos - segmentSweep / 2;
+
+          // 刀锋核心轨迹
+          final Paint corePaint = Paint()
+            ..color = gameState.meleeAttackTemplate.color.withValues(alpha: 0.9)
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 6.0 * (1.0 - t)
+            ..strokeWidth = 6.0
             ..strokeCap = StrokeCap.round
+            ..blendMode = ui.BlendMode.plus;
+          canvas.drawArc(arcRect, segStart, segmentSweep, false, corePaint);
+
+          // 刀锋光晕
+          final Paint glowPaint = Paint()
+            ..color = gameState.meleeAttackTemplate.color.withValues(alpha: 0.5)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 10.0
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 3);
+          canvas.drawArc(arcRect, segStart, segmentSweep, false, glowPaint);
+
+          // 更强的外层光晕（提升模糊真实感）
+          final Paint glowPaint2 = Paint()
+            ..color = gameState.meleeAttackTemplate.color.withValues(alpha: 0.35)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 14.0
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 8);
+          canvas.drawArc(arcRect, segStart, segmentSweep, false, glowPaint2);
+
+          // 最外层柔化光晕（极低透明度，扩大模糊半径）
+          final Paint glowPaint3 = Paint()
+            ..color = gameState.meleeAttackTemplate.color.withValues(alpha: 0.18)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 18.0
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 12);
+          canvas.drawArc(arcRect, segStart, segmentSweep, false, glowPaint3);
+
+          // 拖影（向后若干段逐渐衰减）
+          for (int i = 1; i <= 3; i++) {
+            final double trailOffset = segmentSweep * 0.6 * i;
+            final double trailAlpha = (0.35 * (1.0 - i / 4)).clamp(0.0, 0.35);
+            final Paint trailPaint = Paint()
+              ..color = gameState.meleeAttackTemplate.color.withValues(alpha: trailAlpha)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 4.0
+              ..strokeCap = StrokeCap.round;
+            canvas.drawArc(arcRect, segStart - trailOffset, segmentSweep, false, trailPaint);
+          }
+
+          // 关键区域：挥刀扇形涂抹（径向渐变填充，配合轻度模糊）
+          final ui.Color smearStart = gameState.meleeAttackTemplate.color.withValues(alpha: 0.0);
+          final ui.Color smearEnd = gameState.meleeAttackTemplate.color.withValues(alpha: 0.22);
+          final Paint smearPaint = Paint()
+            ..style = PaintingStyle.fill
+            ..blendMode = ui.BlendMode.srcOver
+            ..shader = ui.Gradient.radial(
+              Offset(playerScreenX, playerScreenY),
+              radius,
+              [smearStart, smearEnd],
+              [0.6, 1.0],
+            )
             ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 4);
-          canvas.drawArc(arcRect, angle - sweep / 2, sweep, false, arcPaint);
+          canvas.drawArc(arcRect, segStart, segmentSweep, true, smearPaint);
+
+          // 刀锋尖端高光
+          final double tipAngle = angle + headPos;
+          final Offset tip = Offset(
+            playerScreenX + math.cos(tipAngle) * radius,
+            playerScreenY + math.sin(tipAngle) * radius,
+          );
+          final Paint tipPaint = Paint()
+            ..color = Colors.white.withValues(alpha: 0.9)
+            ..style = PaintingStyle.fill
+            ..blendMode = ui.BlendMode.plus;
+          canvas.drawCircle(tip, 2.0, tipPaint);
         }
       }
       if (gameState.projectiles.isNotEmpty) {

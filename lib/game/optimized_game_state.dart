@@ -170,6 +170,8 @@ class OptimizedGameState {
   final double? weaponJoystickY;
   final double? weaponJoystickIntensity;
   final bool isWeaponAiming;
+  final double lastWeaponAimX;
+  final double lastWeaponAimY;
   final DateTime? weaponAttackStartTime;
   final AttackTemplate meleeAttackTemplate;  // 关键区域：近战模板
   final AttackTemplate rangedAttackTemplate; // 关键区域：远程模板
@@ -295,6 +297,8 @@ class OptimizedGameState {
     this.weaponJoystickY = 0.0,
     this.weaponJoystickIntensity = 0.0,
     this.isWeaponAiming = false,
+    this.lastWeaponAimX = 1.0,
+    this.lastWeaponAimY = 0.0,
     this.weaponAttackStartTime,
     this.meleeAttackTemplate = const AttackTemplate(
       color: ui.Color(0xFFFFA000), // 橙色近战效果
@@ -402,6 +406,8 @@ class OptimizedGameState {
     double? weaponJoystickY,
     double? weaponJoystickIntensity,
     bool? isWeaponAiming,
+    double? lastWeaponAimX,
+    double? lastWeaponAimY,
     DateTime? weaponAttackStartTime,
     AttackTemplate? meleeAttackTemplate,
     AttackTemplate? rangedAttackTemplate,
@@ -492,6 +498,8 @@ class OptimizedGameState {
       weaponJoystickY: weaponJoystickY ?? this.weaponJoystickY ?? 0.0,
       weaponJoystickIntensity: weaponJoystickIntensity ?? this.weaponJoystickIntensity ?? 0.0,
       isWeaponAiming: isWeaponAiming ?? this.isWeaponAiming,
+      lastWeaponAimX: lastWeaponAimX ?? this.lastWeaponAimX,
+      lastWeaponAimY: lastWeaponAimY ?? this.lastWeaponAimY,
       weaponAttackStartTime: weaponAttackStartTime ?? this.weaponAttackStartTime,
       meleeAttackTemplate: meleeAttackTemplate ?? this.meleeAttackTemplate,
       rangedAttackTemplate: rangedAttackTemplate ?? this.rangedAttackTemplate,
@@ -2737,11 +2745,25 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   void onWeaponJoystickMove(double x, double y, double intensity) {
+    final double prevX = state.weaponJoystickX ?? 0.0;
+    final double prevY = state.weaponJoystickY ?? 0.0;
+    const double alpha = 0.35;
+    double sx = prevX * (1 - alpha) + x * alpha;
+    double sy = prevY * (1 - alpha) + y * alpha;
+    final double mag = math.sqrt(sx * sx + sy * sy);
+    if (mag > 1.0 && mag > 0.0) {
+      sx /= mag;
+      sy /= mag;
+    }
+    final bool aiming = intensity > 0.05;
     final newState = state.copyWith(
-      weaponJoystickX: x,
-      weaponJoystickY: y,
+      weaponJoystickX: sx,
+      weaponJoystickY: sy,
       weaponJoystickIntensity: intensity,
-      isWeaponAiming: intensity > 0.0,
+      isWeaponAiming: aiming,
+      lastWeaponAimX: aiming ? sx : state.lastWeaponAimX,
+      lastWeaponAimY: aiming ? sy : state.lastWeaponAimY,
+      lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
     );
     if (newState != state) {
       state = newState;
@@ -2784,7 +2806,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponAttackStartTime: now,
         lastAnimationFrame: now.millisecondsSinceEpoch,
       );
-      Timer(const Duration(milliseconds: 300), () {
+      // 关键区域：同步近战挥刀动画时长
+      Timer(const Duration(milliseconds: 420), () {
         if (!mounted) return;
         if (state.weaponAttackStartTime != null && state.weaponAttackStartTime == now) {
           state = state.copyWith(
@@ -2817,6 +2840,59 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
       );
     }
+  }
+
+  void fireWeapon() {
+    final now = DateTime.now();
+    if (state.selectedAttackMode == AttackMode.melee) {
+      final double jx = state.weaponJoystickX ?? 0.0;
+      final double jy = state.weaponJoystickY ?? 0.0;
+      final double ax = (jx == 0.0 && jy == 0.0) ? state.lastWeaponAimX : jx;
+      final double ay = (jx == 0.0 && jy == 0.0) ? state.lastWeaponAimY : jy;
+      state = state.copyWith(
+        weaponJoystickX: ax,
+        weaponJoystickY: ay,
+        weaponAttackStartTime: now,
+        lastAnimationFrame: now.millisecondsSinceEpoch,
+      );
+      // 关键区域：同步近战挥刀动画时长
+      Timer(const Duration(milliseconds: 420), () {
+        if (!mounted) return;
+        if (state.weaponAttackStartTime != null && state.weaponAttackStartTime == now) {
+          state = state.copyWith(
+            weaponAttackStartTime: null,
+            lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+          );
+        }
+      });
+      return;
+    }
+    if (state.isReloading) {
+      return;
+    }
+    final int clip = state.weaponClipAmmo;
+    final int mag = state.weaponMagazineSize;
+    if (mag > 0 && clip <= 0) {
+      return;
+    }
+    double dirX = state.weaponJoystickX ?? 0.0;
+    double dirY = state.weaponJoystickY ?? 0.0;
+    if (dirX == 0.0 && dirY == 0.0) {
+      dirX = state.lastWeaponAimX;
+      dirY = state.lastWeaponAimY;
+    }
+    if (dirX == 0.0 && dirY == 0.0) {
+      dirX = state.playerPosition.facingRight ? 1.0 : -1.0;
+      dirY = 0.0;
+    }
+    final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
+    final List<Projectile> ps = List<Projectile>.from(state.projectiles);
+    ps.add(Projectile(startTime: now, angle: angle));
+    state = state.copyWith(
+      projectiles: ps,
+      lastAnimationFrame: now.millisecondsSinceEpoch,
+      weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
+    );
   }
 
   void startReload() {

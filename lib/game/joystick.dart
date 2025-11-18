@@ -30,7 +30,6 @@ class _JoystickControllerState extends State<JoystickController> {
   double _knobX = 0.0;
   double _knobY = 0.0;
   bool _isDragging = false;
-  bool _isInCancelArea = false;
 
   @override
   Widget build(BuildContext context) {
@@ -57,30 +56,6 @@ class _JoystickControllerState extends State<JoystickController> {
                 size: Size(widget.size, widget.size),
               ),
             ),
-            if (widget.showCancelArea)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: widget.size * 0.5,
-                  height: widget.size * 0.5,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: (_isDragging && _isInCancelArea)
-                        ? Colors.red.withOpacity(0.7)
-                        : Colors.red.withOpacity(0.4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.close, color: Colors.white, size: 28),
-                ),
-              ),
           ],
         ),
       ),
@@ -118,14 +93,7 @@ class _JoystickControllerState extends State<JoystickController> {
     final normalizedX = _knobX / maxRadius;
     final normalizedY = _knobY / maxRadius;
 
-    if (widget.showCancelArea) {
-      final double cancelRadius = widget.size * 0.35;
-      final Offset cancelCenter = Offset(widget.size - cancelRadius, cancelRadius);
-      final double cancelDist = sqrt(pow(p.dx - cancelCenter.dx, 2) + pow(p.dy - cancelCenter.dy, 2));
-      _isInCancelArea = cancelDist <= cancelRadius;
-    } else {
-      _isInCancelArea = false;
-    }
+    // 取消区域已移除
     
     setState(() {});
     
@@ -136,7 +104,7 @@ class _JoystickControllerState extends State<JoystickController> {
   void _onPanEnd(DragEndDetails details) {
     final double center = widget.size / 2;
     final double maxRadius = center * 0.8;
-    final bool canceled = _isInCancelArea;
+    final bool canceled = false;
     final double normalizedX = (maxRadius == 0) ? 0.0 : _knobX / maxRadius;
     final double normalizedY = (maxRadius == 0) ? 0.0 : _knobY / maxRadius;
     final double intensity = (maxRadius == 0) ? 0.0 : min(sqrt(_knobX * _knobX + _knobY * _knobY) / maxRadius, 1.0);
@@ -144,7 +112,6 @@ class _JoystickControllerState extends State<JoystickController> {
       _knobX = 0.0;
       _knobY = 0.0;
       _isDragging = false;
-      _isInCancelArea = false;
     });
     if (widget.onRelease != null) {
       widget.onRelease!(canceled, normalizedX, normalizedY, intensity);
