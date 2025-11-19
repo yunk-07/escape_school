@@ -2354,7 +2354,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                       ),
                       child: Row(
                         children: [
-                          const Icon(MdiIcons.ammunition, color: Colors.amber, size: 18),
+                          Icon(MdiIcons.ammunition, color: Color((gameState.selectedAttackMode == AttackMode.ranged ? gameState.rangedAttackTemplate.color : gameState.meleeAttackTemplate.color).value), size: 18),
                           const SizedBox(width: 6),
                           Text(ammoText, style: TextStyle(color: ammoColor, fontSize: 14, fontWeight: FontWeight.w700)),
                           const SizedBox(width: 10),
@@ -2439,20 +2439,96 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                   onPanEnd: (details) {
                     notifier.onWeaponJoystickMove(0.0, 0.0, 0.0);
                   },
-                  child: SizedBox(
-                    width: fireBtnSize,
-                    height: fireBtnSize,
-                    child: Material(
-                      color: Colors.orangeAccent.withOpacity(0.85),
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: Center(
-                        child: Transform.rotate(
-                          angle: 45 * 3.14159 / 180,
-                          child: Icon(MdiIcons.bullet , color: Colors.white, size: 30, ),
+                  child: Builder(
+                    builder: (context) {
+                      final ui.Color accentUI = gameState.selectedAttackMode == AttackMode.ranged
+                          ? gameState.rangedAttackTemplate.color
+                          : const ui.Color(0xFF00E5FF);
+                      final Color accent = Color(accentUI.value);
+                      return SizedBox(
+                        width: fireBtnSize,
+                        height: fireBtnSize,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // 基础立体圆（深色渐变，不使用淡黄色）
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  center: const Alignment(-0.4, -0.4),
+                                  radius: 0.9,
+                                  colors: const [
+                                    Color(0xFF1F2329),
+                                    Color(0xFF343A41),
+                                  ],
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x66000000),
+                                    blurRadius: 14,
+                                    offset: Offset(0, 6),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: accent.withOpacity(0.9),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            // 内侧斜面高光（模拟倒角）
+                            Center(
+                              child: Container(
+                                width: fireBtnSize * 0.92,
+                                height: fireBtnSize * 0.92,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0x33FFFFFF),
+                                      Color(0x00000000),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // 顶部光泽层
+                            Align(
+                              alignment: Alignment.topCenter,
+                              child: ClipOval(
+                                child: SizedBox(
+                                  width: fireBtnSize,
+                                  height: fireBtnSize * 0.6,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Color(0x44FFFFFF),
+                                          Color(0x00000000),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // 中心图标
+                            Transform.rotate(
+                              angle: 45 * 3.14159 / 180,
+                              child: Icon(
+                                MdiIcons.bullet,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -3805,27 +3881,52 @@ class _GameAreaPainter extends CustomPainter {
             wx + math.cos(p.angle) * travel,
             wy + math.sin(p.angle) * travel,
           );
-          final Paint corePaint = Paint()
-            ..color = gameState.rangedAttackTemplate.color.withValues(alpha: alpha)
+
+          final ui.Color base = gameState.rangedAttackTemplate.color;
+          final Paint gradientPaint = Paint()
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.0
+            ..strokeWidth = 3.0
             ..strokeCap = StrokeCap.round
-            ..blendMode = ui.BlendMode.plus;
-          canvas.drawLine(start, end, corePaint);
+            ..blendMode = ui.BlendMode.plus
+            ..shader = ui.Gradient.linear(
+              start,
+              end,
+              [
+                Colors.white.withValues(alpha: alpha),
+                base.withValues(alpha: alpha),
+              ],
+              const [0.0, 1.0],
+            );
+          canvas.drawLine(start, end, gradientPaint);
 
           final Paint glowPaint = Paint()
-            ..color = gameState.rangedAttackTemplate.color.withValues(alpha: alpha * 0.6)
+            ..color = Color(base.value).withOpacity(alpha * 0.6)
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 4.0
+            ..strokeWidth = 6.0
             ..strokeCap = StrokeCap.round
-            ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 3);
+            ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 4);
           canvas.drawLine(start, end, glowPaint);
 
           final Paint tipPaint = Paint()
             ..color = Colors.white.withValues(alpha: alpha)
             ..style = PaintingStyle.fill
             ..blendMode = ui.BlendMode.plus;
-          canvas.drawCircle(end, 2.0, tipPaint);
+          canvas.drawCircle(end, 2.2, tipPaint);
+
+          final int trailDots = 4;
+          for (int i = 1; i <= trailDots; i++) {
+            final double back = 3.0 * i;
+            final Offset pt = Offset(
+              end.dx - math.cos(p.angle) * back,
+              end.dy - math.sin(p.angle) * back,
+            );
+            final double ta = alpha * (1.0 - i / (trailDots + 1));
+            final Paint dotPaint = Paint()
+              ..color = Color(base.value).withOpacity(ta)
+              ..style = PaintingStyle.fill
+              ..blendMode = ui.BlendMode.plus;
+            canvas.drawCircle(pt, 1.6, dotPaint);
+          }
         }
       }
     }
@@ -4607,11 +4708,14 @@ class _GameAreaPainter extends CustomPainter {
     final DateTime now = DateTime.now();
     if (ghost.lastDamageShownAt != null && now.difference(ghost.lastDamageShownAt!).inMilliseconds <= 1000) {
       final String dmgText = '-${ghost.lastDamageShownValue}';
+      final Color dmgColor = ghost.lastDamageShownIsCrit
+          ? Colors.redAccent.withOpacity(finalOpacity)
+          : Colors.white.withOpacity(finalOpacity);
       final textPainter = TextPainter(
         text: TextSpan(
           text: dmgText,
           style: TextStyle(
-            color: Colors.redAccent.withOpacity(finalOpacity),
+            color: dmgColor,
             fontSize: tileSize * 0.35,
             fontWeight: FontWeight.bold,
           ),

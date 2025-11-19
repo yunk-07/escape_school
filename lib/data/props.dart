@@ -36,6 +36,9 @@ class Item {
   final int level;           // 新增：物品等级（1-7）
   // 关键区域：装备专属字段
   final String? equipmentSlot; // 装备部位：weapon/armor/head/bag/pants/shoes
+  // 关键区域：每件武器的独立弹药状态（与护甲耐久类似按件保存）
+  final int? clipAmmo;      // 当前弹夹内弹药
+  final int? ammoReserve;   // 当前备用弹药（不含弹夹）
   // 关键区域：武器模板参数（从物品读取并应用到攻击效果）
   // 键说明（全部使用英文）：
   // - attackType        攻击类型：'melee' 或 'ranged'
@@ -61,6 +64,8 @@ class Item {
     this.usageTime = 2000, // 默认使用时间2秒
     this.level = 1, // 默认等级1（无色）
     this.equipmentSlot,
+    this.clipAmmo,
+    this.ammoReserve,
     this.weaponParams,
     // this.equipEffects,
   });
@@ -401,7 +406,7 @@ final List<Item> allItems = [
     name: '啤酒',
     image: 'images/items/wine.png',
     description: '你会吃处分的',
-    effects: const {'moveSpeed': -10,'maxHp': 4,'san': 20,'punish': 2},
+    effects: const {'moveSpeed': -10,'maxHp': 4,'san': 20,'punish': 2,'baseDamage':2},
     type:'item',
     level: 3,
     usageTime: 2000,

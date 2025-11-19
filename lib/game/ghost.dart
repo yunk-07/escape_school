@@ -238,6 +238,7 @@ abstract class Ghost {
   int hp = 100;
   DateTime? lastDamageShownAt;
   int lastDamageShownValue = 0;
+  bool lastDamageShownIsCrit = false;
   DateTime? lastMeleeHitAt;
   
   // 新的位置和移动系统
@@ -269,11 +270,12 @@ abstract class Ghost {
     remainingAttacks = maxAttacks;
   }
 
-  void applyDamage(int amount) {
+  void applyDamage(int amount, {bool isCrit = false}) {
     if (amount <= 0) return;
     hp = (hp - amount).clamp(0, maxHp);
     lastDamageShownAt = DateTime.now();
     lastDamageShownValue = amount;
+    lastDamageShownIsCrit = isCrit;
   }
 
   // 复制方法，用于创建新实例

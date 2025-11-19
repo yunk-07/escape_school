@@ -1851,10 +1851,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     final double dmgAmp = ((params['damageAmplify'] ?? params['增幅伤害'] ?? 1.0) as num).toDouble();
                     final double critDmg = ((params['critDamage'] ?? params['暴击伤害'] ?? 1.5) as num).toDouble();
                     final double critChance = ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num).toDouble();
+                    final int ammoTotalParam = ((params['ammoTotal'] ?? 0) as num).toInt();
+                    final int magazineParam = ((params['magazineSize'] ?? 0) as num).toInt();
+                    final gs = ref.watch(optimizedGameStateProvider);
+                    final Item? eqWeapon = gs.equipmentSlots['weapon'];
+                    final bool isEquippedWeapon = (eqWeapon?.id == item.id);
+                    final int currentRemaining = isRanged
+                        ? (isEquippedWeapon
+                            ? (gs.weaponClipAmmo + gs.weaponTotalAmmo)
+                            : ((item.clipAmmo ?? magazineParam) + (item.ammoReserve ?? ammoTotalParam)))
+                        : 0;
                     final List<Map<String, String>> entries = [
                       {'k': '攻击类型', 'v': isRanged ? '远程' : '近战'},
                       {'k': '距离', 'v': '${distance} 格'},
                       {'k': isRanged ? '子弹速度' : '弧度', 'v': isRanged ? '${rangeVal} 格/秒' : '$rangeVal'},
+                      if (isRanged && magazineParam > 0)
+                        {'k': '子弹总数量/剩余', 'v': '$ammoTotalParam/$currentRemaining'},
                       {'k': '增幅伤害', 'v': '${dmgAmp} 倍'},
                       {'k': '暴击伤害', 'v': '${critDmg} 倍'},
                       {'k': '暴击几率加成', 'v': '${(critChance * 100).toStringAsFixed(0)}%'},
@@ -2274,6 +2286,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
       // 关键区域：弹窗效果名称映射——将 maxHp 显示为“最大生命值”
       case 'maxHp':
         return '最大生命值';
+      case 'baseDamage':
+        return '基础伤害';
       case 'maxSan':
         return '最大理智值';
       case 'maxFood':

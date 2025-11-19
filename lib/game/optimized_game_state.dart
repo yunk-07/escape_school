@@ -188,6 +188,9 @@ class OptimizedGameState {
   final double reloadProgress;
   final DateTime? reloadStartTime;
   final int reloadDurationMs;
+  // 关键区域：换弹起始弹药（用于匀速补全计算）
+  final int reloadStartClipAmmo;
+  final int reloadStartReserveAmmo;
   final List<List<String>> map;
   final List<Point<int>> chestPositions;
   final List<Point<int>> safePositions; // 关键区域：保险箱位置列表（仅在建筑物内刷新）
@@ -322,6 +325,8 @@ class OptimizedGameState {
     this.reloadProgress = 0.0,
     this.reloadStartTime,
     this.reloadDurationMs = 1000,
+    this.reloadStartClipAmmo = 0,
+    this.reloadStartReserveAmmo = 0,
     required this.map,
     required this.chestPositions,
     required this.safePositions,
@@ -423,6 +428,8 @@ class OptimizedGameState {
     double? reloadProgress,
     DateTime? reloadStartTime,
     int? reloadDurationMs,
+    int? reloadStartClipAmmo,
+    int? reloadStartReserveAmmo,
     List<List<String>>? map,
     List<Point<int>>? chestPositions,
     List<Point<int>>? safePositions,
@@ -515,6 +522,8 @@ class OptimizedGameState {
       reloadProgress: reloadProgress ?? this.reloadProgress,
       reloadStartTime: reloadStartTime ?? this.reloadStartTime,
       reloadDurationMs: reloadDurationMs ?? this.reloadDurationMs,
+      reloadStartClipAmmo: reloadStartClipAmmo ?? this.reloadStartClipAmmo,
+      reloadStartReserveAmmo: reloadStartReserveAmmo ?? this.reloadStartReserveAmmo,
       map: map ?? this.map,
       chestPositions: chestPositions ?? this.chestPositions,
       safePositions: safePositions ?? this.safePositions,
@@ -951,6 +960,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         usageTime: equipped.usageTime,
         level: equipped.level,
         equipmentSlot: equipped.equipmentSlot,
+        weaponParams: equipped.weaponParams,
+        clipAmmo: equipped.clipAmmo,
+        ammoReserve: equipped.ammoReserve,
       );
       state = state.copyWith(equipmentSlots: updatedSlotsPre);
       // 角色护甲清零
@@ -978,6 +990,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         level: equipped.level,
         equipmentSlot: equipped.equipmentSlot,
         weaponParams: equipped.weaponParams,
+        clipAmmo: equipped.clipAmmo,
+        ammoReserve: equipped.ammoReserve,
 
       ));
     } else {
@@ -999,6 +1013,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: existing.level,
           equipmentSlot: existing.equipmentSlot,
           weaponParams: existing.weaponParams,
+          clipAmmo: existing.clipAmmo,
+          ammoReserve: existing.ammoReserve,
 
         );
       } else {
@@ -1016,6 +1032,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: equipped.level,
           equipmentSlot: equipped.equipmentSlot,
           weaponParams: equipped.weaponParams,
+          clipAmmo: equipped.clipAmmo,
+          ammoReserve: equipped.ammoReserve,
 
         ));
       }
@@ -1681,7 +1699,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 启动独立的游戏循环定时器
   void _startGameLoopTimer() {
     _gameLoopTimer = Timer.periodic(
-      const Duration(milliseconds: 500), // 每500ms强制刷新一次UI
+      const Duration(milliseconds: 100),
       (timer) {
         _updateGameLoop();
       }
@@ -1755,8 +1773,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         final double gy = g.position!.y;
         final double d = _distancePointToSegment(gx, gy, sx, sy, ex, ey);
         if (d <= 0.35) {
-          final int damage = _computeDamage(isRanged: true);
-          g.applyDamage(damage);
+          final ({int value, bool isCrit}) damage = _computeDamage(isRanged: true);
+          g.applyDamage(damage.value, isCrit: damage.isCrit);
           if (g.hp <= 0) {
             state.ghostManager.removeGhost(g);
           }
@@ -1800,8 +1818,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       final double ang = math.atan2(dy, dx == 0.0 && dy == 0.0 ? 1e-6 : dx);
       double diff = _normAngle(ang - angle);
       if (diff.abs() <= sweep / 2) {
-        final int damage = _computeDamage(isRanged: false);
-        g.applyDamage(damage);
+        final ({int value, bool isCrit}) damage = _computeDamage(isRanged: false);
+        g.applyDamage(damage.value, isCrit: damage.isCrit);
         g.lastMeleeHitAt = start;
         if (g.hp <= 0) {
           state.ghostManager.removeGhost(g);
@@ -1834,7 +1852,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return math.sqrt(ddx * ddx + ddy * ddy);
   }
 
-  int _computeDamage({required bool isRanged}) {
+  ({int value, bool isCrit}) _computeDamage({required bool isRanged}) {
     final double baseDamage = ((state.characterStats['baseDamage'] ?? 0) as num).toDouble();
     final double amp = (state.weaponDamageAmplify ?? 1.0).toDouble();
     double dmg = baseDamage * amp;
@@ -1842,11 +1860,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final double bonusCrit = (state.weaponCritChanceBonus ?? 0.0).toDouble();
     final double critChance = (baseCritChance + bonusCrit).clamp(0.0, 1.0);
     final double critMult = (state.weaponCritDamage ?? 1.5).toDouble();
+    bool isCrit = false;
     if (critChance > 0.0 && math.Random().nextDouble() < critChance) {
       dmg *= critMult;
+      isCrit = true;
     }
     final int result = dmg.round();
-    return result <= 0 ? 1 : result;
+    final int finalValue = result <= 0 ? 1 : result;
+    return (value: finalValue, isCrit: isCrit);
   }
 
   void _pruneProjectiles() {
@@ -1868,22 +1889,48 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (!state.isReloading || state.reloadStartTime == null) return;
     final int elapsed = DateTime.now().difference(state.reloadStartTime!).inMilliseconds;
     final double prog = (elapsed / state.reloadDurationMs).clamp(0.0, 1.0);
-    if (prog < 1.0) {
-      state = state.copyWith(reloadProgress: prog);
-      return;
-    }
     final int mag = state.weaponMagazineSize;
-    final int clip = state.weaponClipAmmo;
-    final int reserve = state.weaponTotalAmmo;
-    if (mag > 0 && clip < mag && reserve > 0) {
-      final int need = mag - clip;
-      final int load = need <= reserve ? need : reserve;
-      state = state.copyWith(
-        weaponClipAmmo: clip + load,
-        weaponTotalAmmo: reserve - load,
+    final int startClip = state.reloadStartClipAmmo;
+    final int startReserve = state.reloadStartReserveAmmo;
+    final int maxLoadable = math.min(mag - startClip, startReserve);
+    final int loadedSoFar = (maxLoadable * prog).floor();
+    final int expectedClip = (startClip + loadedSoFar).clamp(0, mag);
+    final int expectedReserve = (startReserve - loadedSoFar).clamp(0, 1 << 30);
+
+    final Item? w = state.equipmentSlots['weapon'];
+    final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
+    if (w != null) {
+      slots['weapon'] = Item(
+        id: w.id,
+        name: w.name,
+        image: w.image,
+        description: w.description,
+        effects: w.effects,
+        type: w.type,
+        count: w.count,
+        availableInShop: w.availableInShop,
+        basePrice: w.basePrice,
+        usageTime: w.usageTime,
+        level: w.level,
+        equipmentSlot: w.equipmentSlot,
+        weaponParams: w.weaponParams,
+        clipAmmo: expectedClip,
+        ammoReserve: expectedReserve,
       );
     }
-    state = state.copyWith(isReloading: false, reloadProgress: 0.0, reloadStartTime: null);
+
+    state = state.copyWith(
+      reloadProgress: prog,
+      weaponClipAmmo: expectedClip,
+      weaponTotalAmmo: expectedReserve,
+      equipmentSlots: slots,
+    );
+
+    // 关键区域：达到满弹或备用耗尽或进度完成时，结束换弹
+    final bool finished = prog >= 1.0 || expectedClip >= mag || expectedReserve <= 0;
+    if (finished) {
+      state = state.copyWith(isReloading: false, reloadStartTime: null);
+    }
   }
 
   /// 检查商店是否需要刷新
@@ -2780,20 +2827,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponAttackStartTime: null,
         lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
       );
-      if (state.selectedAttackMode == AttackMode.ranged) {
-        final int mag = state.weaponMagazineSize;
-        final int clip = state.weaponClipAmmo;
-        final int reserve = state.weaponTotalAmmo;
-        if (mag > 0 && clip < mag && reserve > 0) {
-          final int need = mag - clip;
-          final int load = need <= reserve ? need : reserve;
-          state = state.copyWith(
-            weaponClipAmmo: clip + load,
-            weaponTotalAmmo: reserve - load,
-            lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
-          );
-        }
-      }
+      // 关键区域：移除自动回弹药逻辑，弹药不自动恢复
       return;
     }
     final now = DateTime.now();
@@ -2830,6 +2864,28 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
       final List<Projectile> ps = List<Projectile>.from(state.projectiles);
       ps.add(Projectile(startTime: now, angle: angle));
+      // 关键区域：射击后同步弹夹弹药到装备武器对象
+      final Item? w = state.equipmentSlots['weapon'];
+      final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
+      if (w != null) {
+        slots['weapon'] = Item(
+          id: w.id,
+          name: w.name,
+          image: w.image,
+          description: w.description,
+          effects: w.effects,
+          type: w.type,
+          count: w.count,
+          availableInShop: w.availableInShop,
+          basePrice: w.basePrice,
+          usageTime: w.usageTime,
+          level: w.level,
+          equipmentSlot: w.equipmentSlot,
+          weaponParams: w.weaponParams,
+          clipAmmo: math.max(0, clip - 1),
+          ammoReserve: state.weaponTotalAmmo,
+        );
+      }
       state = state.copyWith(
         weaponJoystickX: x,
         weaponJoystickY: y,
@@ -2838,6 +2894,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         projectiles: ps,
         lastAnimationFrame: now.millisecondsSinceEpoch,
         weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
+        equipmentSlots: slots,
       );
     }
   }
@@ -2888,10 +2945,33 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
     final List<Projectile> ps = List<Projectile>.from(state.projectiles);
     ps.add(Projectile(startTime: now, angle: angle));
+    // 关键区域：射击后同步弹夹弹药到装备武器对象
+    final Item? w = state.equipmentSlots['weapon'];
+    final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
+    if (w != null) {
+      slots['weapon'] = Item(
+        id: w.id,
+        name: w.name,
+        image: w.image,
+        description: w.description,
+        effects: w.effects,
+        type: w.type,
+        count: w.count,
+        availableInShop: w.availableInShop,
+        basePrice: w.basePrice,
+        usageTime: w.usageTime,
+        level: w.level,
+        equipmentSlot: w.equipmentSlot,
+        weaponParams: w.weaponParams,
+        clipAmmo: math.max(0, state.weaponClipAmmo - 1),
+        ammoReserve: state.weaponTotalAmmo,
+      );
+    }
     state = state.copyWith(
       projectiles: ps,
       lastAnimationFrame: now.millisecondsSinceEpoch,
       weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
+      equipmentSlots: slots,
     );
   }
 
@@ -2906,6 +2986,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       isReloading: true,
       reloadStartTime: DateTime.now(),
       reloadProgress: 0.0,
+      reloadStartClipAmmo: clip,
+      reloadStartReserveAmmo: reserve,
       lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
     );
   }
@@ -2957,15 +3039,38 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         reloadDurationMs: 1000,
         );
     } else {
+      // 关键区域：为当前武器初始化/同步独立弹药
+      final Item? equipped = state.equipmentSlots['weapon'];
+      final int initClip = equipped?.clipAmmo ?? item.clipAmmo ?? (magazine > 0 ? magazine : 0);
+      final int initReserve = equipped?.ammoReserve ?? item.ammoReserve ?? ammoTotal;
+      final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
+      updatedSlots['weapon'] = Item(
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        description: item.description,
+        effects: item.effects,
+        type: item.type,
+        count: item.count,
+        availableInShop: item.availableInShop,
+        basePrice: item.basePrice,
+        usageTime: item.usageTime,
+        level: item.level,
+        equipmentSlot: item.equipmentSlot,
+        weaponParams: item.weaponParams,
+        clipAmmo: initClip,
+        ammoReserve: initReserve,
+      );
       state = state.copyWith(
+        equipmentSlots: updatedSlots,
         selectedAttackMode: AttackMode.ranged,
         rangedAttackTemplate: AttackTemplate(color: ui.Color(colorInt), distance: distance, range: range),
         weaponDamageAmplify: amp,
         weaponCritDamage: critDmg,
         weaponCritChanceBonus: critChance,
         weaponMagazineSize: magazine,
-        weaponClipAmmo: magazine > 0 ? magazine : 0,
-        weaponTotalAmmo: ammoTotal,
+        weaponClipAmmo: initClip,
+        weaponTotalAmmo: initReserve,
         reloadDurationMs: reloadMs,
       );
     }
