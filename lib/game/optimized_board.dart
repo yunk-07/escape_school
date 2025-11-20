@@ -2408,7 +2408,13 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                 // 关键区域：开火按钮改为圆形，并以按钮滑动方向作为武器朝向
                 GestureDetector(
                   onTap: () {
-                    notifier.fireWeapon();
+                    final gs = ProviderScope.containerOf(context).read(optimizedGameStateProvider);
+                    if (gs.selectedAttackMode == AttackMode.ranged) {
+                      // 全自动也支持单点开火；长按才进入连发
+                      notifier.fireWeapon();
+                    } else if (gs.selectedAttackMode == AttackMode.melee) {
+                      notifier.fireWeapon();
+                    }
                   },
                   onPanStart: (details) {
                     if (gameState.equipmentSlots['weapon'] == null) return;
@@ -2438,6 +2444,46 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
                   },
                   onPanEnd: (details) {
                     notifier.onWeaponJoystickMove(0.0, 0.0, 0.0);
+                  },
+                  onLongPressStart: (details) {
+                    final gs = ProviderScope.containerOf(context).read(optimizedGameStateProvider);
+                    if (gs.selectedAttackMode == AttackMode.ranged && gs.weaponFireMode == FireMode.fullAuto) {
+                      final Offset localPos = details.localPosition;
+                      final double cx = fireBtnSize / 2;
+                      final double cy = fireBtnSize / 2;
+                      final double dx = localPos.dx - cx;
+                      final double dy = localPos.dy - cy;
+                      final double norm = math.sqrt(dx * dx + dy * dy);
+                      final double radius = fireBtnSize / 2;
+                      final double intensity = (norm / radius).clamp(0.0, 1.0);
+                      final double nx = norm > 0.0 ? (dx / norm) : 0.0;
+                      final double ny = norm > 0.0 ? (dy / norm) : 0.0;
+                      notifier.onWeaponJoystickMove(nx, ny, intensity);
+                      notifier.handleFireButtonPress();
+                    }
+                  },
+                  onLongPressMoveUpdate: (details) {
+                    final gs = ProviderScope.containerOf(context).read(optimizedGameStateProvider);
+                    if (gs.selectedAttackMode == AttackMode.ranged && gs.weaponFireMode == FireMode.fullAuto) {
+                      final Offset localPos = details.localPosition;
+                      final double cx = fireBtnSize / 2;
+                      final double cy = fireBtnSize / 2;
+                      final double dx = localPos.dx - cx;
+                      final double dy = localPos.dy - cy;
+                      final double norm = math.sqrt(dx * dx + dy * dy);
+                      final double radius = fireBtnSize / 2;
+                      final double intensity = (norm / radius).clamp(0.0, 1.0);
+                      final double nx = norm > 0.0 ? (dx / norm) : 0.0;
+                      final double ny = norm > 0.0 ? (dy / norm) : 0.0;
+                      notifier.onWeaponJoystickMove(nx, ny, intensity);
+                    }
+                  },
+                  onLongPressEnd: (details) {
+                    final gs = ProviderScope.containerOf(context).read(optimizedGameStateProvider);
+                    if (gs.selectedAttackMode == AttackMode.ranged && gs.weaponFireMode == FireMode.fullAuto) {
+                      notifier.handleFireButtonRelease();
+                      notifier.onWeaponJoystickMove(0.0, 0.0, 0.0);
+                    }
                   },
                   child: Builder(
                     builder: (context) {
@@ -3876,10 +3922,13 @@ class _GameAreaPainter extends CustomPainter {
           final double t = (elapsed / maxDuration).clamp(0.0, 1.0);
           final double alpha = (1.0 - t).clamp(0.0, 1.0);
           final double travel = math.min(maxDistPx, speedPxPerMs * elapsed);
-          final Offset start = Offset(wx, wy);
+          final Offset start = Offset(
+            mapOffsetX + (p.startX * tileSize),
+            mapOffsetY + (p.startY * tileSize),
+          );
           final Offset end = Offset(
-            wx + math.cos(p.angle) * travel,
-            wy + math.sin(p.angle) * travel,
+            start.dx + math.cos(p.angle) * travel,
+            start.dy + math.sin(p.angle) * travel,
           );
 
           final ui.Color base = gameState.rangedAttackTemplate.color;

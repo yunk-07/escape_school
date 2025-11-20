@@ -180,6 +180,9 @@ class OptimizedGameState {
   final double? weaponDamageAmplify;          // 伤害增幅倍数
   final double? weaponCritDamage;             // 暴击伤害倍数
   final double? weaponCritChanceBonus;        // 暴击几率加成
+  final bool weaponPenetrateWalls;
+  final bool weaponPenetrateGhosts;
+  final FireMode? weaponFireMode;
   final int weaponMagazineSize;               
   final int weaponClipAmmo;                   
   final int weaponTotalAmmo;                  
@@ -317,6 +320,9 @@ class OptimizedGameState {
     this.weaponDamageAmplify = 1.0,
     this.weaponCritDamage = 1.5,
     this.weaponCritChanceBonus = 0.0,
+    this.weaponPenetrateWalls = false,
+    this.weaponPenetrateGhosts = false,
+    this.weaponFireMode = FireMode.semiAuto,
     this.weaponMagazineSize = 0,
     this.weaponClipAmmo = 0,
     this.weaponTotalAmmo = 0,
@@ -420,6 +426,9 @@ class OptimizedGameState {
     double? weaponDamageAmplify,
     double? weaponCritDamage,
     double? weaponCritChanceBonus,
+    bool? weaponPenetrateWalls,
+    bool? weaponPenetrateGhosts,
+    FireMode? weaponFireMode,
     int? weaponMagazineSize,
     int? weaponClipAmmo,
     int? weaponTotalAmmo,
@@ -514,6 +523,9 @@ class OptimizedGameState {
       weaponDamageAmplify: weaponDamageAmplify ?? this.weaponDamageAmplify ?? 1.0,
       weaponCritDamage: weaponCritDamage ?? this.weaponCritDamage ?? 1.5,
       weaponCritChanceBonus: weaponCritChanceBonus ?? this.weaponCritChanceBonus ?? 0.0,
+      weaponPenetrateWalls: weaponPenetrateWalls ?? this.weaponPenetrateWalls,
+      weaponPenetrateGhosts: weaponPenetrateGhosts ?? this.weaponPenetrateGhosts,
+      weaponFireMode: weaponFireMode ?? this.weaponFireMode ?? FireMode.semiAuto,
       weaponMagazineSize: weaponMagazineSize ?? this.weaponMagazineSize,
       weaponClipAmmo: weaponClipAmmo ?? this.weaponClipAmmo,
       weaponTotalAmmo: weaponTotalAmmo ?? this.weaponTotalAmmo,
@@ -670,6 +682,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _ghostUpdateTimer; // 鬼更新定时器
   Timer? _ghostSpawnTimer; // 鬼生成定时器
   Timer? _oxygenRecoveryTimer; // 氧气恢复完成回调定时器（关键：需在 dispose 中取消）
+  Timer? _autoFireTimer;
+  bool _isFireHolding = false;
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
@@ -1749,24 +1763,49 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (state.projectiles.isEmpty) return;
     if (state.selectedAttackMode != AttackMode.ranged) return;
     final ghosts = state.ghostManager.ghosts;
-    if (ghosts.isEmpty) return;
+    if (ghosts.isEmpty && !state.weaponPenetrateWalls) return;
     final double speedTilesPerSec = state.rangedAttackTemplate.range;
     final double maxDistTiles = state.rangedAttackTemplate.distance;
     final DateTime now = DateTime.now();
-    final double px = state.playerPosition.x;
-    final double py = state.playerPosition.y;
-    final double offsetR = 0.45;
+    // 子弹从发射瞬间的位置出发，后续不受玩家位置或瞄准变化影响
     final List<Projectile> remaining = [];
     for (final p in state.projectiles) {
       final int elapsed = now.difference(p.startTime).inMilliseconds;
       if (elapsed < 0) continue;
       final double travelTiles = math.min(maxDistTiles, (speedTilesPerSec <= 0 ? 0.0 : (speedTilesPerSec * elapsed / 1000.0)));
-      final double sx = px + math.cos(p.angle) * offsetR;
-      final double sy = py + math.sin(p.angle) * offsetR;
-      final double ex = sx + math.cos(p.angle) * travelTiles;
-      final double ey = sy + math.sin(p.angle) * travelTiles;
+      final double sx = p.startX;
+      final double sy = p.startY;
+      double ex = sx + math.cos(p.angle) * travelTiles;
+      double ey = sy + math.sin(p.angle) * travelTiles;
 
       bool hitSomeone = false;
+      bool hitWall = false;
+
+      if (!state.weaponPenetrateWalls) {
+        final int steps = math.max(1, (travelTiles * 6).ceil());
+        for (int i = 1; i <= steps; i++) {
+          final double t = i / steps;
+          final double tx = sx + (ex - sx) * t;
+          final double ty = sy + (ey - sy) * t;
+          final int gx = tx.round();
+          final int gy = ty.round();
+          if (gy < 0 || gy >= state.map.length || gx < 0 || gx >= state.map[0].length) {
+            hitWall = true;
+            final double prevT = (i - 1) / steps;
+            ex = sx + (ex - sx) * prevT;
+            ey = sy + (ey - sy) * prevT;
+            break;
+          }
+          final String tile = state.map[gy][gx];
+          if (tile == 'wall' || tile == 'building') {
+            hitWall = true;
+            final double prevT = (i - 1) / steps;
+            ex = sx + (ex - sx) * prevT;
+            ey = sy + (ey - sy) * prevT;
+            break;
+          }
+        }
+      }
       for (final g in ghosts) {
         if (g.isInvisible || g.position == null) continue;
         final double gx = g.position!.x;
@@ -1778,12 +1817,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           if (g.hp <= 0) {
             state.ghostManager.removeGhost(g);
           }
-          hitSomeone = true;
-          break;
+          if (!state.weaponPenetrateGhosts) {
+            hitSomeone = true;
+            break;
+          }
         }
       }
 
-      if (!hitSomeone) {
+      if (!hitSomeone && !hitWall) {
         remaining.add(p);
       }
     }
@@ -2863,7 +2904,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       final double dirY = y;
       final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
       final List<Projectile> ps = List<Projectile>.from(state.projectiles);
-      ps.add(Projectile(startTime: now, angle: angle));
+      final double px0 = state.playerPosition.x;
+      final double py0 = state.playerPosition.y;
+      const double offsetR = 0.45;
+      final double sx0 = px0 + math.cos(angle) * offsetR;
+      final double sy0 = py0 + math.sin(angle) * offsetR;
+      ps.add(Projectile(startTime: now, angle: angle, startX: sx0, startY: sy0));
       // 关键区域：射击后同步弹夹弹药到装备武器对象
       final Item? w = state.equipmentSlots['weapon'];
       final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
@@ -2930,21 +2976,37 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final int clip = state.weaponClipAmmo;
     final int mag = state.weaponMagazineSize;
     if (mag > 0 && clip <= 0) {
+      // 关键区域：弹夹为空且有备用弹药时自动开始换弹
+      if (state.weaponTotalAmmo > 0 && !state.isReloading) {
+        startReload();
+      }
       return;
     }
     double dirX = state.weaponJoystickX ?? 0.0;
     double dirY = state.weaponJoystickY ?? 0.0;
     if (dirX == 0.0 && dirY == 0.0) {
+      // 优先使用最近的瞄准方向
       dirX = state.lastWeaponAimX;
       dirY = state.lastWeaponAimY;
-    }
-    if (dirX == 0.0 && dirY == 0.0) {
-      dirX = state.playerPosition.facingRight ? 1.0 : -1.0;
-      dirY = 0.0;
+      // 在全自动长按连发期间，禁止退回到角色面向方向；若仍无方向则不射击
+      final bool isAutoHolding = (state.selectedAttackMode == AttackMode.ranged) && (state.weaponFireMode == FireMode.fullAuto) && (_isFireHolding);
+      if (dirX == 0.0 && dirY == 0.0) {
+        if (isAutoHolding) {
+          return; // 没有有效瞄准方向时不射击
+        } else {
+          dirX = state.playerPosition.facingRight ? 1.0 : -1.0;
+          dirY = 0.0;
+        }
+      }
     }
     final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
     final List<Projectile> ps = List<Projectile>.from(state.projectiles);
-    ps.add(Projectile(startTime: now, angle: angle));
+    final double px0 = state.playerPosition.x;
+    final double py0 = state.playerPosition.y;
+    const double offsetR = 0.45;
+    final double sx0 = px0 + math.cos(angle) * offsetR;
+    final double sy0 = py0 + math.sin(angle) * offsetR;
+    ps.add(Projectile(startTime: now, angle: angle, startX: sx0, startY: sy0));
     // 关键区域：射击后同步弹夹弹药到装备武器对象
     final Item? w = state.equipmentSlots['weapon'];
     final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
@@ -2973,6 +3035,44 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
       equipmentSlots: slots,
     );
+  }
+
+  void handleFireButtonPress() {
+    if (state.selectedAttackMode == AttackMode.ranged && state.weaponFireMode == FireMode.fullAuto) {
+      _isFireHolding = true;
+      if (_autoFireTimer == null || !_autoFireTimer!.isActive) {
+        _autoFireTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
+          if (!_isFireHolding) {
+            _autoFireTimer?.cancel();
+            _autoFireTimer = null;
+            return;
+          }
+          if (state.isReloading) {
+            return;
+          }
+          final int mag = state.weaponMagazineSize;
+          final int clip = state.weaponClipAmmo;
+          if (mag > 0 && clip <= 0) {
+            if (state.weaponTotalAmmo > 0 && !state.isReloading) {
+              startReload();
+              return; // 等待换弹进度
+            }
+            _autoFireTimer?.cancel();
+            _autoFireTimer = null;
+            return;
+          }
+          fireWeapon();
+        });
+      }
+    } else {
+      fireWeapon();
+    }
+  }
+
+  void handleFireButtonRelease() {
+    _isFireHolding = false;
+    _autoFireTimer?.cancel();
+    _autoFireTimer = null;
   }
 
   void startReload() {
@@ -3022,6 +3122,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final double amp = ((params['damageAmplify'] ?? params['增幅伤害'] ?? 1.0) as num).toDouble();
     final double critDmg = ((params['critDamage'] ?? params['暴击伤害'] ?? 1.5) as num).toDouble();
     final double critChance = ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num).toDouble();
+    final String fireModeStr = (params['fireMode'] ?? 'semiAuto').toString().toLowerCase();
+    final FireMode fireMode = (fireModeStr == 'fullauto' || fireModeStr == 'full_auto' || fireModeStr == 'full')
+        ? FireMode.fullAuto
+        : FireMode.semiAuto;
+    final dynamic pwRaw = params['penetrateWalls'];
+    final dynamic pgRaw = params['penetrateGhosts'];
+    final bool penetrateWalls = pwRaw is bool
+        ? pwRaw
+        : (pwRaw == null ? false : pwRaw.toString().toLowerCase() == 'true');
+    final bool penetrateGhosts = pgRaw is bool
+        ? pgRaw
+        : (pgRaw == null ? false : pgRaw.toString().toLowerCase() == 'true');
     final int magazine = ((params['magazineSize'] ?? 0) as num).toInt();
     final int ammoTotal = ((params['ammoTotal'] ?? 0) as num).toInt();
     final int reloadMs = ((params['reloadMs'] ?? 1000) as num).toInt();
@@ -3033,6 +3145,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponDamageAmplify: amp,
         weaponCritDamage: critDmg,
         weaponCritChanceBonus: critChance,
+        weaponPenetrateWalls: false,
+        weaponPenetrateGhosts: false,
+        weaponFireMode: FireMode.semiAuto,
         weaponMagazineSize: 0,
         weaponClipAmmo: 0,
         weaponTotalAmmo: 0,
@@ -3068,6 +3183,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponDamageAmplify: amp,
         weaponCritDamage: critDmg,
         weaponCritChanceBonus: critChance,
+        weaponPenetrateWalls: penetrateWalls,
+        weaponPenetrateGhosts: penetrateGhosts,
+        weaponFireMode: fireMode,
         weaponMagazineSize: magazine,
         weaponClipAmmo: initClip,
         weaponTotalAmmo: initReserve,
@@ -6025,6 +6143,8 @@ final optimizedVisibleTilesProvider = Provider<Set<Point<int>>>((ref) {
 // 关键区域：攻击模式枚举（近战/远程）
 enum AttackMode { melee, ranged }
 
+enum FireMode { semiAuto, fullAuto }
+
 // 关键区域：攻击模板（颜色、攻击距离、范围）
 class AttackTemplate {
   final ui.Color color;
@@ -6040,8 +6160,13 @@ class AttackTemplate {
 class Projectile {
   final DateTime startTime;
   final double angle;
+  final double startX;
+  final double startY;
   const Projectile({
     required this.startTime,
     required this.angle,
+    required this.startX,
+    required this.startY,
   });
 }
+

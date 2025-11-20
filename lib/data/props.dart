@@ -48,6 +48,13 @@ class Item {
   // - damageAmplify     伤害增幅倍数
   // - critDamage        暴击伤害倍数
   // - critChanceBonus   暴击几率加成（0.0~1.0）
+  // - fireMode          远程开火模式：'semiAuto' 或 'fullAuto'（区分大小写，使用驼峰）
+  //                      行为说明：
+  //                      1）滑动仅瞄准，不开火
+  //                      2）长按进入自动开火（仅 fullAuto）
+  //                      3）长按后滑动，持续按滑动方向连发
+  // - magazineSize      弹夹容量（>0 表示使用弹药系统）
+  // - ammoTotal         备用弹药总量（不含弹夹）
   final Map<String, dynamic>? weaponParams;
   // final Map<String, int>? equipEffects; // 装备效果加成（佩戴生效）
 
@@ -436,6 +443,10 @@ final List<Item> allItems = [
     availableInShop: false,
     weaponParams: const {
       'attackType': 'ranged',
+      'fireMode': 'semiauto',
+      'penetrateWalls': false,
+      'penetrateGhosts': false,
+      'reloadMs': 1000,
       'effectColor': 0xFFFFF59D,
       'distance': 6,
       'range': 12,
@@ -443,7 +454,59 @@ final List<Item> allItems = [
       'critDamage': 1.5,
       'critChanceBonus': 0.15,
       'magazineSize': 4,
-      'ammoTotal': 100,
+      'ammoTotal': 20,
+    },
+  ),
+  Item(
+    id: 'm-one-gun',
+    name: 'M1手枪',
+    image: 'images/items/m-one-gun.png',
+    description: '全自动激发',
+    type: 'equipment', 
+    equipmentSlot: 'weapon',
+    effects: const {'moveSpeed': 2},
+    level: 3,
+    availableInShop: false,
+    weaponParams: const {
+      'attackType': 'ranged',
+      'fireMode': 'fullauto',
+      'penetrateWalls': false,
+      'penetrateGhosts': false,
+      'reloadMs': 1500,
+      'effectColor': 0xFFFFF59D,
+      'distance': 5,
+      'range': 12,
+      'damageAmplify': 1.2,
+      'critDamage': 1.5,
+      'critChanceBonus': 0.19,
+      'magazineSize': 7,
+      'ammoTotal': 35,
+    },
+  ),
+  Item(
+    id: 'bow',
+    name: '弓',
+    image: 'images/items/bow.png',
+    description: '穿透世界',
+    type: 'equipment', 
+    equipmentSlot: 'weapon',
+    effects: const {'moveSpeed': 9},
+    level: 3,
+    availableInShop: false,
+    weaponParams: const {
+      'attackType': 'ranged',
+      'fireMode': 'semiauto',
+      'penetrateWalls': true,
+      'penetrateGhosts': true,
+      'reloadMs': 1000,
+      'effectColor': 0xFFFFF59D,
+      'distance': 6,
+      'range': 20,
+      'damageAmplify': 1.2,
+      'critDamage': 1.9,
+      'critChanceBonus': 0.33,
+      'magazineSize': 1,
+      'ammoTotal': 20,
     },
   ),
 ];
