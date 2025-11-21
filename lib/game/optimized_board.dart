@@ -1444,48 +1444,6 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
         color: Colors.black,
         child: GestureDetector(
           onTapDown: (details) => _handleMapTap(details, gameState),
-          onPanStart: (details) {
-            final hasWeapon = (gameState.equipmentSlots['weapon'] != null);
-            if (!hasWeapon) return;
-            final Offset p = details.localPosition;
-            setState(() {
-              _aimTouchPoint = p;
-              _aimNX = 0.0;
-              _aimNY = 0.0;
-              _aimActive = false;
-            });
-          },
-          onPanUpdate: (details) {
-            final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-            final hasWeapon = (gameState.equipmentSlots['weapon'] != null);
-            if (!hasWeapon) return;
-            final Offset p = details.localPosition;
-            final Offset base = _aimTouchPoint ?? p;
-            final double dx = p.dx - base.dx;
-            final double dy = p.dy - base.dy;
-            final double radius = (MediaQuery.of(context).size.shortestSide * 0.25);
-            final double norm = math.sqrt(dx * dx + dy * dy);
-            final double intensity = (norm / radius).clamp(0.0, 1.0);
-            final double nx = norm > 0.0 ? (dx / norm) : 0.0;
-            final double ny = norm > 0.0 ? (dy / norm) : 0.0;
-            notifier.onWeaponJoystickMove(nx, ny, intensity);
-            setState(() {
-              _aimTouchPoint = base;
-              _aimNX = nx;
-              _aimNY = ny;
-              _aimActive = intensity > 0.05;
-            });
-          },
-          onPanEnd: (details) {
-            final notifier = ProviderScope.containerOf(context).read(optimizedGameStateProvider.notifier);
-            notifier.onWeaponJoystickMove(0.0, 0.0, 0.0);
-            setState(() {
-              _aimActive = false;
-              _aimTouchPoint = null;
-              _aimNX = 0.0;
-              _aimNY = 0.0;
-            });
-          },
           child: Consumer(
             builder: (context, ref, child) {
               final damageEvent = ref.watch(damageEventProvider);
@@ -3130,24 +3088,6 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage> with TickerProv
               children: [
               // 主游戏区域
               _buildGameArea(gameState),
-              if (_aimActive && _aimTouchPoint != null)
-                Positioned(
-                  left: _aimTouchPoint!.dx - 60,
-                  top: _aimTouchPoint!.dy - 60,
-                  child: SizedBox(
-                    width: 120,
-                    height: 120,
-                    child: CustomPaint(
-                      painter: JoystickPainter(
-                        knobX: _aimNX * ((120 / 2) * 0.8),
-                        knobY: _aimNY * ((120 / 2) * 0.8),
-                        baseColor: const Color(0x66FFFFFF),
-                        knobColor: const Color(0xFFFFFFFF),
-                        size: 120,
-                      ),
-                    ),
-                  ),
-                ),
               
                 // 精神值环形图（左上角）
                 _buildSanityCircle(gameState),
@@ -3772,7 +3712,7 @@ class _GameAreaPainter extends CustomPainter {
         canvas.drawRect(fallbackRect, p);
       }
       // 关键区域：远程预瞄线改为虚线（仅滑动瞄准时显示）
-      if ((gameState.isWeaponAiming || aimActive) && gameState.selectedAttackMode == AttackMode.ranged) {
+      if (gameState.isWeaponAiming && gameState.selectedAttackMode == AttackMode.ranged) {
         final double maxDist = gameState.rangedAttackTemplate.distance * tileSize;
         final double dx = math.cos(angle);
         final double dy = math.sin(angle);
@@ -3793,7 +3733,7 @@ class _GameAreaPainter extends CustomPainter {
         }
       }
       // 关键区域：近战模式预瞄扇形（基于模板的距离与范围）
-      if ((gameState.isWeaponAiming || aimActive) && gameState.selectedAttackMode == AttackMode.melee) {
+      if (gameState.isWeaponAiming && gameState.selectedAttackMode == AttackMode.melee) {
         final double radius = gameState.meleeAttackTemplate.distance * tileSize;
         final double sweep = gameState.meleeAttackTemplate.range;
         final Rect arcRect = Rect.fromCircle(center: Offset(playerScreenX, playerScreenY), radius: radius);

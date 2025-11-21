@@ -1779,23 +1779,54 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                         letterSpacing: 0.2,
                       ),
                     ),
-                    Text(
-                      (() {
-                        final bool isEquip = _slotForItem(item) != null;
-                        if (!isEquip) {
-                          return '数量: $quantity';
-                        }
-                        final int max = item.effects?['armorValue'] ?? 0;
-                        if (max > 0) {
-                          return '耐久: ${item.count}/$max';
-                        }
-                        return '耐久: ${item.count}';
-                      })(),
-                      style: TextStyle(
-                        color: Colors.cyanAccent.withOpacity(0.75),
-                        fontSize: 11,
-                      ),
-                    ),
+                    Consumer(builder: (context, ref, _) {
+                      final bool isEquip = _slotForItem(item) != null;
+                      if (!isEquip) {
+                        return Text(
+                          '数量: $quantity',
+                          style: TextStyle(
+                            color: Colors.cyanAccent.withOpacity(0.75),
+                            fontSize: 11,
+                          ),
+                        );
+                      }
+                      final Map<String, dynamic> params = item.weaponParams ?? const {};
+                      final String typeStr = (params['attackType'] ?? params['近战/远程'] ?? '').toString();
+                      final bool isRanged = (typeStr == 'ranged' || typeStr == '远程');
+                      final int magazineParam = ((params['magazineSize'] ?? 0) as num).toInt();
+                      if (isRanged && magazineParam > 0) {
+                        final gs = ref.watch(optimizedGameStateProvider);
+                        final Item? eqWeapon = gs.equipmentSlots['weapon'];
+                        final bool isEquippedWeapon = (eqWeapon?.id == item.id);
+                        final int clip = isEquippedWeapon
+                            ? gs.weaponClipAmmo
+                            : (item.clipAmmo ?? magazineParam);
+                        return Text(
+                          '弹夹: $clip',
+                          style: TextStyle(
+                            color: Colors.cyanAccent.withOpacity(0.75),
+                            fontSize: 11,
+                          ),
+                        );
+                      }
+                      final int max = item.effects?['armorValue'] ?? 0;
+                      if (max > 0) {
+                        return Text(
+                          '耐久: ${item.count}/$max',
+                          style: TextStyle(
+                            color: Colors.cyanAccent.withOpacity(0.75),
+                            fontSize: 11,
+                          ),
+                        );
+                      }
+                      return Text(
+                        '耐久: ${item.count}',
+                        style: TextStyle(
+                          color: Colors.cyanAccent.withOpacity(0.75),
+                          fontSize: 11,
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -1850,23 +1881,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> with TickerProvid
                     final double rangeVal = ((params['range'] ?? params['范围'] ?? 0) as num).toDouble();
                     final double dmgAmp = ((params['damageAmplify'] ?? params['增幅伤害'] ?? 1.0) as num).toDouble();
                     final double critDmg = ((params['critDamage'] ?? params['暴击伤害'] ?? 1.5) as num).toDouble();
-                    final double critChance = ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num).toDouble();
-                    final int ammoTotalParam = ((params['ammoTotal'] ?? 0) as num).toInt();
-                    final int magazineParam = ((params['magazineSize'] ?? 0) as num).toInt();
+                  final double critChance = ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num).toDouble();
+                    final int fireIntervalParam = ((params['fireIntervalMs'] ?? 0) as num).toInt();
                     final gs = ref.watch(optimizedGameStateProvider);
                     final Item? eqWeapon = gs.equipmentSlots['weapon'];
                     final bool isEquippedWeapon = (eqWeapon?.id == item.id);
-                    final int currentRemaining = isRanged
-                        ? (isEquippedWeapon
-                            ? (gs.weaponClipAmmo + gs.weaponTotalAmmo)
-                            : ((item.clipAmmo ?? magazineParam) + (item.ammoReserve ?? ammoTotalParam)))
-                        : 0;
+                    final int intervalMs = () {
+                      if (fireIntervalParam > 0) return fireIntervalParam;
+                      if (isEquippedWeapon && gs.weaponFireIntervalMs > 0) return gs.weaponFireIntervalMs;
+                      return 150;
+                    }();
+                    final int roundsPerSecond = (1000 / intervalMs).ceil();
                     final List<Map<String, String>> entries = [
                       {'k': '攻击类型', 'v': isRanged ? '远程' : '近战'},
                       {'k': '距离', 'v': '${distance} 格'},
                       {'k': isRanged ? '子弹速度' : '弧度', 'v': isRanged ? '${rangeVal} 格/秒' : '$rangeVal'},
-                      if (isRanged && magazineParam > 0)
-                        {'k': '子弹总数量/剩余', 'v': '$ammoTotalParam/$currentRemaining'},
+                      if (isRanged) {'k': '射速', 'v': '${roundsPerSecond} 发/秒'},
                       {'k': '增幅伤害', 'v': '${dmgAmp} 倍'},
                       {'k': '暴击伤害', 'v': '${critDmg} 倍'},
                       {'k': '暴击几率加成', 'v': '${(critChance * 100).toStringAsFixed(0)}%'},

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'choose.dart';
 import 'package:escape_from_school/game/music.dart';
 import 'eff02.dart';
+import 'package:escape_from_school/game/catalog_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -297,7 +298,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                       // 采用叠加遮罩实现淡入，规避继承透明度传播导致的报错。
                                       child: Stack(
                                         children: [
-                                          _buildStartButton(isLandscape),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              _buildStartButton(isLandscape),
+                                              const SizedBox(width: 16),
+                                              _buildCatalogButton(isLandscape),
+                                            ],
+                                          ),
                                           Positioned.fill(
                                             child: IgnorePointer(
                                               child: Container(
@@ -459,7 +467,127 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                         ),
                     ],
                   ),
-                  child: const Text('开始做人'),
+                  child: const Text('开始游戏'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCatalogButton(bool isLandscape) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isButtonHovered = true),
+      onExit: (_) => setState(() => _isButtonHovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isButtonHovered = true),
+        onTapUp: (_) => setState(() => _isButtonHovered = false),
+        onTapCancel: () => setState(() => _isButtonHovered = false),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CatalogPage()),
+          );
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          width: isLandscape ? 200 : 240,
+          height: isLandscape ? 60 : 70,
+          transform: Matrix4.identity()
+            ..scale(_isButtonHovered ? 1.05 : 1.0)
+            ..translate(0.0, _isButtonHovered ? -2.0 : 0.0),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: _isButtonHovered
+                  ? [const Color(0xFF55AAFF), const Color(0xFF0055DD)]
+                  : [const Color(0xFF4499FF), const Color(0xFF0044CC)],
+            ),
+            borderRadius: BorderRadius.circular(5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: _isButtonHovered ? 0.8 : 0.6),
+                offset: Offset(0, _isButtonHovered ? 12 : 8),
+                blurRadius: _isButtonHovered ? 25 : 20,
+                spreadRadius: _isButtonHovered ? 3 : 2,
+              ),
+              BoxShadow(
+                color: Colors.blue.withValues(alpha: _isButtonHovered ? 0.6 : 0.4),
+                offset: const Offset(0, 0),
+                blurRadius: _isButtonHovered ? 20 : 15,
+                spreadRadius: _isButtonHovered ? 2 : 1,
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 20,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: _isButtonHovered ? 0.4 : 0.3),
+                        Colors.transparent,
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(5),
+                      topRight: Radius.circular(5),
+                    ),
+                  ),
+                ),
+              ),
+              if (_isButtonHovered)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.1),
+                          Colors.transparent,
+                          Colors.white.withValues(alpha: 0.05),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              Center(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: TextStyle(
+                    fontSize: _isButtonHovered
+                        ? (isLandscape ? 30 : 34)
+                        : (isLandscape ? 28 : 32),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        blurRadius: _isButtonHovered ? 10 : 8,
+                        color: Colors.black,
+                        offset: const Offset(2, 2),
+                      ),
+                      if (_isButtonHovered)
+                        const Shadow(
+                          blurRadius: 15,
+                          color: Colors.blue,
+                          offset: Offset(0, 0),
+                        ),
+                    ],
+                  ),
+                  child: const Text('图鉴'),
                 ),
               ),
             ],

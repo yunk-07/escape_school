@@ -186,6 +186,7 @@ class OptimizedGameState {
   final int weaponMagazineSize;               
   final int weaponClipAmmo;                   
   final int weaponTotalAmmo;                  
+  final int weaponFireIntervalMs;             
   final List<Projectile> projectiles;         
   final bool isReloading;
   final double reloadProgress;
@@ -327,6 +328,7 @@ class OptimizedGameState {
     this.weaponClipAmmo = 0,
     this.weaponTotalAmmo = 0,
     this.projectiles = const [],
+    this.weaponFireIntervalMs = 150,
     this.isReloading = false,
     this.reloadProgress = 0.0,
     this.reloadStartTime,
@@ -432,6 +434,7 @@ class OptimizedGameState {
     int? weaponMagazineSize,
     int? weaponClipAmmo,
     int? weaponTotalAmmo,
+    int? weaponFireIntervalMs,
     List<Projectile>? projectiles,
     bool? isReloading,
     double? reloadProgress,
@@ -529,6 +532,7 @@ class OptimizedGameState {
       weaponMagazineSize: weaponMagazineSize ?? this.weaponMagazineSize,
       weaponClipAmmo: weaponClipAmmo ?? this.weaponClipAmmo,
       weaponTotalAmmo: weaponTotalAmmo ?? this.weaponTotalAmmo,
+      weaponFireIntervalMs: weaponFireIntervalMs ?? this.weaponFireIntervalMs,
       projectiles: projectiles ?? this.projectiles,
       isReloading: isReloading ?? this.isReloading,
       reloadProgress: reloadProgress ?? this.reloadProgress,
@@ -684,6 +688,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Timer? _oxygenRecoveryTimer; // 氧气恢复完成回调定时器（关键：需在 dispose 中取消）
   Timer? _autoFireTimer;
   bool _isFireHolding = false;
+  DateTime? _lastFireTime;
   late VisionSystem _visionSystem;
   late EnhancedVisionSystem _enhancedVisionSystem; // 增强版视野系统
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
@@ -2900,6 +2905,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       if (mag > 0 && clip <= 0) {
         return;
       }
+      if (state.selectedAttackMode == AttackMode.ranged) {
+        final int interval = state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
+        if (_lastFireTime != null) {
+          final int dt = now.difference(_lastFireTime!).inMilliseconds;
+          if (dt < interval) {
+            return;
+          }
+        }
+      }
       final double dirX = x;
       final double dirY = y;
       final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
@@ -2942,6 +2956,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
         equipmentSlots: slots,
       );
+      _lastFireTime = now;
     }
   }
 
@@ -2981,6 +2996,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         startReload();
       }
       return;
+    }
+    if (state.selectedAttackMode == AttackMode.ranged) {
+      final int interval = state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
+      if (_lastFireTime != null) {
+        final int dt = now.difference(_lastFireTime!).inMilliseconds;
+        if (dt < interval) {
+          return;
+        }
+      }
     }
     double dirX = state.weaponJoystickX ?? 0.0;
     double dirY = state.weaponJoystickY ?? 0.0;
@@ -3035,13 +3059,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       weaponClipAmmo: mag > 0 ? (clip - 1) : clip,
       equipmentSlots: slots,
     );
+    _lastFireTime = now;
   }
 
   void handleFireButtonPress() {
     if (state.selectedAttackMode == AttackMode.ranged && state.weaponFireMode == FireMode.fullAuto) {
       _isFireHolding = true;
       if (_autoFireTimer == null || !_autoFireTimer!.isActive) {
-        _autoFireTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
+        final int interval = state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
+        _autoFireTimer = Timer.periodic(Duration(milliseconds: interval), (_) {
           if (!_isFireHolding) {
             _autoFireTimer?.cancel();
             _autoFireTimer = null;
@@ -3137,6 +3163,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final int magazine = ((params['magazineSize'] ?? 0) as num).toInt();
     final int ammoTotal = ((params['ammoTotal'] ?? 0) as num).toInt();
     final int reloadMs = ((params['reloadMs'] ?? 1000) as num).toInt();
+    final int fireIntervalMs = ((params['fireIntervalMs'] ?? 150) as num).toInt();
 
     if (mode == AttackMode.melee) {
       state = state.copyWith(
@@ -3152,6 +3179,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponClipAmmo: 0,
         weaponTotalAmmo: 0,
         reloadDurationMs: 1000,
+        weaponFireIntervalMs: fireIntervalMs,
         );
     } else {
       // 关键区域：为当前武器初始化/同步独立弹药
@@ -3190,6 +3218,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponClipAmmo: initClip,
         weaponTotalAmmo: initReserve,
         reloadDurationMs: reloadMs,
+        weaponFireIntervalMs: fireIntervalMs,
       );
     }
   }
