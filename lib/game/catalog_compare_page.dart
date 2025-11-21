@@ -156,7 +156,7 @@ class CatalogComparePage extends StatelessWidget {
       {'k': '暴击伤害', 'v': '${critDmg.toStringAsFixed(2)} 倍'},
       {'k': '暴击几率加成', 'v': '${(critChance * 100).toStringAsFixed(0)}%'},
     ];
-    return _pairs(entries);
+    return _pairs(entries, isLeftPanel: true);
   }
 
   Widget _rightDetails(Map<String, int> eff, Map<String, dynamic> wp, bool isRanged) {
@@ -175,10 +175,10 @@ class CatalogComparePage extends StatelessWidget {
       {'k': '穿鬼', 'v': ghost ? '是' : '否'},
     ];
     eff.forEach((k, v) => entries.add({'k': _effectName(k), 'v': v.toString()}));
-    return _pairs(entries);
+    return _pairs(entries, isLeftPanel: false);
   }
 
-  Widget _pairs(List<Map<String, String>> entries) {
+  Widget _pairs(List<Map<String, String>> entries, {bool isLeftPanel = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: entries
@@ -189,13 +189,116 @@ class CatalogComparePage extends StatelessWidget {
                     Text('${e['k']}:', style: TextStyle(color: Colors.grey.shade300, fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(e['v'] ?? '', overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                      child: Text(e['v'] ?? '', overflow: TextOverflow.ellipsis, style: TextStyle(
+                        color: _isDifferentValue(e['k']!, e['v']!, isLeftPanel) ? Colors.yellowAccent : Colors.white,
+                        fontSize: 12, 
+                        fontWeight: FontWeight.w700,
+                        backgroundColor: _isDifferentValue(e['k']!, e['v']!, isLeftPanel) ? Colors.red.withOpacity(0.3) : Colors.transparent,
+                      )),
                     ),
                   ],
                 ),
               ))
           .toList(),
     );
+  }
+
+  // 检查是否为不同值
+  bool _isDifferentValue(String key, String value, bool isLeftPanel) {
+    // 获取另一个物品的对应值
+    final otherItem = isLeftPanel ? b : a;
+    final otherWp = otherItem.weaponParams ?? const {};
+    final otherEff = otherItem.effects;
+    
+    String otherValue = '';
+    
+    // 根据key查找对应的值
+    switch (key) {
+      case '攻击类型':
+        final otherAtkTypeStr = (otherWp['attackType'] ?? '').toString();
+        final otherIsRanged = otherAtkTypeStr == 'ranged' || otherAtkTypeStr == '远程';
+        otherValue = otherIsRanged ? '远程' : '近战';
+        break;
+      case '距离':
+        final otherDistance = ((otherWp['distance'] ?? 0) as num).toDouble();
+        otherValue = '${otherDistance.toStringAsFixed(1)} 格';
+        break;
+      case '子弹速度':
+      case '弧度':
+        final otherRangeVal = ((otherWp['range'] ?? 0) as num).toDouble();
+        final otherAtkTypeStr = (otherWp['attackType'] ?? '').toString();
+        final otherIsRanged = otherAtkTypeStr == 'ranged' || otherAtkTypeStr == '远程';
+        otherValue = otherIsRanged ? '${otherRangeVal.toStringAsFixed(1)} 格/秒' : otherRangeVal.toStringAsFixed(1);
+        break;
+      case '射速':
+        final otherIntervalMs = ((otherWp['fireIntervalMs'] ?? 0) as num).toInt();
+        final otherRps = otherIntervalMs > 0 ? (1000 / otherIntervalMs).ceil() : 0;
+        otherValue = '$otherRps 发/秒';
+        break;
+      case '增幅伤害':
+        final otherDmgAmp = ((otherWp['damageAmplify'] ?? 1.0) as num).toDouble();
+        otherValue = '${otherDmgAmp.toStringAsFixed(2)} 倍';
+        break;
+      case '暴击伤害':
+        final otherCritDmg = ((otherWp['critDamage'] ?? 1.5) as num).toDouble();
+        otherValue = '${otherCritDmg.toStringAsFixed(2)} 倍';
+        break;
+      case '暴击几率加成':
+        final otherCritChance = ((otherWp['critChanceBonus'] ?? 0.0) as num).toDouble();
+        otherValue = '${(otherCritChance * 100).toStringAsFixed(0)}%';
+        break;
+      case '开火模式':
+        otherValue = (otherWp['fireMode'] ?? '').toString();
+        break;
+      case '换弹时间':
+        final otherReloadMs = ((otherWp['reloadMs'] ?? 0) as num).toInt();
+        otherValue = otherReloadMs > 0 ? '${otherReloadMs}ms' : '';
+        break;
+      case '弹夹容量':
+        final otherMagazineSize = ((otherWp['magazineSize'] ?? 0) as num).toInt();
+        otherValue = otherMagazineSize > 0 ? '$otherMagazineSize' : '';
+        break;
+      case '备用弹药':
+        final otherAmmoTotal = ((otherWp['ammoTotal'] ?? 0) as num).toInt();
+        otherValue = otherAmmoTotal > 0 ? '$otherAmmoTotal' : '';
+        break;
+      case '穿墙':
+        final otherWall = (otherWp['penetrateWalls'] ?? false) == true;
+        otherValue = otherWall ? '是' : '否';
+        break;
+      case '穿鬼':
+        final otherGhost = (otherWp['penetrateGhosts'] ?? false) == true;
+        otherValue = otherGhost ? '是' : '否';
+        break;
+      default:
+        // 处理效果属性
+        final effectKey = _getEffectKeyFromName(key);
+        if (effectKey.isNotEmpty) {
+          otherValue = otherEff[effectKey]?.toString() ?? '';
+        }
+        break;
+    }
+    
+    return value != otherValue;
+  }
+  
+  // 从显示名称获取效果键名
+  String _getEffectKeyFromName(String displayName) {
+    switch (displayName) {
+      case '生命值': return 'hp';
+      case '最大生命值': return 'maxHp';
+      case '饱食度': return 'food';
+      case '最大饱食度': return 'maxFood';
+      case '理智值': return 'san';
+      case '移动速度': return 'moveSpeed';
+      case '资产': return 'gold';
+      case '肺活量': return 'oxygenBonus';
+      case '背包容量': return 'inventoryBonus';
+      case '处分': return 'punish';
+      case '耐久': return 'armorValue';
+      case '基础伤害': return 'baseDamage';
+      default: return '';
+    }
   }
 
   Color _getItemLevelColor(int level) {

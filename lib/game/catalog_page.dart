@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:escape_from_school/data/props.dart';
 import 'package:escape_from_school/game/catalog_compare_page.dart';
+import 'package:escape_from_school/game/catalog_detail_page.dart';
 
 class CatalogPage extends StatefulWidget {
   const CatalogPage({super.key});
@@ -16,8 +17,6 @@ class _CatalogPageState extends State<CatalogPage> {
   int? selectedLevel; // null 表示全部
   String selectedType = '全部'; // '全部' | '物品' | '装备'
   String searchQuery = '';
-  Item? compareA;
-  Item? compareB;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +89,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     switchInCurve: Curves.easeOut,
                     switchOutCurve: Curves.easeIn,
                     transitionBuilder: (child, animation) {
-                      final scale = Tween<double>(begin: 0.98, end: 1.0).animate(animation);
+                      final scale = Tween<double>(begin: 0.28, end: 1.0).animate(animation);
                       return FadeTransition(
                         opacity: animation,
                         child: ScaleTransition(scale: scale, child: child),
@@ -101,10 +100,10 @@ class _CatalogPageState extends State<CatalogPage> {
                       builder: (context, constraints) {
                         return GridView.builder(
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 3 / 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
+                            crossAxisCount: 4,
+                            childAspectRatio: 2 / 3,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
                           ),
                           itemCount: filtered.length,
                           itemBuilder: (context, index) {
@@ -260,10 +259,20 @@ class _CatalogPageState extends State<CatalogPage> {
     final bool isRanged = atkTypeStr == 'ranged' || atkTypeStr == '远程';
     final int intervalMs = ((wp['fireIntervalMs'] ?? 0) as num).toInt();
     final int roundsPerSecond = intervalMs > 0 ? (1000 / intervalMs).ceil() : 0;
+    final bool isWeapon = item.type == 'equipment' && item.weaponParams != null && item.weaponParams!.isNotEmpty;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CatalogDetailPage(selectedItem: item, allItems: allItems),
+          ),
+        );
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
@@ -310,32 +319,32 @@ class _CatalogPageState extends State<CatalogPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Container(
-                        width: 42,
-                        height: 42,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(4),
                           border: Border.all(color: levelColor.withOpacity(0.85), width: 1),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(4),
                           child: item.image.isNotEmpty
                               ? Image.asset(
                                   item.image,
                                   fit: BoxFit.contain,
-                                  errorBuilder: (c, e, s) => Icon(Icons.inventory_2, color: levelColor, size: 20),
+                                  errorBuilder: (c, e, s) => Icon(Icons.inventory_2, color: levelColor, size: 16),
                                 )
-                              : Icon(Icons.inventory_2, color: levelColor, size: 20),
+                              : Icon(Icons.inventory_2, color: levelColor, size: 16),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,92 +353,53 @@ class _CatalogPageState extends State<CatalogPage> {
                               item.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: levelColor, fontSize: 14, fontWeight: FontWeight.bold, shadows: const [
-                                Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(1, 1)),
+                              style: TextStyle(color: levelColor, fontSize: 12, fontWeight: FontWeight.bold, shadows: const [
+                                Shadow(color: Colors.black54, blurRadius: 2, offset: Offset(1, 1)),
                               ]),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 1),
                             Text(
                               '等级: ${item.level} · 类型: $typeCat${item.equipmentSlot != null ? ' · 槽位: ${item.equipmentSlot}' : ''}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: Colors.cyanAccent.withOpacity(0.85), fontSize: 11),
+                              style: TextStyle(color: Colors.cyanAccent.withOpacity(0.85), fontSize: 9),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextButton(
-                            onPressed: () => _openDetails(item),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: const Size(0, 0),
-                            ),
-                            child: const Text('详情', style: TextStyle(fontSize: 12)),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() => compareA = item);
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: const Size(0, 0),
-                            ),
-                            child: const Text('A', style: TextStyle(fontSize: 12)),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() => compareB = item);
-                              if (compareA != null && compareB != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CatalogComparePage(a: compareA!, b: compareB!),
-                                  ),
-                                );
-                              }
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: const Size(0, 0),
-                            ),
-                            child: const Text('B', style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(width: 4),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   if (item.description.isNotEmpty)
                     Text(
                       item.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey.shade300, fontSize: 12),
+                      style: TextStyle(color: Colors.grey.shade300, fontSize: 10),
                     ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Expanded(child: _buildLeftDetails(eff, wp, isRanged, roundsPerSecond)),
-                        const SizedBox(width: 8),
-                        Expanded(child: _buildRightDetails(eff, wp, isRanged)),
-                      ],
+                  const SizedBox(height: 6),
+                  if (isWeapon)
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: _buildLeftDetails(eff, wp, isRanged, roundsPerSecond)),
+                          const SizedBox(width: 4),
+                          Expanded(child: _buildRightDetails(eff, wp, isRanged)),
+                        ],
+                      ),
+                    )
+                  else if (eff.isNotEmpty)
+                    Expanded(
+                      child: _buildEffectsOnly(eff),
                     ),
-                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildLeftDetails(Map<String, int> eff, Map<String, dynamic> wp, bool isRanged, int rps) {
@@ -477,16 +447,16 @@ class _CatalogPageState extends State<CatalogPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: entries
           .map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: const EdgeInsets.symmetric(vertical: 1),
                 child: Row(
                   children: [
-                    Text('${e['k']}:', style: TextStyle(color: Colors.grey.shade300, fontSize: 12, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 6),
+                    Text('${e['k']}:', style: TextStyle(color: Colors.grey.shade300, fontSize: 10, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         e['v'] ?? '',
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
@@ -496,76 +466,38 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 
-  void _openDetails(Item item) {
-    final Map<String, dynamic> wp = item.weaponParams ?? const {};
-    final Map<String, int> eff = item.effects;
-    final String atkTypeStr = (wp['attackType'] ?? '').toString();
-    final bool isRanged = atkTypeStr == 'ranged' || atkTypeStr == '远程';
-    final int intervalMs = ((wp['fireIntervalMs'] ?? 0) as num).toInt();
-    final int rps = intervalMs > 0 ? (1000 / intervalMs).ceil() : 0;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black.withOpacity(0.92),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildEffectsOnly(Map<String, int> eff) {
+    final List<Map<String, String>> effects = [];
+    eff.forEach((k, v) {
+      effects.add({'k': _effectName(k), 'v': v.toString()});
+    });
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('效果:', style: TextStyle(color: Colors.grey.shade300, fontSize: 10, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 2),
+        ...effects.map((e) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(item.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                  Text('等级 ${item.level}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (item.description.isNotEmpty)
-                Text(item.description, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _buildLeftDetails(eff, wp, isRanged, rps)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildRightDetails(eff, wp, isRanged)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      setState(() => compareA = item);
-                      Navigator.pop(context);
-                    },
-                    child: const Text('设为对比A'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () {
-                      setState(() => compareB = item);
-                      Navigator.pop(context);
-                      if (compareA != null && compareB != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => CatalogComparePage(a: compareA!, b: compareB!)),
-                        );
-                      }
-                    },
-                    child: const Text('设为对比B并进入对比'),
-                  ),
-                ],
+              Text('${e['k']}:', style: TextStyle(color: Colors.grey.shade300, fontSize: 10, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  e['v'] ?? '',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
-        );
-      },
+        )).toList(),
+      ],
     );
   }
+
+
 
   String _canonicalType(String t) {
     final s = t.toLowerCase();
