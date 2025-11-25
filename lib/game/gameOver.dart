@@ -28,27 +28,27 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   late AnimationController _scaleController;
   late AnimationController _glitchController;
   late AnimationController _autoScrollController;
-  
+
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _glitchAnimation;
   late Animation<double> _autoScrollAnimation;
-  
+
   late ScrollController _scrollController;
   bool _isDisposed = false;
   bool _isAutoScrolling = false;
   bool _hasUserScrolled = false;
-  
+
   // 固定的生存时间，在初始化时计算一次
   late String _finalSurvivalTime;
 
   @override
   void initState() {
     super.initState();
-    
+
     // 初始化固定的生存时间为空字符串，稍后在 didChangeDependencies 中计算
     _finalSurvivalTime = '';
-    
+
     // 淡入动画
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -57,7 +57,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
-    
+
     // 缩放动画
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -66,7 +66,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
     );
-    
+
     // 故障效果动画
     _glitchController = AnimationController(
       duration: const Duration(milliseconds: 200),
@@ -75,7 +75,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     _glitchAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _glitchController, curve: Curves.easeInOut),
     );
-    
+
     // 自动滚动动画控制器
     _autoScrollController = AnimationController(
       duration: const Duration(seconds: 4), // 8秒缓慢滚动到底部
@@ -84,10 +84,10 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     _autoScrollAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _autoScrollController, curve: Curves.easeInOut),
     );
-    
+
     // 滚动控制器
     _scrollController = ScrollController();
-    
+
     // 启动动画序列
     _startAnimations();
   }
@@ -112,7 +112,9 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     }
     // 关键区域：先展示 GAME OVER 标题，待标题动画完成后再开始滚动
     void _maybeStartScroll() {
-      if (!_isDisposed && mounted && !_hasUserScrolled &&
+      if (!_isDisposed &&
+          mounted &&
+          !_hasUserScrolled &&
           _fadeController.status == AnimationStatus.completed &&
           _scaleController.status == AnimationStatus.completed) {
         // 给予标题一个停留时间（800ms），再开始滚动
@@ -123,6 +125,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
         });
       }
     }
+
     // 监听淡入与缩放完成状态，以标题完成为准触发滚动
     _fadeController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -140,26 +143,29 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   }
 
   void _triggerGlitchEffect() {
-    Future.delayed(Duration(milliseconds: 2000 + math.Random().nextInt(3000)), () {
-      if (mounted && !_isDisposed) {
-        _glitchController.forward().then((_) {
-          if (mounted && !_isDisposed) {
-            _glitchController.reverse();
-            _triggerGlitchEffect();
-          }
-        });
-      }
-    });
+    Future.delayed(
+      Duration(milliseconds: 2000 + math.Random().nextInt(3000)),
+      () {
+        if (mounted && !_isDisposed) {
+          _glitchController.forward().then((_) {
+            if (mounted && !_isDisposed) {
+              _glitchController.reverse();
+              _triggerGlitchEffect();
+            }
+          });
+        }
+      },
+    );
   }
 
   void _startAutoScroll() {
     if (_hasUserScrolled || _isAutoScrolling || _isDisposed) return;
-    
+
     _isAutoScrolling = true;
-    
+
     // 监听自动滚动动画
     _autoScrollAnimation.addListener(_onAutoScrollUpdate);
-    
+
     // 开始自动滚动动画
     _autoScrollController.forward();
   }
@@ -168,7 +174,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     if (!_hasUserScrolled && _scrollController.hasClients && !_isDisposed) {
       final maxScrollExtent = _scrollController.position.maxScrollExtent;
       final targetOffset = maxScrollExtent * _autoScrollAnimation.value;
-      
+
       _scrollController.animateTo(
         targetOffset,
         duration: const Duration(milliseconds: 100),
@@ -229,7 +235,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
             child: NotificationListener<ScrollNotification>(
               onNotification: (ScrollNotification notification) {
                 // 检测用户手动滑动
-                if (notification is ScrollStartNotification && 
+                if (notification is ScrollStartNotification &&
                     notification.dragDetails != null) {
                   _stopAutoScroll();
                 }
@@ -237,9 +243,16 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
               },
               child: SingleChildScrollView(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
                 child: AnimatedBuilder(
-                  animation: Listenable.merge([_fadeAnimation, _scaleAnimation, _glitchAnimation]),
+                  animation: Listenable.merge([
+                    _fadeAnimation,
+                    _scaleAnimation,
+                    _glitchAnimation,
+                  ]),
                   builder: (context, child) {
                     // Impeller 修复：避免使用 Opacity 包裹含 ShaderMask/ColorFiltered 内容，
                     // 改为叠加黑色遮罩实现淡入，规避 Contents::SetInheritedOpacity 报错。
@@ -251,12 +264,15 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                             width: double.infinity,
                             constraints: BoxConstraints(
                               maxWidth: MediaQuery.of(context).size.width * 0.9,
-                              minHeight: MediaQuery.of(context).size.height * 0.6,
+                              minHeight:
+                                  MediaQuery.of(context).size.height * 0.6,
                             ),
-                            padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.05),
+                            padding: EdgeInsets.all(
+                              MediaQuery.of(context).size.width * 0.05,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.grey.shade900.withOpacity(0.95),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(5),
                               border: Border.all(
                                 color: Colors.red.withOpacity(0.6),
                                 width: 2,
@@ -280,14 +296,20 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                               children: [
                                 // 关键区域：布局重构——英雄头部（标题+死亡原因+分隔），保持滚动展示
                                 _buildHeroHeader(),
-                                
-                                SizedBox(height: MediaQuery.of(context).size.height * 0.03),
-                                
+
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.03,
+                                ),
+
                                 // 关键区域：主内容（两栏布局），左侧头像与生存时间，右侧玩家数据与背包
                                 _buildMainContent(),
-                                
-                                SizedBox(height: MediaQuery.of(context).size.height * 0.03),
-                                
+
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.03,
+                                ),
+
                                 // 按钮区域
                                 _buildButtonSection(),
                               ],
@@ -297,9 +319,11 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                           Positioned.fill(
                             child: IgnorePointer(
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(5),
                                 child: Container(
-                                  color: Colors.black.withOpacity(1.0 - _fadeAnimation.value),
+                                  color: Colors.black.withOpacity(
+                                    1.0 - _fadeAnimation.value,
+                                  ),
                                 ),
                               ),
                             ),
@@ -320,12 +344,12 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   Widget _buildCharacterSection() {
     final screenWidth = MediaQuery.of(context).size.width;
     final avatarSize = (screenWidth * 0.25).clamp(80.0, 120.0);
-    
+
     return Container(
       padding: EdgeInsets.all(screenWidth * 0.04),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
           color: Colors.blue.shade400.withOpacity(0.3),
           width: 1,
@@ -368,15 +392,18 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // 角色状态文本
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color: Colors.red.withOpacity(0.5),
                     width: 1,
@@ -392,16 +419,16 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // 生存时间显示
               _buildSurvivalTime(),
             ],
           ),
-          
+
           const SizedBox(width: 20),
-          
+
           // 右侧：玩家数据和背包物品
           Expanded(
             child: Column(
@@ -409,9 +436,9 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
               children: [
                 // 玩家死前数据
                 _buildPlayerDataSection(),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // 背包剩余物品
                 _buildInventorySection(),
               ],
@@ -425,7 +452,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   Widget _buildGameOverTitle() {
     final screenWidth = MediaQuery.of(context).size.width;
     final titleFontSize = (screenWidth * 0.12).clamp(32.0, 48.0);
-    
+
     return AnimatedBuilder(
       animation: _glitchAnimation,
       builder: (context, child) {
@@ -530,11 +557,8 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.red.withOpacity(0.4),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.red.withOpacity(0.4), width: 1),
       ),
       child: Column(
         children: [
@@ -579,7 +603,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   Widget _buildButtonSection() {
     final screenHeight = MediaQuery.of(context).size.height;
     final buttonHeight = (screenHeight * 0.07).clamp(48.0, 56.0);
-    
+
     return Column(
       children: [
         // 重新开始按钮
@@ -590,12 +614,9 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.blue.shade600,
-                Colors.blue.shade800,
-              ],
+              colors: [Colors.blue.shade600, Colors.blue.shade800],
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(
               color: Colors.blue.shade400.withOpacity(0.6),
               width: 2,
@@ -612,7 +633,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(5),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/');
               },
@@ -620,11 +641,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.refresh_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                    Icon(Icons.refresh_rounded, color: Colors.white, size: 24),
                     SizedBox(width: 12),
                     Text(
                       '重新开始',
@@ -642,16 +659,16 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
             ),
           ),
         ),
-        
+
         SizedBox(height: screenHeight * 0.02),
-        
+
         // 返回主菜单按钮
         Container(
           width: double.infinity,
           height: buttonHeight * 0.85,
           decoration: BoxDecoration(
             color: Colors.grey.shade800.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(
               color: Colors.grey.shade600.withOpacity(0.5),
               width: 1,
@@ -660,9 +677,13 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(5),
               onTap: () {
-                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (route) => false,
+                );
               },
               child: const Center(
                 child: Text(
@@ -698,16 +719,22 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     final maxFood = _toInt(stats['maxFood'], _toInt(live['maxFood'], 100));
     final san = _toInt(stats['san'], _toInt(live['san'], 0));
     final maxSan = _toInt(stats['maxSan'], _toInt(live['maxSan'], 250));
-    final moveSpeed = _toInt(stats['moveSpeed'], _toInt(live['moveSpeed'], 100));
+    final moveSpeed = _toInt(
+      stats['moveSpeed'],
+      _toInt(live['moveSpeed'], 100),
+    );
     final gold = _toInt(stats['gold'], _toInt(live['gold'], 0));
-    
+
     // 关键区域：玩家数据采用统一面板样式，优化间距与可读性
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.35),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade400.withOpacity(0.3), width: 1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: Colors.blue.shade400.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -737,14 +764,17 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
     final gameState = ref.watch(optimizedGameStateProvider);
     // 关键区域：优先使用死亡快照；若缺失则回退当前背包，保留原先展示方式
     final inventory = gameState.deathTimeInventory ?? gameState.playerInventory;
-    
+
     // 关键区域：背包区域采用统一面板样式，并限制高度避免溢出，支持滚动
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.35),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade400.withOpacity(0.25), width: 1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: Colors.green.shade400.withOpacity(0.25),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -775,7 +805,10 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: inventory.map((item) => _buildInventoryItem(item)).toList(),
+                  children:
+                      inventory
+                          .map((item) => _buildInventoryItem(item))
+                          .toList(),
                 ),
               ),
             ),
@@ -788,7 +821,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   Widget _buildDataRow(String label, String value) {
     // 检查是否为归零数据
     bool isZeroValue = _isZeroValue(value);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       margin: const EdgeInsets.symmetric(vertical: 2),
@@ -836,10 +869,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
       decoration: BoxDecoration(
         color: _getItemLevelColor(item.level).withOpacity(0.6),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: _getItemBorderColor(item.type),
-          width: 1,
-        ),
+        border: Border.all(color: _getItemBorderColor(item.type), width: 1),
         boxShadow: [
           BoxShadow(
             color: _getItemLevelColor(item.level).withOpacity(0.25),
@@ -851,25 +881,26 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
       child: Stack(
         children: [
           Center(
-            child: item.image.isNotEmpty
-                ? Image.asset(
-                    item.image,
-                    width: 24,
-                    height: 24,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
-                        _getItemTypeIcon(item.type),
-                        color: Colors.white,
-                        size: 18,
-                      );
-                    },
-                  )
-                : Icon(
-                    _getItemTypeIcon(item.type),
-                    color: Colors.white,
-                    size: 18,
-                  ),
+            child:
+                item.image.isNotEmpty
+                    ? Image.asset(
+                      item.image,
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          _getItemTypeIcon(item.type),
+                          color: Colors.white,
+                          size: 18,
+                        );
+                      },
+                    )
+                    : Icon(
+                      _getItemTypeIcon(item.type),
+                      color: Colors.white,
+                      size: 18,
+                    ),
           ),
           if (item.count > 1)
             Positioned(
@@ -879,7 +910,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color: _getItemLevelColor(item.level),
                     width: 0.5,
@@ -904,16 +935,13 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
   Widget _buildSurvivalTime() {
     // 使用在初始化时计算的固定生存时间
     final survivalTimeText = _finalSurvivalTime;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.blue.withOpacity(0.2),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: Colors.blue.withOpacity(0.5),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
       ),
       child: Text(
         '生存时间: $survivalTimeText',
@@ -972,15 +1000,18 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
         return Icons.inventory_2;
     }
   }
-  
+
   // 计算并保存固定的生存时间
   void _calculateFinalSurvivalTime() {
     final gameState = ref.read(optimizedGameStateProvider);
     // 如果游戏已结束且有结束时间，使用结束时间；否则使用当前时间
-    final endTime = gameState.isGameOver && gameState.gameEndTime != null 
-        ? gameState.gameEndTime! 
-        : DateTime.now();
+    final endTime =
+        gameState.isGameOver && gameState.gameEndTime != null
+            ? gameState.gameEndTime!
+            : DateTime.now();
     final survivalDuration = endTime.difference(gameState.gameStartTime);
-    _finalSurvivalTime = GameTime.formatSurvivalTime(survivalDuration.inMilliseconds);
+    _finalSurvivalTime = GameTime.formatSurvivalTime(
+      survivalDuration.inMilliseconds,
+    );
   }
 }

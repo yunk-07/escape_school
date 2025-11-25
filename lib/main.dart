@@ -488,7 +488,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CatalogPage()),
+            MaterialPageRoute(builder: (context) =>  CatalogPage()),
           );
         },
         child: AnimatedContainer(

@@ -15,18 +15,25 @@ import 'optimized_game_state.dart';
 
 /// 商店可见性状态选择器 - 只监听商店显示状态
 final shopVisibilityProvider = Provider<bool>((ref) {
-  return ref.watch(optimizedGameStateProvider.select((state) => state.showShop));
+  return ref.watch(
+    optimizedGameStateProvider.select((state) => state.showShop),
+  );
 }, dependencies: [optimizedGameStateProvider]);
 
 /// 商店数据选择器 - 只监听商店数据变化
 final shopDataProvider = Provider<dynamic>((ref) {
-  return ref.watch(optimizedGameStateProvider.select((state) => state.schoolShop));
+  return ref.watch(
+    optimizedGameStateProvider.select((state) => state.schoolShop),
+  );
 }, dependencies: [optimizedGameStateProvider]);
 
 /// 玩家金币选择器 - 只监听金币变化
 final playerGoldProvider = Provider<int>((ref) {
-  return ref.watch(optimizedGameStateProvider.select((state) => 
-    (state.characterStats['gold'] ?? 0).toInt()));
+  return ref.watch(
+    optimizedGameStateProvider.select(
+      (state) => (state.characterStats['gold'] ?? 0).toInt(),
+    ),
+  );
 }, dependencies: [optimizedGameStateProvider]);
 
 /// 商店刷新时间选择器 - 监听商店刷新时间变化
@@ -37,13 +44,16 @@ final shopRefreshTimeProvider = Provider<Duration?>((ref) {
 }, dependencies: [shopDataProvider]);
 
 /// 商店特定状态选择器 - 组合精确的状态选择器
-final shopStateProvider = Provider<ShopState>((ref) {
-  return ShopState(
-    isVisible: ref.watch(shopVisibilityProvider),
-    shop: ref.watch(shopDataProvider),
-    playerGold: ref.watch(playerGoldProvider),
-  );
-}, dependencies: [shopVisibilityProvider, shopDataProvider, playerGoldProvider]);
+final shopStateProvider = Provider<ShopState>(
+  (ref) {
+    return ShopState(
+      isVisible: ref.watch(shopVisibilityProvider),
+      shop: ref.watch(shopDataProvider),
+      playerGold: ref.watch(playerGoldProvider),
+    );
+  },
+  dependencies: [shopVisibilityProvider, shopDataProvider, playerGoldProvider],
+);
 
 /// 商店状态数据类
 class ShopState {
@@ -78,7 +88,7 @@ class ShopView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 只监听商店可见性，避免其他状态变化导致重建
     final isVisible = ref.watch(shopVisibilityProvider);
-    
+
     if (!isVisible) {
       return const SizedBox.shrink();
     }
@@ -96,7 +106,7 @@ class _ShopContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final shop = ref.watch(shopDataProvider);
     final playerGold = ref.watch(playerGoldProvider);
-    
+
     // 创建ShopState对象
     final shopState = ShopState(
       isVisible: true, // 已经在父组件中检查过可见性
@@ -124,10 +134,7 @@ class _ShopContent extends ConsumerWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF2D3748),
-                  const Color(0xFF1A202C),
-                ],
+                colors: [const Color(0xFF2D3748), const Color(0xFF1A202C)],
               ),
               // 关键区域：统一圆角为5
               borderRadius: BorderRadius.circular(5),
@@ -162,7 +169,7 @@ class _ShopContent extends ConsumerWidget {
   Widget _buildShopHeader(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(optimizedGameStateProvider);
     final playerGold = gameState.characterStats['gold']?.toInt() ?? 0;
-    
+
     // 关键区域：标题栏美化（更柔和的渐变、阴影层次）；统一圆角为5
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -200,13 +207,12 @@ class _ShopContent extends ConsumerWidget {
                   color: Colors.white.withValues(alpha: 0.18),
                   // 统一圆角为5
                   borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.store,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.store, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
               Column(
@@ -234,19 +240,19 @@ class _ShopContent extends ConsumerWidget {
               ),
             ],
           ),
-          
+
           // 右侧：金币显示和退出按钮
           Row(
             children: [
               // 金币显示
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Colors.yellow.shade600,
-                      Colors.amber.shade500,
-                    ],
+                    colors: [Colors.yellow.shade600, Colors.amber.shade500],
                   ),
                   // 统一圆角为5
                   borderRadius: BorderRadius.circular(5),
@@ -296,15 +302,12 @@ class _ShopContent extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              
+
               // 退出按钮
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Colors.red.shade600,
-                      Colors.red.shade700,
-                    ],
+                    colors: [Colors.red.shade600, Colors.red.shade700],
                   ),
                   // 统一圆角为5
                   borderRadius: BorderRadius.circular(5),
@@ -324,7 +327,9 @@ class _ShopContent extends ConsumerWidget {
                     // 统一圆角为5
                     borderRadius: BorderRadius.circular(5),
                     onTap: () {
-                      ref.read(optimizedGameStateProvider.notifier).toggleShop();
+                      ref
+                          .read(optimizedGameStateProvider.notifier)
+                          .toggleShop();
                     },
                     child: Container(
                       padding: const EdgeInsets.all(8),
@@ -345,7 +350,11 @@ class _ShopContent extends ConsumerWidget {
   }
 
   /// 构建商店内容
-  Widget _buildShopContent(BuildContext context, WidgetRef ref, ShopState shopState) {
+  Widget _buildShopContent(
+    BuildContext context,
+    WidgetRef ref,
+    ShopState shopState,
+  ) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -382,16 +391,23 @@ class _ShopContent extends ConsumerWidget {
                     // 商品网格 - 改为横向长方形布局
                     Expanded(
                       child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2, // 每行显示2个商品
-                          childAspectRatio: 2.5, // 横向长方形比例
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2, // 每行显示2个商品
+                              childAspectRatio: 2.5, // 横向长方形比例
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
                         itemCount: shopState.shop.items.length,
                         itemBuilder: (context, index) {
                           final item = shopState.shop.items[index];
-                          return _buildShopItem(context, ref, item, shopState.playerGold, index);
+                          return _buildShopItem(
+                            context,
+                            ref,
+                            item,
+                            shopState.playerGold,
+                            index,
+                          );
                         },
                       ),
                     ),
@@ -406,7 +422,13 @@ class _ShopContent extends ConsumerWidget {
   }
 
   /// 构建单个商品项
-  Widget _buildShopItem(BuildContext context, WidgetRef ref, dynamic item, int playerGold, int index) {
+  Widget _buildShopItem(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic item,
+    int playerGold,
+    int index,
+  ) {
     // item已经是ShopItem类型，不需要转换
     final canAfford = playerGold >= item.currentPrice;
     final isInStock = item.stock > 0;
@@ -416,12 +438,14 @@ class _ShopContent extends ConsumerWidget {
     final int basePrice = item.item.basePrice;
     final int currentPrice = item.currentPrice;
     final bool hasBase = basePrice > 0;
-    final int diffPct = hasBase ? (((currentPrice - basePrice) * 100) / basePrice).round() : 0;
+    final int diffPct =
+        hasBase ? (((currentPrice - basePrice) * 100) / basePrice).round() : 0;
     final bool isDown = hasBase && diffPct < 0;
     final bool isUp = hasBase && diffPct > 0;
-    final Color priceColor = isDown
-        ? Colors.greenAccent.shade200
-        : isUp
+    final Color priceColor =
+        isDown
+            ? Colors.greenAccent.shade200
+            : isUp
             ? Colors.redAccent.shade200
             : Colors.white;
 
@@ -441,9 +465,10 @@ class _ShopContent extends ConsumerWidget {
             // 统一圆角为5
             borderRadius: BorderRadius.circular(5),
             border: Border.all(
-              color: canBuy 
-                  ? Colors.green.withValues(alpha: 0.6) 
-                  : isInStock 
+              color:
+                  canBuy
+                      ? Colors.green.withValues(alpha: 0.6)
+                      : isInStock
                       ? Colors.orange.withValues(alpha: 0.4)
                       : Colors.red.withValues(alpha: 0.4),
               width: 2,
@@ -461,240 +486,279 @@ class _ShopContent extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-            // 左侧：商品图片
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                // 统一圆角为5
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  // 关键区域：按物品等级着色图片边框
-                  color: _getItemLevelColor(item.item.level).withValues(alpha: 0.85),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                // 统一圆角为5
-                borderRadius: BorderRadius.circular(5),
-                child: Image.asset(
-                  item.item.image,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.grey.shade600,
-                            Colors.grey.shade800,
-                          ],
-                        ),
-                        // 统一圆角为5
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Icon(
-                        Icons.inventory,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        size: 30,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            
-            const SizedBox(width: 12),
-            
-            // 中间：商品信息
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 商品名称
-                  Text(
-                    item.item.name,
-                    style: TextStyle(
-                      // 关键区域：按物品等级着色名称
-                      color: _getItemLevelColor(item.item.level),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 4),
-                  
-                  // 商品描述
-                  Text(
-                    item.item.description,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 6),
-                  
-                  // 关键区域：价格与库存（含原价划线与当前价颜色）
-                  // 视觉优化：更细的边框与更柔和的渐变与阴影
-                  Row(
-                    children: [
-                      // 价格标签
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.amber.shade600.withValues(alpha: 0.95),
-                              Colors.amber.shade400.withValues(alpha: 0.95),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          // 统一圆角为5
-                          borderRadius: BorderRadius.circular(5),
-                          border: Border.all(
-                            color: Colors.amber.shade200.withValues(alpha: 0.7),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.monetization_on,
-                              color: Colors.white,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 2),
-                            // 原价（划线）+ 当前价（红/绿）
-                            // 说明：避免使用集合 if，兼容旧 Dart 版本解析
-                            Visibility(
-                              visible: hasBase,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '$basePrice',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.7),
-                                      fontSize: 10,
-                                      decoration: TextDecoration.lineThrough,
-                                      decorationColor: Colors.white.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              '$currentPrice',
-                              style: TextStyle(
-                                color: priceColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 8),
-                      
-                      // 库存状态
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isInStock
-                                ? [
-                                    Colors.blue.shade600.withValues(alpha: 0.85),
-                                    Colors.blue.shade400.withValues(alpha: 0.85),
-                                  ]
-                                : [
-                                    Colors.red.shade600.withValues(alpha: 0.85),
-                                    Colors.red.shade400.withValues(alpha: 0.85),
-                                  ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          // 统一圆角为5
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          isInStock ? '库存: ${item.stock}' : '售罄',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(width: 12),
-            
-            // 右侧：购买按钮
-            SizedBox(
-              width: 80,
-              height: 36,
-              child: ElevatedButton(
-                onPressed: canBuy ? () {
-                  ref.read(optimizedGameStateProvider.notifier).buyItem(item);
-                } : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: canBuy ? Colors.green.shade600 : Colors.grey.shade600,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade700,
-                  disabledForegroundColor: Colors.grey.shade400,
-                  // 关键区域：按钮立体感
-                  elevation: canBuy ? 6 : 1,
-                  shadowColor: canBuy ? Colors.green.withValues(alpha: 0.45) : Colors.transparent,
-                  shape: RoundedRectangleBorder(
+                // 左侧：商品图片
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
                     // 统一圆角为5
                     borderRadius: BorderRadius.circular(5),
-                    side: BorderSide(
-                      color: canBuy 
-                          ? Colors.green.shade400.withValues(alpha: 0.6)
-                          : Colors.grey.shade500.withValues(alpha: 0.3),
+                    border: Border.all(
+                      // 关键区域：按物品等级着色图片边框
+                      color: _getItemLevelColor(
+                        item.item.level,
+                      ).withValues(alpha: 0.85),
                       width: 1,
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                ),
-                // 交互优化：文案与阴影仅在可购买时强调
-                child: Text(
-                  canBuy ? '购买' : (isInStock ? '金币不足' : '售罄'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    shadows: canBuy ? [
-                      const Shadow(
-                        color: Colors.black26,
-                        offset: Offset(0, 1),
-                        blurRadius: 2,
-                      ),
-                    ] : null,
+                  child: ClipRRect(
+                    // 统一圆角为5
+                    borderRadius: BorderRadius.circular(5),
+                    child: Image.asset(
+                      item.item.image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.grey.shade600,
+                                Colors.grey.shade800,
+                              ],
+                            ),
+                            // 统一圆角为5
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Icon(
+                            Icons.inventory,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            size: 30,
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ),
+
+                const SizedBox(width: 12),
+
+                // 中间：商品信息
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 商品名称
+                      Text(
+                        item.item.name,
+                        style: TextStyle(
+                          // 关键区域：按物品等级着色名称
+                          color: _getItemLevelColor(item.item.level),
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // 商品描述
+                      Text(
+                        item.item.description,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 11,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // 关键区域：价格与库存（含原价划线与当前价颜色）
+                      // 视觉优化：更细的边框与更柔和的渐变与阴影
+                      Row(
+                        children: [
+                          // 价格标签
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.amber.shade600.withValues(alpha: 0.95),
+                                  Colors.amber.shade400.withValues(alpha: 0.95),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              // 统一圆角为5
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(
+                                color: Colors.amber.shade200.withValues(
+                                  alpha: 0.7,
+                                ),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.monetization_on,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 2),
+                                // 原价（划线）+ 当前价（红/绿）
+                                // 说明：避免使用集合 if，兼容旧 Dart 版本解析
+                                Visibility(
+                                  visible: hasBase,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '$basePrice',
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                          fontSize: 10,
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                          decorationColor: Colors.white
+                                              .withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '$currentPrice',
+                                  style: TextStyle(
+                                    color: priceColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          // 库存状态
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors:
+                                    isInStock
+                                        ? [
+                                          Colors.blue.shade600.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                          Colors.blue.shade400.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                        ]
+                                        : [
+                                          Colors.red.shade600.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                          Colors.red.shade400.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                        ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              // 统一圆角为5
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              isInStock ? '库存: ${item.stock}' : '售罄',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                // 右侧：购买按钮
+                SizedBox(
+                  width: 80,
+                  height: 36,
+                  child: ElevatedButton(
+                    onPressed:
+                        canBuy
+                            ? () {
+                              ref
+                                  .read(optimizedGameStateProvider.notifier)
+                                  .buyItem(item);
+                            }
+                            : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          canBuy ? Colors.green.shade600 : Colors.grey.shade600,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade700,
+                      disabledForegroundColor: Colors.grey.shade400,
+                      // 关键区域：按钮立体感
+                      elevation: canBuy ? 6 : 1,
+                      shadowColor:
+                          canBuy
+                              ? Colors.green.withValues(alpha: 0.45)
+                              : Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        // 统一圆角为5
+                        borderRadius: BorderRadius.circular(5),
+                        side: BorderSide(
+                          color:
+                              canBuy
+                                  ? Colors.green.shade400.withValues(alpha: 0.6)
+                                  : Colors.grey.shade500.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
+                    // 交互优化：文案与阴影仅在可购买时强调
+                    child: Text(
+                      canBuy ? '购买' : (isInStock ? '金币不足' : '售罄'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        shadows:
+                            canBuy
+                                ? [
+                                  const Shadow(
+                                    color: Colors.black26,
+                                    offset: Offset(0, 1),
+                                    blurRadius: 2,
+                                  ),
+                                ]
+                                : null,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
         // 关键区域：右上角涨跌幅徽标（⬆️/⬇️ + 百分比）
         // 说明：为避免列表内内联 if 导致语法冲突，改用 Align + Offstage 控制显示与定位。
         Align(
@@ -717,7 +781,10 @@ class _ShopContent extends ConsumerWidget {
                 child: Text(
                   diffPct > 0 ? '⬆️${diffPct.abs()}%' : '⬇️${diffPct.abs()}%',
                   style: TextStyle(
-                    color: diffPct > 0 ? Colors.redAccent.shade200 : Colors.greenAccent.shade200,
+                    color:
+                        diffPct > 0
+                            ? Colors.redAccent.shade200
+                            : Colors.greenAccent.shade200,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     shadows: const [
@@ -788,7 +855,7 @@ class _ShopRefreshTimerState extends ConsumerState<ShopRefreshTimer> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.2),
           width: 1,

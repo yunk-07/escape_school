@@ -369,7 +369,7 @@ final List<Item> allItems = [
     image: 'images/items/goldbar.png',
     description: '校长裤兜掉出来的',
     effects: const {'gold': 333},
-    type: '物品',
+    type: 'item',
     level: 6,
     availableInShop: false,
     usageTime: 0,
