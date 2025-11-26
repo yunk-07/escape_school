@@ -1912,7 +1912,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             break;
           }
           final String tile = state.map[gy][gx];
-          if (tile == 'wall' || tile == 'building') {
+          if (tile == 'wall') {
             hitWall = true;
             final double prevT = (i - 1) / steps;
             ex = sx + (ex - sx) * prevT;
