@@ -349,7 +349,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     const Color.fromRGBO(13, 17, 23, 0.8),
                   ],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         // 立体边框效果
         border: Border.all(
           color:
@@ -610,7 +610,8 @@ class _CatalogPageState extends State<CatalogPage> {
     final bool wall = (wp['penetrateWalls'] ?? false) == true;
     final bool ghost = (wp['penetrateGhosts'] ?? false) == true;
     final List<Map<String, String>> right = [
-      if (fireMode.isNotEmpty) {'k': '开火模式', 'v': fireMode == 'fullauto' ? '全自动' : '半自动'},
+      if (fireMode.isNotEmpty)
+        {'k': '开火模式', 'v': fireMode == 'fullauto' ? '全自动' : '半自动'},
       if (reloadMs > 0) {'k': '换弹时间', 'v': '${reloadMs}ms'},
       if (isRanged && magazineSize > 0) {'k': '弹夹容量', 'v': '$magazineSize'},
       if (isRanged && ammoTotal > 0) {'k': '备用弹药', 'v': '$ammoTotal'},

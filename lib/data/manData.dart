@@ -1,4 +1,3 @@
-
 /**
  * 角色数据配置文件
  * 
@@ -26,14 +25,14 @@ final List<Map<String, dynamic>> manData = const [
     'image': 'images/man/cook.png',
     'gold': 66,
     'hp': 80,
-    'maxHp': 80,      // 最大生命值（可调整）
+    'maxHp': 80, // 最大生命值（可调整）
     'san': 50,
-    'maxSan': 50,     // 最大精神值（可调整）
+    'maxSan': 50, // 最大精神值（可调整）
     'description': '猜猜今天吃什么？',
-    'moveSpeed': 90.0,  // 移动速度：90像素/秒
+    'moveSpeed': 90.0, // 移动速度：90像素/秒
     'food': 10,
-    'maxFood': 90,    // 最大饱食度（可调整）
-    'maxOxygen': 10.0,  // 最大氧气值
+    'maxFood': 90, // 最大饱食度（可调整）
+    'maxOxygen': 10.0, // 最大氧气值
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
     // 关键区域：初始物品（props.dart 的 id），用于验证机制
@@ -51,10 +50,10 @@ final List<Map<String, dynamic>> manData = const [
     'san': 80,
     'maxSan': 80,
     'description': '睡觉何尝不是战斗的方式？',
-    'moveSpeed': 70.0,  // 移动速度：70像素/秒
+    'moveSpeed': 70.0, // 移动速度：70像素/秒
     'food': 80,
     'maxFood': 100,
-    'maxOxygen': 10.0,  // 最大氧气值
+    'maxOxygen': 10.0, // 最大氧气值
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
     'baseDamage': 8.0,
@@ -69,10 +68,10 @@ final List<Map<String, dynamic>> manData = const [
     'san': 80,
     'maxSan': 80,
     'description': '睡觉何尝不是战斗的方式？',
-    'moveSpeed': 200.0,  // 移动速度：200像素/秒
+    'moveSpeed': 200.0, // 移动速度：200像素/秒
     'food': 20,
     'maxFood': 20,
-    'maxOxygen': 10.0,  // 最大氧气值
+    'maxOxygen': 10.0, // 最大氧气值
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
     'baseDamage': 9.0,
@@ -88,14 +87,22 @@ final List<Map<String, dynamic>> manData = const [
     'san': 1000,
     'maxSan': 1000,
     'description': '九倍倍率出不了货气死我了',
-    'moveSpeed': 200.0,  // 移动速度：200像素/秒
+    'moveSpeed': 200.0, // 移动速度：200像素/秒
     'food': 2000,
     'maxFood': 2000,
-    'maxOxygen': 150.0,  // 最大氧气值（开发者有更多氧气）
+    'maxOxygen': 150.0, // 最大氧气值（开发者有更多氧气）
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 990.0,
     // 关键区域：初始物品（使用 props.dart 中的物品 id）
-    'initialItems': const ['m-three-armor_fangdan','wine','speed_gloves','g-eteen-gun','m-one-gun','bow','g-eteen-ultra-gun'],
+    'initialItems': const [
+      'm-three-armor_fangdan',
+      'wine',
+      'speed_gloves',
+      'g-eteen-gun',
+      'm-one-gun',
+      'bow',
+      'g-eteen-ultra-gun',
+    ],
     'baseDamage': 20.0,
     'baseCritChance': 0.20,
   },

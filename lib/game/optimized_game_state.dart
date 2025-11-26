@@ -25,18 +25,18 @@ import 'package:escape_from_school/game/zones.dart';
 
 /// 游戏页面类型枚举
 enum GamePage {
-  game,      // 主游戏页面
+  game, // 主游戏页面
   inventory, // 背包页面
-  shop,      // 商店页面
+  shop, // 商店页面
   character, // 角色信息页面
 }
 
 /// 播报消息类型枚举
 enum BroadcastMessageType {
-  damage,     // 伤害消息
-  heal,       // 治疗消息
-  item,       // 物品相关消息
-  system,     // 系统消息
+  damage, // 伤害消息
+  heal, // 治疗消息
+  item, // 物品相关消息
+  system, // 系统消息
 }
 
 /// 播报消息类
@@ -70,11 +70,7 @@ class OptimizedPlayerPosition {
     this.facingRight = true,
   });
 
-  OptimizedPlayerPosition copyWith({
-    double? x,
-    double? y,
-    bool? facingRight,
-  }) {
+  OptimizedPlayerPosition copyWith({double? x, double? y, bool? facingRight}) {
     return OptimizedPlayerPosition(
       x: x ?? this.x,
       y: y ?? this.y,
@@ -93,7 +89,7 @@ class OptimizedPlayerPosition {
 
   @override
   int get hashCode => x.hashCode ^ y.hashCode ^ facingRight.hashCode;
-  
+
   /// 转换为Point<int>，用于地图坐标
   Point<int> toPoint() {
     return Point<int>(x.round(), y.round());
@@ -173,21 +169,21 @@ class OptimizedGameState {
   final double lastWeaponAimX;
   final double lastWeaponAimY;
   final DateTime? weaponAttackStartTime;
-  final AttackTemplate meleeAttackTemplate;  // 关键区域：近战模板
+  final AttackTemplate meleeAttackTemplate; // 关键区域：近战模板
   final AttackTemplate rangedAttackTemplate; // 关键区域：远程模板
-  final AttackMode selectedAttackMode;       // 关键区域：当前选中的攻击模式
+  final AttackMode selectedAttackMode; // 关键区域：当前选中的攻击模式
   // 关键区域：武器伤害参数（来源于物品 weaponParams）
-  final double? weaponDamageAmplify;          // 伤害增幅倍数
-  final double? weaponCritDamage;             // 暴击伤害倍数
-  final double? weaponCritChanceBonus;        // 暴击几率加成
+  final double? weaponDamageAmplify; // 伤害增幅倍数
+  final double? weaponCritDamage; // 暴击伤害倍数
+  final double? weaponCritChanceBonus; // 暴击几率加成
   final bool weaponPenetrateWalls;
   final bool weaponPenetrateGhosts;
   final FireMode? weaponFireMode;
-  final int weaponMagazineSize;               
-  final int weaponClipAmmo;                   
-  final int weaponTotalAmmo;                  
-  final int weaponFireIntervalMs;             
-  final List<Projectile> projectiles;         
+  final int weaponMagazineSize;
+  final int weaponClipAmmo;
+  final int weaponTotalAmmo;
+  final int weaponFireIntervalMs;
+  final List<Projectile> projectiles;
   final bool isReloading;
   final double reloadProgress;
   final DateTime? reloadStartTime;
@@ -203,9 +199,9 @@ class OptimizedGameState {
   final List<Item> playerInventory;
   // 关键区域：装备槽状态，严格四个部位（垂直展示）
   final Map<String, Item?> equipmentSlots; // {weapon, armor, head, bag}
-  final int inventoryCapacity;                    // 背包容量
-  final int maxInventoryCapacity;                 // 最大背包容量（用于扩容）
-  final Map<Point<int>, List<Item>> groundItems;  // 地面物品，按位置存储
+  final int inventoryCapacity; // 背包容量
+  final int maxInventoryCapacity; // 最大背包容量（用于扩容）
+  final Map<Point<int>, List<Item>> groundItems; // 地面物品，按位置存储
   final Set<Point<int>> visibleTiles;
   final List<List<bool>> visibleMap;
   final bool showInventory;
@@ -219,86 +215,84 @@ class OptimizedGameState {
   final bool isGameOver;
   final String deathReason;
   final GamePage currentPage;
-  
+
   // 脱离卡死相关状态
-  final bool isNoClipMode;              // 是否处于无视地形模式
-  final DateTime? noClipEndTime;        // 无视地形模式结束时间
-  final DateTime? unstuckCooldownEnd;   // 脱离卡死冷却结束时间
-  final bool isWaitingForMovement;      // 是否正在等待玩家移动以开始冷却
+  final bool isNoClipMode; // 是否处于无视地形模式
+  final DateTime? noClipEndTime; // 无视地形模式结束时间
+  final DateTime? unstuckCooldownEnd; // 脱离卡死冷却结束时间
+  final bool isWaitingForMovement; // 是否正在等待玩家移动以开始冷却
   final DateTime? unstuckActivatedTime; // 脱离卡死激活时间
-  
+
   // 游戏开始无碰撞模式相关状态
-  final bool isInitialNoClipMode;       // 是否处于游戏开始的初始无碰撞模式
-  final bool hasUsedJoystick;           // 是否已经使用过摇杆
-  
+  final bool isInitialNoClipMode; // 是否处于游戏开始的初始无碰撞模式
+  final bool hasUsedJoystick; // 是否已经使用过摇杆
+
   // 移动距离计算相关状态
-  final OptimizedPlayerPosition? lastPosition;  // 上一次位置，用于计算移动距离
-  final double accumulatedDistance;             // 累积移动距离
-  
+  final OptimizedPlayerPosition? lastPosition; // 上一次位置，用于计算移动距离
+  final double accumulatedDistance; // 累积移动距离
+
   // 生命值变化检测相关状态
-  final double? lastHp;                         // 上一次的生命值，用于检测变化
-  final bool shouldShowDamageEffect;            // 是否应该显示伤害效果
-  final double lastDamageAmount;                // 最后一次的伤害量
-  
+  final double? lastHp; // 上一次的生命值，用于检测变化
+  final bool shouldShowDamageEffect; // 是否应该显示伤害效果
+  final double lastDamageAmount; // 最后一次的伤害量
+
   // 平滑视野动画相关状态
-  final int lastAnimationFrame;                 // 最后一次动画帧标识，用于触发重绘
-  
+  final int lastAnimationFrame; // 最后一次动画帧标识，用于触发重绘
+
   // 播报消息相关状态
   final List<BroadcastMessage> broadcastMessages; // 播报消息列表
   final String? currentZoneName;
   final DateTime? zoneNameVisibleUntil;
-  
+
   // 技能系统相关状态
-  final List<Skill> characterSkills;              // 角色拥有的技能列表
-  final Map<String, SkillState> skillStates;      // 技能状态映射
-  final String? currentCastingSkillId;            // 当前正在施法的技能ID
-  final double castingProgress;                   // 施法进度 (0.0 - 1.0)
-  
+  final List<Skill> characterSkills; // 角色拥有的技能列表
+  final Map<String, SkillState> skillStates; // 技能状态映射
+  final String? currentCastingSkillId; // 当前正在施法的技能ID
+  final double castingProgress; // 施法进度 (0.0 - 1.0)
+
   // 物品使用相关状态
-  final bool isUsingItem;                         // 是否正在使用物品
-  final Item? currentUsingItem;                   // 当前正在使用的物品
-  final double itemUsageProgress;                 // 物品使用进度 (0.0 - 1.0)
-  final DateTime? itemUsageStartTime;             // 物品使用开始时间
-  
+  final bool isUsingItem; // 是否正在使用物品
+  final Item? currentUsingItem; // 当前正在使用的物品
+  final double itemUsageProgress; // 物品使用进度 (0.0 - 1.0)
+  final DateTime? itemUsageStartTime; // 物品使用开始时间
+
   // 宝箱探索相关状态
-  final bool isExploringChest;                    // 是否正在探索宝箱
-  final Point<int>? currentExploringChest;        // 当前正在探索的宝箱位置
-  final double chestExplorationProgress;          // 宝箱探索进度 (0.0 - 1.0)
-  final DateTime? chestExplorationStartTime;      // 宝箱探索开始时间
+  final bool isExploringChest; // 是否正在探索宝箱
+  final Point<int>? currentExploringChest; // 当前正在探索的宝箱位置
+  final double chestExplorationProgress; // 宝箱探索进度 (0.0 - 1.0)
+  final DateTime? chestExplorationStartTime; // 宝箱探索开始时间
   // 宝箱搜索页面相关状态
-  final bool isChestSearchOpen;                   // 是否打开宝箱搜索页面
-  final List<Item> chestPendingItems;             // 尚未揭示的宝箱物品（搜索队列）
-  final List<Item> chestVisibleItems;             // 已揭示、当前显示在宝箱中的物品
-  
+  final bool isChestSearchOpen; // 是否打开宝箱搜索页面
+  final List<Item> chestPendingItems; // 尚未揭示的宝箱物品（搜索队列）
+  final List<Item> chestVisibleItems; // 已揭示、当前显示在宝箱中的物品
+
   // 游戏时间相关状态
-  final DateTime gameStartTime;                   // 游戏开始时间
-  final DateTime? gameEndTime;                    // 游戏结束时间
-  
+  final DateTime gameStartTime; // 游戏开始时间
+  final DateTime? gameEndTime; // 游戏结束时间
+
   // 死亡时数据快照
-  final Map<String, dynamic>? deathTimeStats;     // 死亡时的角色状态快照
-  final List<Item>? deathTimeInventory;           // 死亡时的背包物品快照
-  
+  final Map<String, dynamic>? deathTimeStats; // 死亡时的角色状态快照
+  final List<Item>? deathTimeInventory; // 死亡时的背包物品快照
+
   // 氧气系统相关状态
-  final OxygenSystem? oxygenSystem;               // 氧气系统实例
-  final bool isInWater;                           // 是否在水中
-  final double currentOxygen;                     // 当前氧气值
-  final double maxOxygen;                         // 基础最大氧气值
-  final double oxygenBonus;                       // 氧气增强值（通过道具获得）
+  final OxygenSystem? oxygenSystem; // 氧气系统实例
+  final bool isInWater; // 是否在水中
+  final double currentOxygen; // 当前氧气值
+  final double maxOxygen; // 基础最大氧气值
+  final double oxygenBonus; // 氧气增强值（通过道具获得）
   final OxygenRecoveryManager? oxygenRecoveryManager; // 氧气恢复管理器
 
   // 炼金特效相关状态
   // 关键区域：控制炼金抽奖特效的显示与数据（候选与结果）
-  final bool showAlchemyEffect;            // 是否显示炼金抽奖特效覆盖层
-  final List<Item> alchemyCandidates;      // 可能合成出的候选物品列表（同等级）
-  final Item? alchemyResultItem;           // 抽奖最终结果物品（点击后放入背包）
+  final bool showAlchemyEffect; // 是否显示炼金抽奖特效覆盖层
+  final List<Item> alchemyCandidates; // 可能合成出的候选物品列表（同等级）
+  final Item? alchemyResultItem; // 抽奖最终结果物品（点击后放入背包）
   // 关键区域：炼金动画用的等级概率权重（键为等级，值为权重）
   final Map<int, int> alchemyLevelWeights;
 
-
-
   const OptimizedGameState({
     required this.characterStats,
-    required this.playerPosition,  
+    required this.playerPosition,
     required this.movementState,
     this.weaponJoystickX = 0.0,
     this.weaponJoystickY = 0.0,
@@ -309,13 +303,13 @@ class OptimizedGameState {
     this.weaponAttackStartTime,
     this.meleeAttackTemplate = const AttackTemplate(
       color: ui.Color(0xFFFFA000), // 橙色近战效果
-      distance: 1.2,               // 约1.2格半径
-      range: 1.2,                  // 弧形扫过角宽（弧度）
+      distance: 1.2, // 约1.2格半径
+      range: 1.2, // 弧形扫过角宽（弧度）
     ),
     this.rangedAttackTemplate = const AttackTemplate(
       color: ui.Color(0xFF00E5FF), // 青色远程子弹
-      distance: 4.0,               // 子弹飞行距离（格）
-      range: 12.0,                 // 子弹速度（格/秒）
+      distance: 4.0, // 子弹飞行距离（格）
+      range: 12.0, // 子弹速度（格/秒）
     ),
     this.selectedAttackMode = AttackMode.melee,
     this.weaponDamageAmplify = 1.0,
@@ -349,9 +343,9 @@ class OptimizedGameState {
       'pants': null,
       'shoes': null,
     },
-    this.inventoryCapacity = 20,                    // 默认背包容量20格
-    this.maxInventoryCapacity = 100,                // 最大可扩容到100格
-    this.groundItems = const {},                    // 初始化为空的地面物品映射
+    this.inventoryCapacity = 20, // 默认背包容量20格
+    this.maxInventoryCapacity = 100, // 最大可扩容到100格
+    this.groundItems = const {}, // 初始化为空的地面物品映射
     required this.visibleTiles,
     required this.visibleMap,
     required this.ghostManager,
@@ -515,20 +509,26 @@ class OptimizedGameState {
       movementState: movementState ?? this.movementState,
       weaponJoystickX: weaponJoystickX ?? this.weaponJoystickX ?? 0.0,
       weaponJoystickY: weaponJoystickY ?? this.weaponJoystickY ?? 0.0,
-      weaponJoystickIntensity: weaponJoystickIntensity ?? this.weaponJoystickIntensity ?? 0.0,
+      weaponJoystickIntensity:
+          weaponJoystickIntensity ?? this.weaponJoystickIntensity ?? 0.0,
       isWeaponAiming: isWeaponAiming ?? this.isWeaponAiming,
       lastWeaponAimX: lastWeaponAimX ?? this.lastWeaponAimX,
       lastWeaponAimY: lastWeaponAimY ?? this.lastWeaponAimY,
-      weaponAttackStartTime: weaponAttackStartTime ?? this.weaponAttackStartTime,
+      weaponAttackStartTime:
+          weaponAttackStartTime ?? this.weaponAttackStartTime,
       meleeAttackTemplate: meleeAttackTemplate ?? this.meleeAttackTemplate,
       rangedAttackTemplate: rangedAttackTemplate ?? this.rangedAttackTemplate,
       selectedAttackMode: selectedAttackMode ?? this.selectedAttackMode,
-      weaponDamageAmplify: weaponDamageAmplify ?? this.weaponDamageAmplify ?? 1.0,
+      weaponDamageAmplify:
+          weaponDamageAmplify ?? this.weaponDamageAmplify ?? 1.0,
       weaponCritDamage: weaponCritDamage ?? this.weaponCritDamage ?? 1.5,
-      weaponCritChanceBonus: weaponCritChanceBonus ?? this.weaponCritChanceBonus ?? 0.0,
+      weaponCritChanceBonus:
+          weaponCritChanceBonus ?? this.weaponCritChanceBonus ?? 0.0,
       weaponPenetrateWalls: weaponPenetrateWalls ?? this.weaponPenetrateWalls,
-      weaponPenetrateGhosts: weaponPenetrateGhosts ?? this.weaponPenetrateGhosts,
-      weaponFireMode: weaponFireMode ?? this.weaponFireMode ?? FireMode.semiAuto,
+      weaponPenetrateGhosts:
+          weaponPenetrateGhosts ?? this.weaponPenetrateGhosts,
+      weaponFireMode:
+          weaponFireMode ?? this.weaponFireMode ?? FireMode.semiAuto,
       weaponMagazineSize: weaponMagazineSize ?? this.weaponMagazineSize,
       weaponClipAmmo: weaponClipAmmo ?? this.weaponClipAmmo,
       weaponTotalAmmo: weaponTotalAmmo ?? this.weaponTotalAmmo,
@@ -539,7 +539,8 @@ class OptimizedGameState {
       reloadStartTime: reloadStartTime ?? this.reloadStartTime,
       reloadDurationMs: reloadDurationMs ?? this.reloadDurationMs,
       reloadStartClipAmmo: reloadStartClipAmmo ?? this.reloadStartClipAmmo,
-      reloadStartReserveAmmo: reloadStartReserveAmmo ?? this.reloadStartReserveAmmo,
+      reloadStartReserveAmmo:
+          reloadStartReserveAmmo ?? this.reloadStartReserveAmmo,
       map: map ?? this.map,
       chestPositions: chestPositions ?? this.chestPositions,
       safePositions: safePositions ?? this.safePositions,
@@ -571,7 +572,8 @@ class OptimizedGameState {
       lastPosition: lastPosition ?? this.lastPosition,
       accumulatedDistance: accumulatedDistance ?? this.accumulatedDistance,
       lastHp: lastHp ?? this.lastHp,
-      shouldShowDamageEffect: shouldShowDamageEffect ?? this.shouldShowDamageEffect,
+      shouldShowDamageEffect:
+          shouldShowDamageEffect ?? this.shouldShowDamageEffect,
       lastDamageAmount: lastDamageAmount ?? this.lastDamageAmount,
       lastAnimationFrame: lastAnimationFrame ?? this.lastAnimationFrame,
       broadcastMessages: broadcastMessages ?? this.broadcastMessages,
@@ -579,16 +581,20 @@ class OptimizedGameState {
       zoneNameVisibleUntil: zoneNameVisibleUntil ?? this.zoneNameVisibleUntil,
       characterSkills: characterSkills ?? this.characterSkills,
       skillStates: skillStates ?? this.skillStates,
-      currentCastingSkillId: currentCastingSkillId ?? this.currentCastingSkillId,
+      currentCastingSkillId:
+          currentCastingSkillId ?? this.currentCastingSkillId,
       castingProgress: castingProgress ?? this.castingProgress,
       isUsingItem: isUsingItem ?? this.isUsingItem,
       currentUsingItem: currentUsingItem ?? this.currentUsingItem,
       itemUsageProgress: itemUsageProgress ?? this.itemUsageProgress,
       itemUsageStartTime: itemUsageStartTime ?? this.itemUsageStartTime,
       isExploringChest: isExploringChest ?? this.isExploringChest,
-      currentExploringChest: currentExploringChest ?? this.currentExploringChest,
-      chestExplorationProgress: chestExplorationProgress ?? this.chestExplorationProgress,
-      chestExplorationStartTime: chestExplorationStartTime ?? this.chestExplorationStartTime,
+      currentExploringChest:
+          currentExploringChest ?? this.currentExploringChest,
+      chestExplorationProgress:
+          chestExplorationProgress ?? this.chestExplorationProgress,
+      chestExplorationStartTime:
+          chestExplorationStartTime ?? this.chestExplorationStartTime,
       isChestSearchOpen: isChestSearchOpen ?? this.isChestSearchOpen,
       chestPendingItems: chestPendingItems ?? this.chestPendingItems,
       chestVisibleItems: chestVisibleItems ?? this.chestVisibleItems,
@@ -601,7 +607,8 @@ class OptimizedGameState {
       currentOxygen: currentOxygen ?? this.currentOxygen,
       maxOxygen: maxOxygen ?? this.maxOxygen,
       oxygenBonus: oxygenBonus ?? this.oxygenBonus,
-      oxygenRecoveryManager: oxygenRecoveryManager ?? this.oxygenRecoveryManager,
+      oxygenRecoveryManager:
+          oxygenRecoveryManager ?? this.oxygenRecoveryManager,
       showAlchemyEffect: showAlchemyEffect ?? this.showAlchemyEffect,
       alchemyCandidates: alchemyCandidates ?? this.alchemyCandidates,
       alchemyResultItem: alchemyResultItem ?? this.alchemyResultItem,
@@ -614,18 +621,23 @@ class OptimizedGameState {
 }
 
 /// 创建初始角色状态的辅助方法
-Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> characterData) {
+Map<String, dynamic> _createInitialCharacterStats(
+  Map<String, dynamic> characterData,
+) {
   return {
     'name': characterData['name'],
     'hp': (characterData['hp'] as num).toDouble(),
     // 关键区域：支持从角色配置读取最大生命值
-    'maxHp': ((characterData['maxHp'] ?? characterData['hp']) as num).toDouble(),
+    'maxHp':
+        ((characterData['maxHp'] ?? characterData['hp']) as num).toDouble(),
     'san': (characterData['san'] as num).toDouble(),
     // 关键区域：支持从角色配置读取最大精神值
-    'maxSan': ((characterData['maxSan'] ?? characterData['san']) as num).toDouble(),
+    'maxSan':
+        ((characterData['maxSan'] ?? characterData['san']) as num).toDouble(),
     'food': (characterData['food'] as num).toDouble(),
     // 关键区域：新增 maxFood 表示饱食度上限（可被道具修改）
-    'maxFood': ((characterData['maxFood'] ?? characterData['food']) as num).toDouble(),
+    'maxFood':
+        ((characterData['maxFood'] ?? characterData['food']) as num).toDouble(),
     'moveSpeed': characterData['moveSpeed'],
     'gold': (characterData['gold'] as num).toDouble(),
     'image': characterData['image'],
@@ -637,33 +649,34 @@ Map<String, dynamic> _createInitialCharacterStats(Map<String, dynamic> character
     'punish': ((characterData['punish'] ?? 0) as num).toDouble(),
     'maxPunish': 10.0,
     'baseDamage': ((characterData['baseDamage'] ?? 0.0) as num).toDouble(),
-    'baseCritChance': ((characterData['baseCritChance'] ?? 0.0) as num).toDouble(),
+    'baseCritChance':
+        ((characterData['baseCritChance'] ?? 0.0) as num).toDouble(),
   };
 }
 
 /// 初始化角色技能列表
-  List<Skill> _initializeCharacterSkills(String? characterName) {
-    if (characterName == null || characterName.isEmpty) {
-      return [];
-    }
-    
-    final skills = CharacterSkills.getSkillsForCharacter(characterName);
-    return skills;
+List<Skill> _initializeCharacterSkills(String? characterName) {
+  if (characterName == null || characterName.isEmpty) {
+    return [];
   }
+
+  final skills = CharacterSkills.getSkillsForCharacter(characterName);
+  return skills;
+}
 
 /// 初始化技能状态映射
 Map<String, SkillState> _initializeSkillStates(String? characterName) {
   if (characterName == null || characterName.isEmpty) {
     return {};
   }
-  
+
   final skills = CharacterSkills.getSkillsForCharacter(characterName);
   final skillStates = <String, SkillState>{};
-  
+
   for (final skill in skills) {
     skillStates[skill.id] = SkillState(skillId: skill.id);
   }
-  
+
   return skillStates;
 }
 
@@ -694,95 +707,105 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   late SmoothVisionManager _smoothVisionManager; // 平滑视野管理器
   OxygenSystem? _oxygenSystem; // 氧气系统
   final bool _enableGhostSpawn; // 关键区域：控制是否启动鬼生成定时器（用于避免默认provider产生重复计时器）
-  
+
   // 状态更新锁，防止竞争条件
   bool _isUpdatingStats = false;
-  
+
   // 性能优化参数
   static const double _acceleration = 8.0;
   static const double _friction = 6.0;
   static const double _deltaTime = 0.016; // 16ms
   static const int _visionUpdateInterval = 100; // 视野更新间隔(ms)
   static const int _smoothVisionUpdateInterval = 16; // 平滑视野动画间隔(ms) - 60fps
-  
+
   // 缓存变量以减少重复计算
   Point<int>? _lastPlayerGridPosition;
   Set<Point<int>>? _cachedVisibleTiles;
 
   OptimizedGameStateNotifier(Map<String, dynamic> characterData)
-      : _characterData = characterData,
-        _enableGhostSpawn = true,
-        super(
-    OptimizedGameState(
-      characterStats: _createInitialCharacterStats(characterData),
-      playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
-      movementState: const OptimizedMovementState(),
-      map: MapData.testMap,
-      chestPositions: [], // 初始为空，将在 _initializeGame 中随机生成
-      safePositions: [], // 初始为空，将在 _initializeGame 中随机生成
-      playerInventory: [], // 玩家从空背包开始
-      visibleTiles: {},
-      visibleMap: List.generate(
-        MapData.testMap.length,
-        (y) => List.generate(MapData.testMap[0].length, (x) => false),
-      ),
-      ghostManager: GhostManager(map: MapData.testMap),
-      showInventory: false,
-      showCharacterInfo: false,
-      showShop: false,
-      isGameOver: false,
-      deathReason: '',
-      characterSkills: const [],
-      skillStates: const {},
-      gameStartTime: DateTime.now(),
-      gameEndTime: null,
-      maxOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
-      currentOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
-      oxygenRecoveryManager: OxygenRecoveryManager(),
-    ),
-  ) {
+    : _characterData = characterData,
+      _enableGhostSpawn = true,
+      super(
+        OptimizedGameState(
+          characterStats: _createInitialCharacterStats(characterData),
+          playerPosition: const OptimizedPlayerPosition(
+            x: 10.0,
+            y: 10.0,
+            facingRight: true,
+          ),
+          movementState: const OptimizedMovementState(),
+          map: MapData.testMap,
+          chestPositions: [], // 初始为空，将在 _initializeGame 中随机生成
+          safePositions: [], // 初始为空，将在 _initializeGame 中随机生成
+          playerInventory: [], // 玩家从空背包开始
+          visibleTiles: {},
+          visibleMap: List.generate(
+            MapData.testMap.length,
+            (y) => List.generate(MapData.testMap[0].length, (x) => false),
+          ),
+          ghostManager: GhostManager(map: MapData.testMap),
+          showInventory: false,
+          showCharacterInfo: false,
+          showShop: false,
+          isGameOver: false,
+          deathReason: '',
+          characterSkills: const [],
+          skillStates: const {},
+          gameStartTime: DateTime.now(),
+          gameEndTime: null,
+          maxOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+          currentOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+          oxygenRecoveryManager: OxygenRecoveryManager(),
+        ),
+      ) {
     _initializeGame();
   }
 
   // 关键区域：无鬼生成版本（用于默认provider，避免重复鬼生成检查）
   OptimizedGameStateNotifier.noGhost(Map<String, dynamic> characterData)
-      : _characterData = characterData,
-        _enableGhostSpawn = false,
-        super(
-    OptimizedGameState(
-      characterStats: _createInitialCharacterStats(characterData),
-      playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
-      movementState: const OptimizedMovementState(),
-      map: MapData.testMap,
-      chestPositions: [], // 初始为空，将在 _initializeGame 中随机生成
-      safePositions: [], // 初始为空，将在 _initializeGame 中随机生成
-      playerInventory: [], // 玩家从空背包开始
-      visibleTiles: {},
-      visibleMap: List.generate(
-        MapData.testMap.length,
-        (y) => List.generate(MapData.testMap[0].length, (x) => false),
-      ),
-      ghostManager: GhostManager(map: MapData.testMap),
-      showInventory: false,
-      showCharacterInfo: false,
-      showShop: false,
-      isGameOver: false,
-      deathReason: '',
-      characterSkills: const [],
-      skillStates: const {},
-      gameStartTime: DateTime.now(),
-      gameEndTime: null,
-      maxOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
-      currentOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
-      oxygenRecoveryManager: OxygenRecoveryManager(),
-    ),
-  ) {
+    : _characterData = characterData,
+      _enableGhostSpawn = false,
+      super(
+        OptimizedGameState(
+          characterStats: _createInitialCharacterStats(characterData),
+          playerPosition: const OptimizedPlayerPosition(
+            x: 10.0,
+            y: 10.0,
+            facingRight: true,
+          ),
+          movementState: const OptimizedMovementState(),
+          map: MapData.testMap,
+          chestPositions: [], // 初始为空，将在 _initializeGame 中随机生成
+          safePositions: [], // 初始为空，将在 _initializeGame 中随机生成
+          playerInventory: [], // 玩家从空背包开始
+          visibleTiles: {},
+          visibleMap: List.generate(
+            MapData.testMap.length,
+            (y) => List.generate(MapData.testMap[0].length, (x) => false),
+          ),
+          ghostManager: GhostManager(map: MapData.testMap),
+          showInventory: false,
+          showCharacterInfo: false,
+          showShop: false,
+          isGameOver: false,
+          deathReason: '',
+          characterSkills: const [],
+          skillStates: const {},
+          gameStartTime: DateTime.now(),
+          gameEndTime: null,
+          maxOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+          currentOxygen: (characterData['maxOxygen'] ?? 10.0).toDouble(),
+          oxygenRecoveryManager: OxygenRecoveryManager(),
+        ),
+      ) {
     _initializeGame();
   }
 
   void _initializeGame() {
     _visionSystem = VisionSystem(map: MapData.testMap);
-    _enhancedVisionSystem = EnhancedVisionSystem(map: MapData.testMap); // 初始化增强版视野系统
+    _enhancedVisionSystem = EnhancedVisionSystem(
+      map: MapData.testMap,
+    ); // 初始化增强版视野系统
     _smoothVisionManager = SmoothVisionManager(); // 初始化平滑视野管理器
     _initializeOxygenSystem(); // 初始化氧气系统
     _initializeShop();
@@ -840,7 +863,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 装备物品到指定槽位（weapon/armor/head/bag/pants/shoes）
   bool equipItemToSlot(Item item, String slot) {
     // 关键区域：类型与槽位匹配（英文标准：equipment + equipmentSlot）
-    final bool matchesByType = (item.type == 'equipment' && item.equipmentSlot == slot);
+    final bool matchesByType =
+        (item.type == 'equipment' && item.equipmentSlot == slot);
 
     if (!matchesByType) {
       return false;
@@ -862,7 +886,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 关键区域：替换前容量预检——若卸下失败（容量不足），则替换失败并提示
       final bool ok = _unequipInternal(slot, notify: false);
       if (!ok) {
-        addBroadcastMessage('背包空间不足', BroadcastMessageType.item, duration: const Duration(seconds: 1));
+        addBroadcastMessage(
+          '背包空间不足',
+          BroadcastMessageType.item,
+          duration: const Duration(seconds: 1),
+        );
         return false;
       }
       // 关键区域：卸下后背包已更新，需重新抓取背包并重新定位待装备条目
@@ -906,7 +934,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 关键区域：护甲耐久同步到角色状态，效果中剔除 armorValue
     if (isArmorWithBlock) {
-      final Map<String, int> effectsNoArmor = Map<String, int>.from(item.effects ?? const {});
+      final Map<String, int> effectsNoArmor = Map<String, int>.from(
+        item.effects ?? const {},
+      );
       effectsNoArmor.remove('armorValue');
       _applyeffects(effectsNoArmor);
     } else {
@@ -916,7 +946,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 更新状态：设置槽位与背包
     final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
     updatedSlots[slot] = item;
-    state = state.copyWith(playerInventory: inventory, equipmentSlots: updatedSlots);
+    state = state.copyWith(
+      playerInventory: inventory,
+      equipmentSlots: updatedSlots,
+    );
     if (slot == 'weapon') {
       _applyWeaponParamsFromItem(item);
     }
@@ -942,28 +975,42 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 关键区域：卸下前容量检查（不足则失败并提示“背包空间不足”）
     List<Item> preInventory = List<Item>.from(state.playerInventory);
     final bool isEquipment = (equipped.type == 'equipment');
-    final bool hasSameId = preInventory.indexWhere((i) => i.id == equipped.id) >= 0;
+    final bool hasSameId =
+        preInventory.indexWhere((i) => i.id == equipped.id) >= 0;
     final bool needsNewSlot = isEquipment || !hasSameId;
 
     // 预测卸下后的容量（考虑 inventoryBonus 撤销）
     final int deltaCapacity = -(equipped.effects?['inventoryBonus'] ?? 0);
     final int futureCapacityRaw = state.inventoryCapacity + deltaCapacity;
-    final int futureCapacity = futureCapacityRaw.clamp(1, state.maxInventoryCapacity);
-    final int futureInvLen = preInventory.length > futureCapacity ? futureCapacity : preInventory.length;
+    final int futureCapacity = futureCapacityRaw.clamp(
+      1,
+      state.maxInventoryCapacity,
+    );
+    final int futureInvLen =
+        preInventory.length > futureCapacity
+            ? futureCapacity
+            : preInventory.length;
     if (needsNewSlot && futureInvLen >= futureCapacity) {
       if (notify) {
-        addBroadcastMessage('背包空间不足', BroadcastMessageType.item, duration: const Duration(seconds: 1));
+        addBroadcastMessage(
+          '背包空间不足',
+          BroadcastMessageType.item,
+          duration: const Duration(seconds: 1),
+        );
       }
       return false;
     }
 
     // 关键区域：撤回装备效果（剔除护甲耐久），并同步耐久回物品
-    Map<String, int> effectsForRemoval = Map<String, int>.from(equipped.effects ?? const {});
+    Map<String, int> effectsForRemoval = Map<String, int>.from(
+      equipped.effects ?? const {},
+    );
     if (slot == 'armor' && (effectsForRemoval['armorValue'] ?? 0) > 0) {
       effectsForRemoval.remove('armorValue');
       // 关键区域：直接使用装备件自身的 count 作为耐久写回来源
       final double currentDurability = equipped.count.toDouble();
-      final int newCount = currentDurability <= 0 ? 0 : currentDurability.round();
+      final int newCount =
+          currentDurability <= 0 ? 0 : currentDurability.round();
       // 更新装备槽中的对象为最新耐久（避免后续引用旧值）
       final updatedSlotsPre = Map<String, Item?>.from(state.equipmentSlots);
       updatedSlotsPre[slot] = Item(
@@ -995,24 +1042,25 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final inventory = List<Item>.from(state.playerInventory);
     if (isEquipment) {
       // 关键区域：护甲装备返回背包时保持当前耐久（count）
-      inventory.add(Item(
-        id: equipped.id,
-        name: equipped.name,
-        image: equipped.image,
-        description: equipped.description,
-        effects: equipped.effects,
-        type: equipped.type,
-        count: equipped.count,
-        availableInShop: equipped.availableInShop,
-        basePrice: equipped.basePrice,
-        usageTime: equipped.usageTime,
-        level: equipped.level,
-        equipmentSlot: equipped.equipmentSlot,
-        weaponParams: equipped.weaponParams,
-        clipAmmo: equipped.clipAmmo,
-        ammoReserve: equipped.ammoReserve,
-
-      ));
+      inventory.add(
+        Item(
+          id: equipped.id,
+          name: equipped.name,
+          image: equipped.image,
+          description: equipped.description,
+          effects: equipped.effects,
+          type: equipped.type,
+          count: equipped.count,
+          availableInShop: equipped.availableInShop,
+          basePrice: equipped.basePrice,
+          usageTime: equipped.usageTime,
+          level: equipped.level,
+          equipmentSlot: equipped.equipmentSlot,
+          weaponParams: equipped.weaponParams,
+          clipAmmo: equipped.clipAmmo,
+          ammoReserve: equipped.ammoReserve,
+        ),
+      );
     } else {
       // 非装备类型仍可合并（例如消耗品）
       final idx = inventory.indexWhere((i) => i.id == equipped.id);
@@ -1034,39 +1082,50 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           weaponParams: existing.weaponParams,
           clipAmmo: existing.clipAmmo,
           ammoReserve: existing.ammoReserve,
-
         );
       } else {
-        inventory.add(Item(
-          id: equipped.id,
-          name: equipped.name,
-          image: equipped.image,
-          description: equipped.description,
-          effects: equipped.effects,
-          type: equipped.type,
-          count: 1,
-          availableInShop: equipped.availableInShop,
-          basePrice: equipped.basePrice,
-          usageTime: equipped.usageTime,
-          level: equipped.level,
-          equipmentSlot: equipped.equipmentSlot,
-          weaponParams: equipped.weaponParams,
-          clipAmmo: equipped.clipAmmo,
-          ammoReserve: equipped.ammoReserve,
-
-        ));
+        inventory.add(
+          Item(
+            id: equipped.id,
+            name: equipped.name,
+            image: equipped.image,
+            description: equipped.description,
+            effects: equipped.effects,
+            type: equipped.type,
+            count: 1,
+            availableInShop: equipped.availableInShop,
+            basePrice: equipped.basePrice,
+            usageTime: equipped.usageTime,
+            level: equipped.level,
+            equipmentSlot: equipped.equipmentSlot,
+            weaponParams: equipped.weaponParams,
+            clipAmmo: equipped.clipAmmo,
+            ammoReserve: equipped.ammoReserve,
+          ),
+        );
       }
     }
 
     // 清空槽位并更新状态
     final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
     updatedSlots[slot] = null;
-    state = state.copyWith(playerInventory: inventory, equipmentSlots: updatedSlots);
+    state = state.copyWith(
+      playerInventory: inventory,
+      equipmentSlots: updatedSlots,
+    );
     if (slot == 'weapon') {
       state = state.copyWith(
         selectedAttackMode: AttackMode.melee,
-        meleeAttackTemplate: const AttackTemplate(color: ui.Color(0xFFFFA000), distance: 1.2, range: 1.2),
-        rangedAttackTemplate: const AttackTemplate(color: ui.Color(0xFF00E5FF), distance: 4.0, range: 12.0),
+        meleeAttackTemplate: const AttackTemplate(
+          color: ui.Color(0xFFFFA000),
+          distance: 1.2,
+          range: 1.2,
+        ),
+        rangedAttackTemplate: const AttackTemplate(
+          color: ui.Color(0xFF00E5FF),
+          distance: 4.0,
+          range: 12.0,
+        ),
         weaponDamageAmplify: 1.0,
         weaponCritDamage: 1.5,
         weaponCritChanceBonus: 0.0,
@@ -1112,7 +1171,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           if (currentHp2 > newMaxHp) character['hp'] = newMaxHp;
           break;
         case 'maxFood':
-          final double currentMaxFood = (character['maxFood'] ?? 100).toDouble();
+          final double currentMaxFood =
+              (character['maxFood'] ?? 100).toDouble();
           final double proposedFoodMax = (currentMaxFood + value).toDouble();
           final double newMaxFood = proposedFoodMax < 1 ? 1 : proposedFoodMax;
           character['maxFood'] = newMaxFood;
@@ -1125,7 +1185,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
         case 'moveSpeed':
           final currentSpeed = (character['moveSpeed'] ?? 100).toDouble();
-          character['moveSpeed'] = (currentSpeed + value).clamp(1, double.infinity);
+          character['moveSpeed'] = (currentSpeed + value).clamp(
+            1,
+            double.infinity,
+          );
           break;
         case 'gold':
           final currentGold = (character['gold'] ?? 0).toDouble();
@@ -1195,7 +1258,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       state.equipmentSlots.forEach((slot, item) {
         if (item != null) slotIds[slot] = item.id;
       });
-      final jsonStr = slotIds.entries.map((e) => '${e.key}:${e.value}').join('|');
+      final jsonStr = slotIds.entries
+          .map((e) => '${e.key}:${e.value}')
+          .join('|');
       await prefs.setString('equipmentSlots', jsonStr);
     } catch (_) {}
   }
@@ -1236,23 +1301,25 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         final id = parts[1];
         final item = allItems.firstWhere(
           (i) => i.id == id,
-          orElse: () => Item(
-            id: id,
-            name: id,
-            image: '',
-            description: '',
-            effects: const {},
-            type: 'equipment',
-            equipmentSlot: slot,
-
-          ),
+          orElse:
+              () => Item(
+                id: id,
+                name: id,
+                image: '',
+                description: '',
+                effects: const {},
+                type: 'equipment',
+                equipmentSlot: slot,
+              ),
         );
         // 关键区域：护甲耐久用 count 表示——恢复时同步耐久并剔除 armorValue
         if (slot == 'armor' && ((item.effects?['armorValue'] ?? 0) > 0)) {
           final ch = Map<String, dynamic>.from(state.characterStats);
           ch['armor'] = item.count.toDouble();
           state = state.copyWith(characterStats: ch);
-          final Map<String, int> effectsNoArmor = Map<String, int>.from(item.effects ?? const {});
+          final Map<String, int> effectsNoArmor = Map<String, int>.from(
+            item.effects ?? const {},
+          );
           effectsNoArmor.remove('armorValue');
           _applyeffects(effectsNoArmor);
         } else {
@@ -1293,13 +1360,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _initializeGhosts() {
     final walkablePositions = _getWalkablePositions();
     if (walkablePositions.isEmpty) return;
-    
+
     final playerPosition = state.playerPosition.toPoint();
     print('👻 开始初始化鬼 - 玩家位置: (${playerPosition.x}, ${playerPosition.y})');
-    
+
     // 清空现有的鬼
     state.ghostManager.clearAllGhosts();
-    
+
     // 初始化不同类型的鬼
     final ghostTypes = [
       {'type': NormalGhost, 'count': 2, 'name': '普通鬼'},
@@ -1307,20 +1374,26 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       {'type': StrongGhost, 'count': 1, 'name': '强力鬼'},
       {'type': TricksterGhost, 'count': 1, 'name': '诡计鬼'},
     ];
-    
+
     int totalSpawned = 0;
-    
+
     for (final ghostConfig in ghostTypes) {
       final ghostType = ghostConfig['type'] as Type;
       final count = ghostConfig['count'] as int;
       final name = ghostConfig['name'] as String;
-      
+
       for (int i = 0; i < count; i++) {
-        final spawnPosition = _findSafeGhostSpawnPosition(walkablePositions, playerPosition);
+        final spawnPosition = _findSafeGhostSpawnPosition(
+          walkablePositions,
+          playerPosition,
+        );
         if (spawnPosition != null) {
           Ghost newGhost;
-          final ghostPosition = GhostPosition(x: spawnPosition.x.toDouble(), y: spawnPosition.y.toDouble());
-          
+          final ghostPosition = GhostPosition(
+            x: spawnPosition.x.toDouble(),
+            y: spawnPosition.y.toDouble(),
+          );
+
           switch (ghostType) {
             case NormalGhost:
               newGhost = NormalGhost(position: ghostPosition);
@@ -1337,42 +1410,47 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             default:
               newGhost = NormalGhost(position: ghostPosition);
           }
-          
+
           state.ghostManager.addGhost(newGhost);
           totalSpawned++;
-          
+
           print('👻 生成 $name 于位置 (${spawnPosition.x}, ${spawnPosition.y})');
         } else {
           print('⚠️ 无法为 $name 找到安全的生成位置');
         }
       }
     }
-    
+
     print('👻 鬼初始化完成 - 总共生成了 $totalSpawned 个鬼');
   }
 
   /// 寻找安全的鬼生成位置
-  Point<int>? _findSafeGhostSpawnPosition(List<Point<int>> walkablePositions, Point<int> playerPosition) {
+  Point<int>? _findSafeGhostSpawnPosition(
+    List<Point<int>> walkablePositions,
+    Point<int> playerPosition,
+  ) {
     // 过滤掉玩家附近的位置（至少距离15格）
-    final safePositions = walkablePositions.where((pos) {
-      final distance = _calculateDistance(pos, playerPosition);
-      return distance >= 15;
-    }).toList();
-    
+    final safePositions =
+        walkablePositions.where((pos) {
+          final distance = _calculateDistance(pos, playerPosition);
+          return distance >= 15;
+        }).toList();
+
     if (safePositions.isEmpty) {
       // 如果没有足够远的位置，降低要求到10格
-      final fallbackPositions = walkablePositions.where((pos) {
-        final distance = _calculateDistance(pos, playerPosition);
-        return distance >= 10;
-      }).toList();
-      
+      final fallbackPositions =
+          walkablePositions.where((pos) {
+            final distance = _calculateDistance(pos, playerPosition);
+            return distance >= 10;
+          }).toList();
+
       if (fallbackPositions.isNotEmpty) {
         final random = Random();
         return fallbackPositions[random.nextInt(fallbackPositions.length)];
       }
       return null;
     }
-    
+
     // 从安全位置中随机选择一个
     final random = Random();
     return safePositions[random.nextInt(safePositions.length)];
@@ -1382,7 +1460,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   List<Point<int>> _getWalkablePositions() {
     final walkablePositions = <Point<int>>[];
     final map = state.map;
-    
+
     for (int y = 0; y < map.length; y++) {
       for (int x = 0; x < map[y].length; x++) {
         if (map[y][x] != 'wall' && map[y][x] != 'water') {
@@ -1390,7 +1468,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         }
       }
     }
-    
+
     return walkablePositions;
   }
 
@@ -1486,39 +1564,53 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     int attempts = 0;
     const maxAttempts = 200; // 增加尝试次数
     const minDistanceFromGhost = 30.0; // 减少最小距离，让出生点更分散
-     const maxDistanceFromGhost = 80.0; // 添加最大距离限制，避免过于远离
+    const maxDistanceFromGhost = 80.0; // 添加最大距离限制，避免过于远离
 
     // 首先尝试从预定义的出生区域中选择
     final shuffledZones = List.from(_spawnZones)..shuffle(random);
-    
+
     for (final zone in shuffledZones) {
       final zonePositions = _getPositionsInZone(zone);
       if (zonePositions.isEmpty) continue;
 
       // 在当前区域中尝试找到合适的出生点
-      for (int zoneAttempts = 0; zoneAttempts < 50 && validSpawnPoint == null; zoneAttempts++) {
-        final candidatePosition = zonePositions[random.nextInt(zonePositions.length)];
-        
-        if (_isValidSpawnPosition(candidatePosition, minDistanceFromGhost, maxDistanceFromGhost)) {
+      for (
+        int zoneAttempts = 0;
+        zoneAttempts < 50 && validSpawnPoint == null;
+        zoneAttempts++
+      ) {
+        final candidatePosition =
+            zonePositions[random.nextInt(zonePositions.length)];
+
+        if (_isValidSpawnPosition(
+          candidatePosition,
+          minDistanceFromGhost,
+          maxDistanceFromGhost,
+        )) {
           validSpawnPoint = candidatePosition;
           break;
         }
       }
-      
+
       if (validSpawnPoint != null) break;
     }
 
     // 如果预定义区域都不合适，回退到全地图随机搜索
     if (validSpawnPoint == null) {
       final walkablePositions = _getWalkablePositions();
-      
+
       while (validSpawnPoint == null && attempts < maxAttempts) {
-        final candidatePosition = walkablePositions[random.nextInt(walkablePositions.length)];
-        
-        if (_isValidSpawnPosition(candidatePosition, minDistanceFromGhost, maxDistanceFromGhost)) {
+        final candidatePosition =
+            walkablePositions[random.nextInt(walkablePositions.length)];
+
+        if (_isValidSpawnPosition(
+          candidatePosition,
+          minDistanceFromGhost,
+          maxDistanceFromGhost,
+        )) {
           validSpawnPoint = candidatePosition;
         }
-        
+
         attempts++;
       }
     }
@@ -1532,7 +1624,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     validSpawnPoint ??= Point(10, 10);
 
     // 更新玩家位置
-    final String? initialZone = getZoneNameAt(validSpawnPoint.x, validSpawnPoint.y);
+    final String? initialZone = getZoneNameAt(
+      validSpawnPoint.x,
+      validSpawnPoint.y,
+    );
     state = state.copyWith(
       playerPosition: OptimizedPlayerPosition(
         x: validSpawnPoint.x.toDouble(),
@@ -1540,7 +1635,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         facingRight: true,
       ),
       currentZoneName: initialZone,
-      zoneNameVisibleUntil: initialZone != null ? DateTime.now().add(const Duration(seconds: 3)) : null,
+      zoneNameVisibleUntil:
+          initialZone != null
+              ? DateTime.now().add(const Duration(seconds: 3))
+              : null,
     );
   }
 
@@ -1549,28 +1647,34 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final positions = <Point<int>>[];
     final map = state.map;
     final preferredTerrain = List<String>.from(zone['preferredTerrain']);
-    
+
     final minX = (zone['minX'] as int).clamp(0, map[0].length - 1);
     final maxX = (zone['maxX'] as int).clamp(0, map[0].length - 1);
     final minY = (zone['minY'] as int).clamp(0, map.length - 1);
     final maxY = (zone['maxY'] as int).clamp(0, map.length - 1);
-    
+
     for (int y = minY; y <= maxY; y++) {
       for (int x = minX; x <= maxX; x++) {
         final terrain = map[y][x];
         // 优先选择偏好地形，但也接受其他可行走地形
-        if (preferredTerrain.contains(terrain) || 
-            (terrain != 'wall' && terrain != 'water' && terrain != 'building')) {
+        if (preferredTerrain.contains(terrain) ||
+            (terrain != 'wall' &&
+                terrain != 'water' &&
+                terrain != 'building')) {
           positions.add(Point(x, y));
         }
       }
     }
-    
+
     return positions;
   }
 
   /// 检查位置是否适合作为出生点
-  bool _isValidSpawnPosition(Point<int> position, double minDistance, double maxDistance) {
+  bool _isValidSpawnPosition(
+    Point<int> position,
+    double minDistance,
+    double maxDistance,
+  ) {
     // 检查地形是否可行走
     final terrain = state.map[position.y][position.x];
     if (terrain == 'wall' || terrain == 'water') {
@@ -1580,7 +1684,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 检查与鬼的距离
     for (final ghost in state.ghostManager.ghosts) {
       if (ghost.position != null) {
-        final distance = _calculateDistance(position, ghost.position!.toPoint());
+        final distance = _calculateDistance(
+          position,
+          ghost.position!.toPoint(),
+        );
         if (distance < minDistance || distance > maxDistance) {
           return false;
         }
@@ -1602,7 +1709,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
       for (final ghost in state.ghostManager.ghosts) {
         if (ghost.position != null) {
-          totalDistance += _calculateDistance(position, ghost.position!.toPoint());
+          totalDistance += _calculateDistance(
+            position,
+            ghost.position!.toPoint(),
+          );
           ghostCount++;
         }
       }
@@ -1639,10 +1749,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       items: [],
       lastPriceChange: DateTime.now(),
     );
-    
+
     // 刷新商店商品
     shop.refreshItems();
-    
+
     state = state.copyWith(schoolShop: shop);
   }
 
@@ -1657,31 +1767,30 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _startMovementTimer() {
     // 先取消现有定时器
     _movementTimer?.cancel();
-    
+
     // 启动新的移动定时器
     _movementTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
       _updateMovement();
     });
-    
   }
 
   /// 启动视野更新定时器（降低频率以提高性能）
   void _startVisionUpdateTimer() {
     _visionUpdateTimer = Timer.periodic(
-      const Duration(milliseconds: _visionUpdateInterval), 
+      const Duration(milliseconds: _visionUpdateInterval),
       (timer) {
         _updateVision();
-      }
+      },
     );
   }
 
   /// 启动平滑视野动画定时器（高频率更新以保证流畅性）
   void _startSmoothVisionTimer() {
     _smoothVisionTimer = Timer.periodic(
-      const Duration(milliseconds: _smoothVisionUpdateInterval), 
+      const Duration(milliseconds: _smoothVisionUpdateInterval),
       (timer) {
         _updateSmoothVisionAnimations();
-      }
+      },
     );
   }
 
@@ -1691,7 +1800,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       const Duration(milliseconds: 100), // 每100ms检查一次
       (timer) {
         _updateUnstuckState();
-      }
+      },
     );
   }
 
@@ -1701,7 +1810,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       const Duration(seconds: 1), // 每秒检查一次
       (timer) {
         _updateHungerDamage();
-      }
+      },
     );
   }
 
@@ -1711,18 +1820,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       const Duration(milliseconds: 100), // 每100ms更新一次冷却状态
       (timer) {
         _updateSkillCooldowns();
-      }
+      },
     );
   }
 
   /// 启动独立的游戏循环定时器
   void _startGameLoopTimer() {
-    _gameLoopTimer = Timer.periodic(
-      const Duration(milliseconds: 100),
-      (timer) {
-        _updateGameLoop();
-      }
-    );
+    _gameLoopTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      _updateGameLoop();
+    });
   }
 
   /// 启动独立的死亡判定定时器
@@ -1731,7 +1837,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       const Duration(milliseconds: 200), // 每200ms检查一次死亡条件
       (timer) {
         _checkGameOverConditions();
-      }
+      },
     );
   }
 
@@ -1741,7 +1847,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       const Duration(seconds: 1), // 每秒检查一次商店是否需要刷新
       (timer) {
         _checkShopRefresh();
-      }
+      },
     );
   }
 
@@ -1749,19 +1855,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _updateGameLoop() {
     // 强制触发UI更新，确保技能倒计时、视野等元素能够实时显示
     final currentTime = DateTime.now().millisecondsSinceEpoch;
-    
+
     // 更新氧气系统
     _updateOxygenSystem();
     _pruneProjectiles();
     _resolveRangedHits();
     _resolveMeleeHits();
     _updateReloadProgress();
-    
+
     // 通过更新动画帧计数器来强制触发UI刷新
     // 这确保了即使玩家不移动，UI也会定期更新
-    state = state.copyWith(
-      lastAnimationFrame: currentTime,
-    );
+    state = state.copyWith(lastAnimationFrame: currentTime);
   }
 
   void _resolveRangedHits() {
@@ -1777,7 +1881,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     for (final p in state.projectiles) {
       final int elapsed = now.difference(p.startTime).inMilliseconds;
       if (elapsed < 0) continue;
-      final double travelTiles = math.min(maxDistTiles, (speedTilesPerSec <= 0 ? 0.0 : (speedTilesPerSec * elapsed / 1000.0)));
+      final double travelTiles = math.min(
+        maxDistTiles,
+        (speedTilesPerSec <= 0 ? 0.0 : (speedTilesPerSec * elapsed / 1000.0)),
+      );
       final double sx = p.startX;
       final double sy = p.startY;
       double ex = sx + math.cos(p.angle) * travelTiles;
@@ -1794,7 +1901,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final double ty = sy + (ey - sy) * t;
           final int gx = tx.round();
           final int gy = ty.round();
-          if (gy < 0 || gy >= state.map.length || gx < 0 || gx >= state.map[0].length) {
+          if (gy < 0 ||
+              gy >= state.map.length ||
+              gx < 0 ||
+              gx >= state.map[0].length) {
             hitWall = true;
             final double prevT = (i - 1) / steps;
             ex = sx + (ex - sx) * prevT;
@@ -1817,7 +1927,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         final double gy = g.position!.y;
         final double d = _distancePointToSegment(gx, gy, sx, sy, ex, ey);
         if (d <= 0.35) {
-          final ({int value, bool isCrit}) damage = _computeDamage(isRanged: true);
+          final ({int value, bool isCrit}) damage = _computeDamage(
+            isRanged: true,
+          );
           g.applyDamage(damage.value, isCrit: damage.isCrit);
           if (g.hp <= 0) {
             state.ghostManager.removeGhost(g);
@@ -1835,7 +1947,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     if (remaining.length != state.projectiles.length) {
-      state = state.copyWith(projectiles: remaining, lastAnimationFrame: DateTime.now().millisecondsSinceEpoch);
+      state = state.copyWith(
+        projectiles: remaining,
+        lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+      );
     }
   }
 
@@ -1864,7 +1979,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       final double ang = math.atan2(dy, dx == 0.0 && dy == 0.0 ? 1e-6 : dx);
       double diff = _normAngle(ang - angle);
       if (diff.abs() <= sweep / 2) {
-        final ({int value, bool isCrit}) damage = _computeDamage(isRanged: false);
+        final ({int value, bool isCrit}) damage = _computeDamage(
+          isRanged: false,
+        );
         g.applyDamage(damage.value, isCrit: damage.isCrit);
         g.lastMeleeHitAt = start;
         if (g.hp <= 0) {
@@ -1872,7 +1989,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         }
       }
     }
-    state = state.copyWith(lastAnimationFrame: DateTime.now().millisecondsSinceEpoch);
+    state = state.copyWith(
+      lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   double _normAngle(double a) {
@@ -1881,7 +2000,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return a;
   }
 
-  double _distancePointToSegment(double px, double py, double x1, double y1, double x2, double y2) {
+  double _distancePointToSegment(
+    double px,
+    double py,
+    double x1,
+    double y1,
+    double x2,
+    double y2,
+  ) {
     final double dx = x2 - x1;
     final double dy = y2 - y1;
     if (dx == 0 && dy == 0) {
@@ -1889,7 +2015,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       final double ddy = py - y1;
       return math.sqrt(ddx * ddx + ddy * ddy);
     }
-    final double t = (((px - x1) * dx) + ((py - y1) * dy)) / (dx * dx + dy * dy);
+    final double t =
+        (((px - x1) * dx) + ((py - y1) * dy)) / (dx * dx + dy * dy);
     final double clampedT = t.clamp(0.0, 1.0);
     final double cx = x1 + clampedT * dx;
     final double cy = y1 + clampedT * dy;
@@ -1899,10 +2026,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   ({int value, bool isCrit}) _computeDamage({required bool isRanged}) {
-    final double baseDamage = ((state.characterStats['baseDamage'] ?? 0) as num).toDouble();
+    final double baseDamage =
+        ((state.characterStats['baseDamage'] ?? 0) as num).toDouble();
     final double amp = (state.weaponDamageAmplify ?? 1.0).toDouble();
     double dmg = baseDamage * amp;
-    final double baseCritChance = ((state.characterStats['baseCritChance'] ?? 0.0) as num).toDouble();
+    final double baseCritChance =
+        ((state.characterStats['baseCritChance'] ?? 0.0) as num).toDouble();
     final double bonusCrit = (state.weaponCritChanceBonus ?? 0.0).toDouble();
     final double critChance = (baseCritChance + bonusCrit).clamp(0.0, 1.0);
     final double critMult = (state.weaponCritDamage ?? 1.5).toDouble();
@@ -1920,12 +2049,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (state.projectiles.isEmpty) return;
     final double distTiles = state.rangedAttackTemplate.distance;
     final double speedTilesPerSec = state.rangedAttackTemplate.range;
-    final int maxMs = speedTilesPerSec <= 0 ? 320 : ((distTiles / speedTilesPerSec) * 1000).ceil();
+    final int maxMs =
+        speedTilesPerSec <= 0
+            ? 320
+            : ((distTiles / speedTilesPerSec) * 1000).ceil();
     final DateTime now = DateTime.now();
-    final List<Projectile> kept = state.projectiles.where((p) {
-      final int elapsed = now.difference(p.startTime).inMilliseconds;
-      return elapsed <= maxMs;
-    }).toList();
+    final List<Projectile> kept =
+        state.projectiles.where((p) {
+          final int elapsed = now.difference(p.startTime).inMilliseconds;
+          return elapsed <= maxMs;
+        }).toList();
     if (kept.length != state.projectiles.length) {
       state = state.copyWith(projectiles: kept);
     }
@@ -1933,7 +2066,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   void _updateReloadProgress() {
     if (!state.isReloading || state.reloadStartTime == null) return;
-    final int elapsed = DateTime.now().difference(state.reloadStartTime!).inMilliseconds;
+    final int elapsed =
+        DateTime.now().difference(state.reloadStartTime!).inMilliseconds;
     final double prog = (elapsed / state.reloadDurationMs).clamp(0.0, 1.0);
     final int mag = state.weaponMagazineSize;
     final int startClip = state.reloadStartClipAmmo;
@@ -1944,7 +2078,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final int expectedReserve = (startReserve - loadedSoFar).clamp(0, 1 << 30);
 
     final Item? w = state.equipmentSlots['weapon'];
-    final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
+    final Map<String, Item?> slots = Map<String, Item?>.from(
+      state.equipmentSlots,
+    );
     if (w != null) {
       slots['weapon'] = Item(
         id: w.id,
@@ -1973,7 +2109,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     );
 
     // 关键区域：达到满弹或备用耗尽或进度完成时，结束换弹
-    final bool finished = prog >= 1.0 || expectedClip >= mag || expectedReserve <= 0;
+    final bool finished =
+        prog >= 1.0 || expectedClip >= mag || expectedReserve <= 0;
     if (finished) {
       state = state.copyWith(isReloading: false, reloadStartTime: null);
     }
@@ -1995,8 +2132,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _startItemSpawnTimer() {
     // 首次刷新延迟30秒，之后根据ItemSpawner的间隔设置
     final initialDelay = Duration(seconds: ItemSpawner.getNextSpawnInterval());
-    
-    print('🎁 物品刷新系统启动 - 首次刷新将在${initialDelay.inSeconds}秒后进行 - 时间: ${DateTime.now()}');
+
+    print(
+      '🎁 物品刷新系统启动 - 首次刷新将在${initialDelay.inSeconds}秒后进行 - 时间: ${DateTime.now()}',
+    );
     // 关键区域：首次定时器作为成员存储，确保在 dispose 时可取消
     _itemSpawnTimer = Timer(initialDelay, () {
       // 关键区域：在 Notifier 被销毁后避免继续更新状态
@@ -2010,9 +2149,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 安排下次物品刷新
   void _scheduleNextItemSpawn() {
     final nextInterval = Duration(seconds: ItemSpawner.getNextSpawnInterval());
-    
-    print('⏰ 安排下次物品刷新 - 将在${nextInterval.inSeconds}秒后进行 - 时间: ${DateTime.now()}');
-    
+
+    print(
+      '⏰ 安排下次物品刷新 - 将在${nextInterval.inSeconds}秒后进行 - 时间: ${DateTime.now()}',
+    );
+
     // 关键区域：递归定时器在回调开始检查 mounted，避免 dispose 后调用
     _itemSpawnTimer = Timer(nextInterval, () {
       if (!mounted) return;
@@ -2028,8 +2169,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final chestPositions = state.chestPositions;
     final existingGroundItems = state.groundItems;
     // 关键区域：读取角色概率增幅（rarityBoost），用于提升高品质地面物品概率
-    final double rarityBoost = ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
-    
+    final double rarityBoost =
+        ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
+
     // 尝试刷新物品
     final spawnResult = ItemSpawner.trySpawnItem(
       playerPosition,
@@ -2037,25 +2179,29 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       existingGroundItems,
       rarityBoost: rarityBoost,
     );
-    
+
     if (spawnResult != null) {
       final position = spawnResult.key;
       final item = spawnResult.value;
-      
+
       // 更新地面物品状态
-      final updatedGroundItems = Map<Point<int>, List<Item>>.from(existingGroundItems);
+      final updatedGroundItems = Map<Point<int>, List<Item>>.from(
+        existingGroundItems,
+      );
       updatedGroundItems[position] = [item];
-      
+
       // 更新游戏状态
       state = state.copyWith(groundItems: updatedGroundItems);
-      
+
       // 添加刷新成功的播报消息
       addBroadcastMessage(
         '发现了 ${item.name} (${ItemSpawner.getLevelDisplayName(item.level)})',
         BroadcastMessageType.item,
       );
-      
-      print('🎁 物品刷新成功: ${item.name} (等级${item.level}) 位置(${position.x}, ${position.y}) - 时间: ${DateTime.now()}');
+
+      print(
+        '🎁 物品刷新成功: ${item.name} (等级${item.level}) 位置(${position.x}, ${position.y}) - 时间: ${DateTime.now()}',
+      );
     }
   }
 
@@ -2065,7 +2211,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       const Duration(milliseconds: 100), // 每100ms更新一次鬼的状态，提高移动流畅度
       (timer) {
         _updateGhosts();
-      }
+      },
     );
     print('👻 鬼更新系统启动 - 更新间隔: 100ms - 时间: ${DateTime.now()}');
   }
@@ -2074,14 +2220,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _updateGhosts() {
     final playerPosition = state.playerPosition.toPoint();
     final ghostCount = state.ghostManager.ghosts.length;
-    
+
     // 更新所有鬼的状态
     state.ghostManager.updateAll(
       playerPosition,
       _onPlayerAttackedByGhost,
       _onGhostDetectPlayer,
     );
-    
+
     // 强制触发UI更新以显示鬼的新位置
     state = state.copyWith(
       lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
@@ -2091,11 +2237,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 当鬼攻击玩家时的回调
   void _onPlayerAttackedByGhost(Map<String, int> effects) {
     print('👻 鬼攻击玩家! 效果: $effects');
-    
+
     // 应用攻击效果到玩家
     _safeUpdateCharacterStats((stats) {
       final updatedStats = Map<String, dynamic>.from(stats);
-      
+
       effects.forEach((key, value) {
         if (!updatedStats.containsKey(key)) return;
         if (key == 'hp' && value < 0) {
@@ -2110,48 +2256,43 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           updatedStats[key] = (currentValue + value).clamp(0, double.infinity);
         }
       });
-      
+
       return updatedStats;
     }, '鬼攻击效果');
-    
+
     // 添加播报消息
-    addBroadcastMessage(
-      '被鬼攻击了！',
-      BroadcastMessageType.damage,
-    );
+    addBroadcastMessage('被鬼攻击了！', BroadcastMessageType.damage);
   }
 
   /// 当鬼检测到玩家时的回调
   void _onGhostDetectPlayer() {
     print('👻 鬼发现了玩家!');
-    
+
     // 添加播报消息
-    addBroadcastMessage(
-      '鬼发现了你！',
-      BroadcastMessageType.system,
-    );
+    addBroadcastMessage('鬼发现了你！', BroadcastMessageType.system);
   }
 
   /// 启动鬼生成定时器
   void _startGhostSpawnTimer() {
     // 每60秒检查一次是否需要生成新的鬼
-    _ghostSpawnTimer = Timer.periodic(
-      const Duration(seconds: 60),
-      (timer) {
-        _checkAndSpawnGhosts();
-      }
-    );
+    _ghostSpawnTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
+      _checkAndSpawnGhosts();
+    });
     print('👻 鬼生成系统启动 - 检查间隔: 60秒 - 时间: ${DateTime.now()}');
   }
 
   /// 检查并生成新的鬼
   void _checkAndSpawnGhosts() {
     final currentGhostCount = state.ghostManager.ghosts.length;
-    final int punish = ((state.characterStats['punish'] ?? 0) as num).toInt().clamp(0, 10);
+    final int punish = ((state.characterStats['punish'] ?? 0) as num)
+        .toInt()
+        .clamp(0, 10);
     final int minGhosts = (1 + (punish ~/ 3)).clamp(1, 8);
     final int maxGhosts = (6 + punish).clamp(minGhosts, 12);
 
-    print('👻 检查鬼数量 - 当前: $currentGhostCount, 处分: $punish, 最小: $minGhosts, 最大: $maxGhosts'); 
+    print(
+      '👻 检查鬼数量 - 当前: $currentGhostCount, 处分: $punish, 最小: $minGhosts, 最大: $maxGhosts',
+    );
 
     if (currentGhostCount < minGhosts) {
       final spawnCount = (minGhosts - currentGhostCount).clamp(1, 3);
@@ -2178,10 +2319,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _spawnRandomGhosts(int count) {
     final walkablePositions = _getWalkablePositions();
     if (walkablePositions.isEmpty) return;
-    
+
     final playerPosition = state.playerPosition.toPoint();
     final random = Random();
-    
+
     // 定义鬼类型权重
     final ghostTypeWeights = [
       {'type': NormalGhost, 'weight': 40, 'name': '普通鬼'},
@@ -2189,18 +2330,24 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       {'type': StrongGhost, 'weight': 20, 'name': '强力鬼'},
       {'type': TricksterGhost, 'weight': 15, 'name': '诡计鬼'},
     ];
-    
+
     for (int i = 0; i < count; i++) {
-      final spawnPosition = _findSafeGhostSpawnPosition(walkablePositions, playerPosition);
+      final spawnPosition = _findSafeGhostSpawnPosition(
+        walkablePositions,
+        playerPosition,
+      );
       if (spawnPosition != null) {
         // 根据权重随机选择鬼类型
-        final totalWeight = ghostTypeWeights.fold<int>(0, (sum, item) => sum + (item['weight'] as int));
+        final totalWeight = ghostTypeWeights.fold<int>(
+          0,
+          (sum, item) => sum + (item['weight'] as int),
+        );
         final randomValue = random.nextInt(totalWeight);
-        
+
         int currentWeight = 0;
         Type selectedType = NormalGhost;
         String selectedName = '普通鬼';
-        
+
         for (final ghostConfig in ghostTypeWeights) {
           currentWeight += ghostConfig['weight'] as int;
           if (randomValue < currentWeight) {
@@ -2209,10 +2356,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             break;
           }
         }
-        
+
         // 创建鬼
         Ghost newGhost;
-        final ghostPosition = GhostPosition(x: spawnPosition.x.toDouble(), y: spawnPosition.y.toDouble());
+        final ghostPosition = GhostPosition(
+          x: spawnPosition.x.toDouble(),
+          y: spawnPosition.y.toDouble(),
+        );
         switch (selectedType) {
           case NormalGhost:
             newGhost = NormalGhost(position: ghostPosition);
@@ -2229,15 +2379,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           default:
             newGhost = NormalGhost(position: ghostPosition);
         }
-        
+
         state.ghostManager.addGhost(newGhost);
-        print('👻 动态生成 $selectedName 于位置 (${spawnPosition.x}, ${spawnPosition.y})');
-        
-        // 添加播报消息
-        addBroadcastMessage(
-          '新的鬼出现了！',
-          BroadcastMessageType.system,
+        print(
+          '👻 动态生成 $selectedName 于位置 (${spawnPosition.x}, ${spawnPosition.y})',
         );
+
+        // 添加播报消息
+        addBroadcastMessage('新的鬼出现了！', BroadcastMessageType.system);
       } else {
         print('⚠️ 无法找到安全的鬼生成位置');
       }
@@ -2248,19 +2397,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _updateUnstuckState() {
     final now = DateTime.now();
     bool needsUpdate = false;
-    
+
     // 检查无视地形模式是否应该结束
-    if (state.isNoClipMode && 
-        state.noClipEndTime != null && 
+    if (state.isNoClipMode &&
+        state.noClipEndTime != null &&
         now.isAfter(state.noClipEndTime!)) {
-      state = state.copyWith(
-        isNoClipMode: false,
-        noClipEndTime: null,
-      );
+      state = state.copyWith(isNoClipMode: false, noClipEndTime: null);
       needsUpdate = true;
       print('无视地形模式已结束');
     }
-    
+
     // 如果有更新，触发UI刷新
     if (needsUpdate) {
       // 状态已经更新，StateNotifier会自动通知监听者
@@ -2268,17 +2414,22 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   /// 安全更新角色状态，防止竞争条件
-  void _safeUpdateCharacterStats(Map<String, dynamic> Function(Map<String, dynamic>) updateFunction, String debugInfo) {
+  void _safeUpdateCharacterStats(
+    Map<String, dynamic> Function(Map<String, dynamic>) updateFunction,
+    String debugInfo,
+  ) {
     // 检查是否已经被 dispose
     if (!mounted) {
-      print('_safeUpdateCharacterStats: OptimizedGameStateNotifier 已被 dispose，跳过状态更新');
+      print(
+        '_safeUpdateCharacterStats: OptimizedGameStateNotifier 已被 dispose，跳过状态更新',
+      );
       return;
     }
-    
+
     if (_isUpdatingStats) {
       return;
     }
-    
+
     _isUpdatingStats = true;
     try {
       final currentStats = Map<String, dynamic>.from(state.characterStats);
@@ -2304,49 +2455,48 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _safeUpdateCharacterStats((currentStats) {
       final currentFood = currentStats['food'] ?? 0;
       final currentHp = currentStats['hp'] ?? 0;
-      
 
-      
       // 当饱食度为0且生命值大于0时，每秒扣1生命值
       if (currentFood <= 0 && currentHp > 0) {
         final damageAmount = 1.0; // 饥饿扣血量
         final updatedStats = Map<String, dynamic>.from(currentStats);
         // 关键区域：饥饿伤害支持护甲格挡
         final double applied = _applyArmorBlock(updatedStats, damageAmount);
-        final newHp = (currentHp - applied).clamp(0, currentStats['maxHp'] ?? 100);
-        
+        final newHp = (currentHp - applied).clamp(
+          0,
+          currentStats['maxHp'] ?? 100,
+        );
 
-        
         // 检测生命值变化并触发伤害效果
         final hpChanged = currentHp != newHp;
-        
+
         if (hpChanged) {
           // 更新生命值
           // 使用已更新护甲耐久的统计映射
           updatedStats['hp'] = newHp.toDouble();
-          
+
           // 更新其他状态
           state = state.copyWith(
             lastHp: currentHp.toDouble(),
             shouldShowDamageEffect: true,
             lastDamageAmount: applied,
           );
-          
+
           // 添加饥饿伤害播报消息
           addBroadcastMessage(
             '饥饿扣血 -${applied.toStringAsFixed(1)}',
             BroadcastMessageType.damage,
           );
-          
+
           // 检查是否死亡
           if (newHp <= 0) {
             // 这里可以触发游戏结束逻辑
           }
-          
+
           return updatedStats;
         }
       }
-      
+
       // 没有变化，返回原状态
       return currentStats;
     }, '饥饿系统扣血');
@@ -2356,11 +2506,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   double _applyArmorBlock(Map<String, dynamic> updatedStats, double damage) {
     if (damage <= 0) return 0.0;
     // 关键区域：支持多件护甲——按等级优先，其次按耐久优先，选择一件参与格挡
-    final List<MapEntry<String, Item>> candidates = state.equipmentSlots.entries
-        .where((e) => e.value != null)
-        .map((e) => MapEntry(e.key, e.value!))
-        .where((e) => (e.value.effects?['armorValue'] ?? 0) > 0 && e.value.count > 0)
-        .toList();
+    final List<MapEntry<String, Item>> candidates =
+        state.equipmentSlots.entries
+            .where((e) => e.value != null)
+            .map((e) => MapEntry(e.key, e.value!))
+            .where(
+              (e) =>
+                  (e.value.effects?['armorValue'] ?? 0) > 0 &&
+                  e.value.count > 0,
+            )
+            .toList();
     if (candidates.isEmpty) {
       return damage;
     }
@@ -2389,7 +2544,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final double absorbedByArmor = toArmor.clamp(0.0, currentDurability);
     final double overflow = toArmor - absorbedByArmor;
     toPlayer += overflow;
-    final double newDurability = (currentDurability - absorbedByArmor).clamp(0.0, double.infinity);
+    final double newDurability = (currentDurability - absorbedByArmor).clamp(
+      0.0,
+      double.infinity,
+    );
     updatedStats['armor'] = newDurability;
     // 关键区域：同步选择的装备件耐久（count）
     int newCount = newDurability.round();
@@ -2408,7 +2566,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       usageTime: armorItem.usageTime,
       level: armorItem.level,
       equipmentSlot: armorItem.equipmentSlot,
-
     );
     state = state.copyWith(equipmentSlots: updatedSlots);
     return toPlayer;
@@ -2418,26 +2575,28 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   double _getModifiedMoveSpeed() {
     final baseSpeed = state.characterStats['moveSpeed'] ?? 100.0;
     double modifiedSpeed = baseSpeed;
-    
+
     // 水中移动速度降低10%
     if (_oxygenSystem?.isUnderwater == true) {
       modifiedSpeed *= 0.9; // 降低10%
       print('移动速度：水中移动，速度降低10% -> ${modifiedSpeed.toStringAsFixed(1)}');
     }
-    
+
     // 饱食度影响移动速度（关键区域：使用动态 maxFood）
     final currentFood = state.characterStats['food'] ?? 0;
     final double maxFood = (state.characterStats['maxFood'] ?? 100).toDouble();
     final foodPercentage = (currentFood / maxFood).clamp(0.0, 1.0);
-    
+
     // 当饱食度低于50%时开始影响移动速度
     if (foodPercentage < 0.5) {
       // 饱食度从50%到0%，移动速度从100%线性降低到50%
       final hungerSpeedMultiplier = 0.5 + (foodPercentage * 1.0); // 0.5 到 1.0
       modifiedSpeed *= hungerSpeedMultiplier;
-      print('移动速度：饱食度影响，当前饱食度${foodPercentage.toStringAsFixed(2)}，速度倍数${hungerSpeedMultiplier.toStringAsFixed(2)} -> ${modifiedSpeed.toStringAsFixed(1)}');
+      print(
+        '移动速度：饱食度影响，当前饱食度${foodPercentage.toStringAsFixed(2)}，速度倍数${hungerSpeedMultiplier.toStringAsFixed(2)} -> ${modifiedSpeed.toStringAsFixed(1)}',
+      );
     }
-    
+
     return modifiedSpeed;
   }
 
@@ -2445,49 +2604,58 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _updateMovement() {
     final movement = state.movementState;
     final position = state.playerPosition;
-    
+
     // 如果没有移动输入且速度为0，跳过计算
-    if (!movement.isMoving && 
-        movement.velocityX.abs() < 0.01 && 
+    if (!movement.isMoving &&
+        movement.velocityX.abs() < 0.01 &&
         movement.velocityY.abs() < 0.01) {
       return;
     }
-    
+
     // 计算基于玩家移动速度的最大速度（使用修正后的速度）
     final modifiedSpeed = _getModifiedMoveSpeed();
-    final currentMaxSpeed = (modifiedSpeed / 20.0).clamp(0.1, double.infinity); // 移除上限，只保留最小值0.1防止零速度
-    
+    final currentMaxSpeed = (modifiedSpeed / 20.0).clamp(
+      0.1,
+      double.infinity,
+    ); // 移除上限，只保留最小值0.1防止零速度
+
     // 计算目标速度
-    final targetVelocityX = movement.joystickX * currentMaxSpeed * movement.joystickIntensity;
-    final targetVelocityY = movement.joystickY * currentMaxSpeed * movement.joystickIntensity;
-    
+    final targetVelocityX =
+        movement.joystickX * currentMaxSpeed * movement.joystickIntensity;
+    final targetVelocityY =
+        movement.joystickY * currentMaxSpeed * movement.joystickIntensity;
+
     // 应用加速度或摩擦力
     double newVelocityX, newVelocityY;
-    
+
     if (movement.isMoving) {
       // 加速到目标速度
-      newVelocityX = movement.velocityX + (targetVelocityX - movement.velocityX) * _acceleration * _deltaTime;
-      newVelocityY = movement.velocityY + (targetVelocityY - movement.velocityY) * _acceleration * _deltaTime;
+      newVelocityX =
+          movement.velocityX +
+          (targetVelocityX - movement.velocityX) * _acceleration * _deltaTime;
+      newVelocityY =
+          movement.velocityY +
+          (targetVelocityY - movement.velocityY) * _acceleration * _deltaTime;
     } else {
       // 应用摩擦力减速
       newVelocityX = movement.velocityX * (1.0 - _friction * _deltaTime);
       newVelocityY = movement.velocityY * (1.0 - _friction * _deltaTime);
-      
+
       // 速度很小时直接停止
       if (newVelocityX.abs() < 0.01) newVelocityX = 0.0;
       if (newVelocityY.abs() < 0.01) newVelocityY = 0.0;
     }
-    
+
     // 计算新位置
     final newX = position.x + newVelocityX * _deltaTime;
     final newY = position.y + newVelocityY * _deltaTime;
-    
+
     // 改进的碰撞检测 - 支持滑动移动
     double finalX = position.x;
     double finalY = position.y;
     double finalVelocityX = newVelocityX;
     double finalVelocityY = newVelocityY;
-    
+
     // 首先尝试完整移动
     if (_canMoveToPosition(newX, newY)) {
       finalX = newX;
@@ -2496,7 +2664,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 如果无法完整移动，尝试分别在X轴和Y轴上移动（滑动效果）
       bool canMoveX = _canMoveToPosition(newX, position.y);
       bool canMoveY = _canMoveToPosition(position.x, newY);
-      
+
       if (canMoveX) {
         // 可以在X轴移动
         finalX = newX;
@@ -2517,50 +2685,54 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         finalVelocityY = 0.0;
       }
     }
-    
+
     // 创建新位置对象
     final newPosition = position.copyWith(x: finalX, y: finalY);
     final newMovement = movement.copyWith(
       velocityX: finalVelocityX,
       velocityY: finalVelocityY,
     );
-    
+
     // 只有位置真正改变时才更新状态和应用地形效果
     if (newPosition != position || newMovement != movement) {
       // 检查是否需要开始脱离卡死冷却
       if (newPosition != position && state.isWaitingForMovement) {
         _startUnstuckCooldown();
       }
-      
+
       // 计算移动距离
       double movementDistance = 0.0;
       if (newPosition != position) {
         movementDistance = _calculateMovementDistance(position, newPosition);
-        
+
         // 累积移动距离
-        final newAccumulatedDistance = state.accumulatedDistance + movementDistance;
-        
+        final newAccumulatedDistance =
+            state.accumulatedDistance + movementDistance;
+
         // 当累积距离达到1格时，应用地形效果
         if (newAccumulatedDistance >= 1.0) {
           final currentTerrain = _getCurrentTerrain();
           final gridsToProcess = newAccumulatedDistance.floor();
-          
+
           // 应用地形效果
           _applyTerrainEffects(currentTerrain, gridsToProcess.toDouble());
-          
+
           // 重置累积距离，保留小数部分
           final remainingDistance = newAccumulatedDistance - gridsToProcess;
           final int newGridX = newPosition.x.round();
           final int newGridY = newPosition.y.round();
           final String? zoneName = getZoneNameAt(newGridX, newGridY);
-          final String? prevZoneName = getZoneNameAt(position.x.round(), position.y.round());
+          final String? prevZoneName = getZoneNameAt(
+            position.x.round(),
+            position.y.round(),
+          );
           DateTime? newVisibleUntil = state.zoneNameVisibleUntil;
           if (zoneName != null && zoneName != prevZoneName) {
             newVisibleUntil = DateTime.now().add(const Duration(seconds: 3));
           } else if (zoneName == null && prevZoneName != null) {
             newVisibleUntil = null;
           }
-          
+
           // 更新状态，包括新的累积距离
           state = state.copyWith(
             playerPosition: newPosition,
@@ -2575,7 +2747,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final int newGridX = newPosition.x.round();
           final int newGridY = newPosition.y.round();
           final String? zoneName = getZoneNameAt(newGridX, newGridY);
-          final String? prevZoneName = getZoneNameAt(position.x.round(), position.y.round());
+          final String? prevZoneName = getZoneNameAt(
+            position.x.round(),
+            position.y.round(),
+          );
           DateTime? newVisibleUntil = state.zoneNameVisibleUntil;
           if (zoneName != null && zoneName != prevZoneName) {
             newVisibleUntil = DateTime.now().add(const Duration(seconds: 3));
@@ -2593,78 +2768,82 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         }
       } else {
         // 位置没变，只更新移动状态
-        state = state.copyWith(
-          movementState: newMovement,
-        );
+        state = state.copyWith(movementState: newMovement);
       }
     }
   }
 
   /// 更新视野
   void _updateVision() {
-
     final playerGridPosition = Point(
       state.playerPosition.x.round(),
       state.playerPosition.y.round(),
     );
-    
+
     // 检查是否需要强制更新视野（基于时间或精神值变化）
     final currentSanity = (state.characterStats['san'] ?? 100).toDouble();
     final maxSanity = (state.characterStats['maxSan'] ?? 100).toDouble();
-    
+
     // 如果玩家网格位置没有改变且精神值没有显著变化，可以跳过视野计算
     // 但仍然需要更新平滑视野动画，所以不能完全跳过
     bool positionChanged = _lastPlayerGridPosition != playerGridPosition;
-    
+
     // 即使位置没有变化，也要定期更新视野以支持动态效果
     // 这里我们移除了过于严格的缓存机制
-    
+
     // 检查位置有效性
-    if (playerGridPosition.x < 0 || 
+    if (playerGridPosition.x < 0 ||
         playerGridPosition.x >= state.map[0].length ||
-        playerGridPosition.y < 0 || 
+        playerGridPosition.y < 0 ||
         playerGridPosition.y >= state.map.length) {
       return;
     }
 
     try {
       // 使用增强版视野系统获取带有可见性级别的瓦片（传递精神值和氧气视野修正）
-      final tilesWithVisibility = _enhancedVisionSystem.getVisibleTilesWithLevel(
-        playerGridPosition,
-        sanityValue: currentSanity,
-        maxSanity: maxSanity,
-        oxygenVisionMultiplier: _oxygenSystem?.visionFactor,
-      );
-      
+      final tilesWithVisibility = _enhancedVisionSystem
+          .getVisibleTilesWithLevel(
+            playerGridPosition,
+            sanityValue: currentSanity,
+            maxSanity: maxSanity,
+            oxygenVisionMultiplier: _oxygenSystem?.visionFactor,
+          );
+
       // 提取完全可见的瓦片用于兼容性（包括有雾霾装饰的可见瓦片）
-      final newVisibleTiles = tilesWithVisibility.entries
-          .where((entry) => entry.value == TileVisibility.fullyVisible || 
-                           entry.value == TileVisibility.visibleWithFogDecoration)
-          .map((entry) => entry.key)
-          .toSet();
-      
+      final newVisibleTiles =
+          tilesWithVisibility.entries
+              .where(
+                (entry) =>
+                    entry.value == TileVisibility.fullyVisible ||
+                    entry.value == TileVisibility.visibleWithFogDecoration,
+              )
+              .map((entry) => entry.key)
+              .toSet();
+
       // 更新缓存（只在位置改变时更新位置缓存）
       if (positionChanged) {
         _lastPlayerGridPosition = playerGridPosition;
         _cachedVisibleTiles = newVisibleTiles;
       }
-      
+
       // 更新已探索区域
       final newVisibleMap = List.generate(
         state.visibleMap.length,
         (y) => List<bool>.from(state.visibleMap[y]),
       );
-      
+
       for (final tile in newVisibleTiles) {
-        if (tile.y >= 0 && tile.y < newVisibleMap.length &&
-            tile.x >= 0 && tile.x < newVisibleMap[0].length) {
+        if (tile.y >= 0 &&
+            tile.y < newVisibleMap.length &&
+            tile.x >= 0 &&
+            tile.x < newVisibleMap[0].length) {
           newVisibleMap[tile.y][tile.x] = true;
         }
       }
-      
+
       // 更新平滑视野管理器，使用新的可见性级别系统
       _smoothVisionManager.updateVisionWithLevels(tilesWithVisibility);
-      
+
       // 始终更新状态以确保UI能够响应视野变化
       // 即使位置没有改变，精神值或其他因素可能影响视野
       final currentTime = DateTime.now().millisecondsSinceEpoch;
@@ -2683,7 +2862,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 更新平滑视野动画
   void _updateSmoothVisionAnimations() {
     final needsRepaint = _smoothVisionManager.updateAnimations();
-    
+
     // 如果动画有更新，触发重绘
     if (needsRepaint) {
       // 通过更新一个无关紧要的状态来触发重绘
@@ -2701,66 +2880,65 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 检查是否处于无视地形模式（包括初始无碰撞模式和脱离卡死模式）
     if (state.isNoClipMode || state.isInitialNoClipMode) {
       final now = DateTime.now();
-      
+
       // 检查脱离卡死的无视地形模式是否已过期
-      if (state.isNoClipMode && state.noClipEndTime != null && now.isAfter(state.noClipEndTime!)) {
+      if (state.isNoClipMode &&
+          state.noClipEndTime != null &&
+          now.isAfter(state.noClipEndTime!)) {
         // 无视地形模式已过期，关闭该模式
-        state = state.copyWith(
-          isNoClipMode: false,
-          noClipEndTime: null,
-        );
+        state = state.copyWith(isNoClipMode: false, noClipEndTime: null);
         print('无视地形模式已结束');
       } else {
         // 仍在无视地形模式中，只检查地图边界
         final gridX = x.floor();
         final gridY = y.floor();
-        return gridX >= 0 && gridX < state.map[0].length &&
-               gridY >= 0 && gridY < state.map.length;
+        return gridX >= 0 &&
+            gridX < state.map[0].length &&
+            gridY >= 0 &&
+            gridY < state.map.length;
       }
     }
-    
+
     // 计算角色的碰撞半径
     // sizeScale = 0.6, collisionScale = 0.8
     // 实际碰撞半径 = 0.6 * 0.8 * 0.5 = 0.24 瓦片单位
     const sizeScale = 0.6;
     const collisionScale = 0.8;
     final characterHalfSize = sizeScale * collisionScale * 0.5;
-    
-    // 添加水平偏移量，让角色更容易贴墙移动
-    // 左边判定向左偏移，右边判定也向左偏移
-    final horizontalOffset = 0.2; // 向左偏移0.2瓦片单位，接近角色半径大小
-    
+
     final samplePoints = [
       Point(x, y), // 中心点
       // 四个角点 - 添加水平偏移优化贴墙体验
-      Point(x - characterHalfSize - horizontalOffset, y - characterHalfSize), // 左上角（向左偏移）
-      Point(x + characterHalfSize - horizontalOffset, y - characterHalfSize), // 右上角（向左偏移）
-      Point(x - characterHalfSize - horizontalOffset, y + characterHalfSize), // 左下角（向左偏移）
-      Point(x + characterHalfSize - horizontalOffset, y + characterHalfSize), // 右下角（向左偏移）
+      Point(x - characterHalfSize, y - characterHalfSize), // 左上角（向左偏移）
+      Point(x + characterHalfSize, y - characterHalfSize), // 右上角（向左偏移）
+      Point(x - characterHalfSize, y + characterHalfSize), // 左下角（向左偏移）
+      Point(x + characterHalfSize, y + characterHalfSize), // 右下角（向左偏移）
       // 四个边缘中点 - 添加水平偏移
-      Point(x - characterHalfSize - horizontalOffset, y), // 左边缘中点（向左偏移）
-      Point(x + characterHalfSize - horizontalOffset, y), // 右边缘中点（向左偏移）
+      Point(x - characterHalfSize, y), // 左边缘中点
+      Point(x + characterHalfSize, y), // 右边缘中点
       Point(x, y - characterHalfSize), // 上边缘中点（保持不变）
-      Point(x, y + characterHalfSize), // 下边缘中点（保持不变）
+      Point(x, y + characterHalfSize + 0.25), // 下边缘中点（保持不变）
     ];
-    
+
     // 检查每个采样点是否在有效范围内且不与墙壁碰撞
     for (final point in samplePoints) {
       final gridX = point.x.floor();
       final gridY = point.y.floor();
-      
+
       // 边界检查
-      if (gridX < 0 || gridX >= state.map[0].length ||
-          gridY < 0 || gridY >= state.map.length) {
+      if (gridX < 0 ||
+          gridX >= state.map[0].length ||
+          gridY < 0 ||
+          gridY >= state.map.length) {
         return false;
       }
-      
+
       // 墙壁碰撞检测
       if (state.map[gridY][gridX] == 'wall') {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -2770,18 +2948,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (state.isUsingItem || state.isExploringChest) {
       return;
     }
-    
+
     // 检查是否首次使用摇杆，如果是则启动初始无碰撞模式的倒计时
-    if (state.isInitialNoClipMode && !state.hasUsedJoystick && intensity > 0.1) {
+    if (state.isInitialNoClipMode &&
+        !state.hasUsedJoystick &&
+        intensity > 0.1) {
       final now = DateTime.now();
       final endTime = now.add(const Duration(seconds: 1));
-      
+
       // 标记已使用摇杆，并设置一秒后结束初始无碰撞模式
-      state = state.copyWith(
-        hasUsedJoystick: true,
-        noClipEndTime: endTime,
-      );
-      
+      state = state.copyWith(hasUsedJoystick: true, noClipEndTime: endTime);
+
       // 启动定时器，一秒后关闭初始无碰撞模式
       // 关键区域：在定时器回调开始检查 mounted，避免销毁后触发
       Timer(const Duration(seconds: 1), () {
@@ -2794,24 +2971,24 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           print('初始无碰撞模式已结束');
         }
       });
-      
+
       print('玩家开始使用摇杆，初始无碰撞模式将在1秒后结束');
     }
-    
+
     final movement = state.movementState;
     final position = state.playerPosition;
-    
+
     final newMovement = movement.copyWith(
       joystickX: x,
       joystickY: y,
       joystickIntensity: intensity,
       isMoving: intensity > 0.1,
     );
-    
+
     final newPosition = position.copyWith(
       facingRight: x.abs() > 0.1 ? x > 0 : position.facingRight,
     );
-    
+
     // 只有状态真正改变时才更新
     if (newMovement != movement || newPosition != position) {
       state = state.copyWith(
@@ -2824,14 +3001,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 摇杆停止
   void onJoystickStop() {
     final movement = state.movementState;
-    
+
     final newMovement = movement.copyWith(
       joystickX: 0.0,
       joystickY: 0.0,
       joystickIntensity: 0.0,
       isMoving: false,
     );
-    
+
     if (newMovement != movement) {
       state = state.copyWith(movementState: newMovement);
     }
@@ -2863,7 +3040,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
   }
 
-  void onWeaponJoystickRelease(bool canceled, double x, double y, double intensity) {
+  void onWeaponJoystickRelease(
+    bool canceled,
+    double x,
+    double y,
+    double intensity,
+  ) {
     if (canceled) {
       state = state.copyWith(
         weaponJoystickX: 0.0,
@@ -2889,7 +3071,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 关键区域：同步近战挥刀动画时长
       Timer(const Duration(milliseconds: 420), () {
         if (!mounted) return;
-        if (state.weaponAttackStartTime != null && state.weaponAttackStartTime == now) {
+        if (state.weaponAttackStartTime != null &&
+            state.weaponAttackStartTime == now) {
           state = state.copyWith(
             weaponAttackStartTime: null,
             lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
@@ -2906,7 +3089,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         return;
       }
       if (state.selectedAttackMode == AttackMode.ranged) {
-        final int interval = state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
+        final int interval =
+            state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
         if (_lastFireTime != null) {
           final int dt = now.difference(_lastFireTime!).inMilliseconds;
           if (dt < interval) {
@@ -2916,17 +3100,24 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       }
       final double dirX = x;
       final double dirY = y;
-      final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
+      final double angle = math.atan2(
+        dirY,
+        (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX,
+      );
       final List<Projectile> ps = List<Projectile>.from(state.projectiles);
       final double px0 = state.playerPosition.x;
       final double py0 = state.playerPosition.y;
       const double offsetR = 0.45;
       final double sx0 = px0 + math.cos(angle) * offsetR;
       final double sy0 = py0 + math.sin(angle) * offsetR;
-      ps.add(Projectile(startTime: now, angle: angle, startX: sx0, startY: sy0));
+      ps.add(
+        Projectile(startTime: now, angle: angle, startX: sx0, startY: sy0),
+      );
       // 关键区域：射击后同步弹夹弹药到装备武器对象
       final Item? w = state.equipmentSlots['weapon'];
-      final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
+      final Map<String, Item?> slots = Map<String, Item?>.from(
+        state.equipmentSlots,
+      );
       if (w != null) {
         slots['weapon'] = Item(
           id: w.id,
@@ -2976,7 +3167,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 关键区域：同步近战挥刀动画时长
       Timer(const Duration(milliseconds: 420), () {
         if (!mounted) return;
-        if (state.weaponAttackStartTime != null && state.weaponAttackStartTime == now) {
+        if (state.weaponAttackStartTime != null &&
+            state.weaponAttackStartTime == now) {
           state = state.copyWith(
             weaponAttackStartTime: null,
             lastAnimationFrame: DateTime.now().millisecondsSinceEpoch,
@@ -2998,7 +3190,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       return;
     }
     if (state.selectedAttackMode == AttackMode.ranged) {
-      final int interval = state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
+      final int interval =
+          state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
       if (_lastFireTime != null) {
         final int dt = now.difference(_lastFireTime!).inMilliseconds;
         if (dt < interval) {
@@ -3013,7 +3206,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       dirX = state.lastWeaponAimX;
       dirY = state.lastWeaponAimY;
       // 在全自动长按连发期间，禁止退回到角色面向方向；若仍无方向则不射击
-      final bool isAutoHolding = (state.selectedAttackMode == AttackMode.ranged) && (state.weaponFireMode == FireMode.fullAuto) && (_isFireHolding);
+      final bool isAutoHolding =
+          (state.selectedAttackMode == AttackMode.ranged) &&
+          (state.weaponFireMode == FireMode.fullAuto) &&
+          (_isFireHolding);
       if (dirX == 0.0 && dirY == 0.0) {
         if (isAutoHolding) {
           return; // 没有有效瞄准方向时不射击
@@ -3023,7 +3219,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         }
       }
     }
-    final double angle = math.atan2(dirY, (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX);
+    final double angle = math.atan2(
+      dirY,
+      (dirX == 0.0 && dirY == 0.0) ? 1e-6 : dirX,
+    );
     final List<Projectile> ps = List<Projectile>.from(state.projectiles);
     final double px0 = state.playerPosition.x;
     final double py0 = state.playerPosition.y;
@@ -3033,7 +3232,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     ps.add(Projectile(startTime: now, angle: angle, startX: sx0, startY: sy0));
     // 关键区域：射击后同步弹夹弹药到装备武器对象
     final Item? w = state.equipmentSlots['weapon'];
-    final Map<String, Item?> slots = Map<String, Item?>.from(state.equipmentSlots);
+    final Map<String, Item?> slots = Map<String, Item?>.from(
+      state.equipmentSlots,
+    );
     if (w != null) {
       slots['weapon'] = Item(
         id: w.id,
@@ -3063,10 +3264,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   void handleFireButtonPress() {
-    if (state.selectedAttackMode == AttackMode.ranged && state.weaponFireMode == FireMode.fullAuto) {
+    if (state.selectedAttackMode == AttackMode.ranged &&
+        state.weaponFireMode == FireMode.fullAuto) {
       _isFireHolding = true;
       if (_autoFireTimer == null || !_autoFireTimer!.isActive) {
-        final int interval = state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
+        final int interval =
+            state.weaponFireIntervalMs <= 0 ? 150 : state.weaponFireIntervalMs;
         _autoFireTimer = Timer.periodic(Duration(milliseconds: interval), (_) {
           if (!_isFireHolding) {
             _autoFireTimer?.cancel();
@@ -3121,14 +3324,22 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   // 关键区域：设置近战攻击模板（颜色、攻击距离、范围）
   void setMeleeAttackTemplate(ui.Color color, double distance, double range) {
     state = state.copyWith(
-      meleeAttackTemplate: AttackTemplate(color: color, distance: distance, range: range),
+      meleeAttackTemplate: AttackTemplate(
+        color: color,
+        distance: distance,
+        range: range,
+      ),
     );
   }
 
   // 关键区域：设置远程攻击模板（颜色、攻击距离、范围）
   void setRangedAttackTemplate(ui.Color color, double distance, double range) {
     state = state.copyWith(
-      rangedAttackTemplate: AttackTemplate(color: color, distance: distance, range: range),
+      rangedAttackTemplate: AttackTemplate(
+        color: color,
+        distance: distance,
+        range: range,
+      ),
     );
   }
 
@@ -3140,35 +3351,69 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   // 关键区域：从物品读取武器模板与伤害参数并应用
   void _applyWeaponParamsFromItem(Item item) {
     final params = item.weaponParams ?? const {};
-    final String typeStr = (params['attackType'] ?? params['近战/远程'] ?? 'melee').toString();
-    final AttackMode mode = (typeStr == 'ranged' || typeStr == '远程') ? AttackMode.ranged : AttackMode.melee;
-    final int colorInt = (params['effectColor'] ?? params['颜色效果'] ?? 0xFFFFA000) as int;
-    final double distance = ((params['distance'] ?? params['距离'] ?? (mode == AttackMode.melee ? 1 : 4)) as num).toDouble();
-    final double range = ((params['range'] ?? params['范围'] ?? (mode == AttackMode.melee ? 1.2 : 12.0)) as num).toDouble();
-    final double amp = ((params['damageAmplify'] ?? params['增幅伤害'] ?? 1.0) as num).toDouble();
-    final double critDmg = ((params['critDamage'] ?? params['暴击伤害'] ?? 1.5) as num).toDouble();
-    final double critChance = ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num).toDouble();
-    final String fireModeStr = (params['fireMode'] ?? 'semiAuto').toString().toLowerCase();
-    final FireMode fireMode = (fireModeStr == 'fullauto' || fireModeStr == 'full_auto' || fireModeStr == 'full')
-        ? FireMode.fullAuto
-        : FireMode.semiAuto;
+    final String typeStr =
+        (params['attackType'] ?? params['近战/远程'] ?? 'melee').toString();
+    final AttackMode mode =
+        (typeStr == 'ranged' || typeStr == '远程')
+            ? AttackMode.ranged
+            : AttackMode.melee;
+    final int colorInt =
+        (params['effectColor'] ?? params['颜色效果'] ?? 0xFFFFA000) as int;
+    final double distance =
+        ((params['distance'] ??
+                    params['距离'] ??
+                    (mode == AttackMode.melee ? 1 : 4))
+                as num)
+            .toDouble();
+    final double range =
+        ((params['range'] ??
+                    params['范围'] ??
+                    (mode == AttackMode.melee ? 1.2 : 12.0))
+                as num)
+            .toDouble();
+    final double amp =
+        ((params['damageAmplify'] ?? params['增幅伤害'] ?? 1.0) as num).toDouble();
+    final double critDmg =
+        ((params['critDamage'] ?? params['暴击伤害'] ?? 1.5) as num).toDouble();
+    final double critChance =
+        ((params['critChanceBonus'] ?? params['暴击几率加成'] ?? 0.0) as num)
+            .toDouble();
+    final String fireModeStr =
+        (params['fireMode'] ?? 'semiAuto').toString().toLowerCase();
+    final FireMode fireMode =
+        (fireModeStr == 'fullauto' ||
+                fireModeStr == 'full_auto' ||
+                fireModeStr == 'full')
+            ? FireMode.fullAuto
+            : FireMode.semiAuto;
     final dynamic pwRaw = params['penetrateWalls'];
     final dynamic pgRaw = params['penetrateGhosts'];
-    final bool penetrateWalls = pwRaw is bool
-        ? pwRaw
-        : (pwRaw == null ? false : pwRaw.toString().toLowerCase() == 'true');
-    final bool penetrateGhosts = pgRaw is bool
-        ? pgRaw
-        : (pgRaw == null ? false : pgRaw.toString().toLowerCase() == 'true');
+    final bool penetrateWalls =
+        pwRaw is bool
+            ? pwRaw
+            : (pwRaw == null
+                ? false
+                : pwRaw.toString().toLowerCase() == 'true');
+    final bool penetrateGhosts =
+        pgRaw is bool
+            ? pgRaw
+            : (pgRaw == null
+                ? false
+                : pgRaw.toString().toLowerCase() == 'true');
     final int magazine = ((params['magazineSize'] ?? 0) as num).toInt();
     final int ammoTotal = ((params['ammoTotal'] ?? 0) as num).toInt();
     final int reloadMs = ((params['reloadMs'] ?? 1000) as num).toInt();
-    final int fireIntervalMs = ((params['fireIntervalMs'] ?? 150) as num).toInt();
+    final int fireIntervalMs =
+        ((params['fireIntervalMs'] ?? 150) as num).toInt();
 
     if (mode == AttackMode.melee) {
       state = state.copyWith(
         selectedAttackMode: AttackMode.melee,
-        meleeAttackTemplate: AttackTemplate(color: ui.Color(colorInt), distance: distance, range: range),
+        meleeAttackTemplate: AttackTemplate(
+          color: ui.Color(colorInt),
+          distance: distance,
+          range: range,
+        ),
         weaponDamageAmplify: amp,
         weaponCritDamage: critDmg,
         weaponCritChanceBonus: critChance,
@@ -3180,12 +3425,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         weaponTotalAmmo: 0,
         reloadDurationMs: 1000,
         weaponFireIntervalMs: fireIntervalMs,
-        );
+      );
     } else {
       // 关键区域：为当前武器初始化/同步独立弹药
       final Item? equipped = state.equipmentSlots['weapon'];
-      final int initClip = equipped?.clipAmmo ?? item.clipAmmo ?? (magazine > 0 ? magazine : 0);
-      final int initReserve = equipped?.ammoReserve ?? item.ammoReserve ?? ammoTotal;
+      final int initClip =
+          equipped?.clipAmmo ?? item.clipAmmo ?? (magazine > 0 ? magazine : 0);
+      final int initReserve =
+          equipped?.ammoReserve ?? item.ammoReserve ?? ammoTotal;
       final updatedSlots = Map<String, Item?>.from(state.equipmentSlots);
       updatedSlots['weapon'] = Item(
         id: item.id,
@@ -3207,7 +3454,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       state = state.copyWith(
         equipmentSlots: updatedSlots,
         selectedAttackMode: AttackMode.ranged,
-        rangedAttackTemplate: AttackTemplate(color: ui.Color(colorInt), distance: distance, range: range),
+        rangedAttackTemplate: AttackTemplate(
+          color: ui.Color(colorInt),
+          distance: distance,
+          range: range,
+        ),
         weaponDamageAmplify: amp,
         weaponCritDamage: critDmg,
         weaponCritChanceBonus: critChance,
@@ -3261,14 +3512,19 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final playerGridX = ((state.playerPosition.x - 10.0) / 40).round();
     final playerGridY = ((state.playerPosition.y - 10.0) / 40).round();
     final playerPos = Point(playerGridX, playerGridY);
-    
-    print('isNearChest - 玩家位置: 像素(${state.playerPosition.x}, ${state.playerPosition.y}), 网格($playerGridX, $playerGridY)');
+
+    print(
+      'isNearChest - 玩家位置: 像素(${state.playerPosition.x}, ${state.playerPosition.y}), 网格($playerGridX, $playerGridY)',
+    );
     print('isNearChest - 宝箱数量: ${state.chestPositions.length}');
-    
+
     for (final chestPos in state.chestPositions) {
       final distance = _calculateDistance(playerPos, chestPos);
-      print('isNearChest - 宝箱位置: (${chestPos.x}, ${chestPos.y}), 距离: $distance');
-      if (distance <= 1.5) { // 允许1.5格的交互距离
+      print(
+        'isNearChest - 宝箱位置: (${chestPos.x}, ${chestPos.y}), 距离: $distance',
+      );
+      if (distance <= 1.5) {
+        // 允许1.5格的交互距离
         print('isNearChest - 玩家靠近宝箱，距离: $distance <= 1.5');
         return true;
       }
@@ -3279,7 +3535,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 打开指定位置的宝箱（点击时使用）
   void openChestAtPosition(Point<int> chestPosition) {
-    
     // 检查宝箱是否存在
     if (!state.chestPositions.contains(chestPosition)) {
       print('openChestAtPosition - 宝箱不存在于指定位置');
@@ -3290,7 +3545,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (state.isExploringChest) {
       cancelChestExploration();
     }
-    
+
     // 开始宝箱探索进度，并打开搜索页面
     // 关键区域：初始化“待揭示队列”和“当前宝箱内容”，采用逐步揭示逻辑
     final initialItems = _getRandomChestItems();
@@ -3303,13 +3558,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       chestPendingItems: initialItems,
       chestVisibleItems: const [],
     );
-    
+
     // 启动宝箱探索计时器
     _startChestExplorationTimer(chestPosition);
-    
+
     // 显示开始探索的消息
     addBroadcastMessage('开始探索宝箱...', BroadcastMessageType.item);
-    print('openChestAtPosition - 开始探索宝箱: (${chestPosition.x}, ${chestPosition.y})');
+    print(
+      'openChestAtPosition - 开始探索宝箱: (${chestPosition.x}, ${chestPosition.y})',
+    );
   }
 
   /// 打开指定位置的保险箱（点击时使用）
@@ -3341,30 +3598,34 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       print('openChest - 玩家不靠近宝箱，退出');
       return;
     }
-    
+
     final playerGridX = ((state.playerPosition.x - 10.0) / 40).round();
     final playerGridY = ((state.playerPosition.y - 10.0) / 40).round();
     final playerPos = Point(playerGridX, playerGridY);
-    
+
     print('openChest - 玩家位置: ($playerGridX, $playerGridY)');
-    
+
     // 找到最近的宝箱
     Point<int>? nearestChest;
     double minDistance = double.infinity;
-    
+
     for (final chestPos in state.chestPositions) {
       final distance = _calculateDistance(playerPos, chestPos);
       print('openChest - 检查宝箱: (${chestPos.x}, ${chestPos.y}), 距离: $distance');
       if (distance <= 1.5 && distance < minDistance) {
         minDistance = distance;
         nearestChest = chestPos;
-        print('openChest - 找到更近的宝箱: (${chestPos.x}, ${chestPos.y}), 距离: $distance');
+        print(
+          'openChest - 找到更近的宝箱: (${chestPos.x}, ${chestPos.y}), 距离: $distance',
+        );
       }
     }
-    
+
     if (nearestChest != null) {
-      print('openChest - 找到最近宝箱: (${nearestChest.x}, ${nearestChest.y}), 距离: $minDistance');
-      
+      print(
+        'openChest - 找到最近宝箱: (${nearestChest.x}, ${nearestChest.y}), 距离: $minDistance',
+      );
+
       // 使用进度条机制打开宝箱
       openChestAtPosition(nearestChest);
     } else {
@@ -3375,24 +3636,44 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 获取宝箱随机物品
   List<Item> _getRandomChestItems() {
     // 关键区域：固定宝箱100%掉落3个随机物品；同时在建筑内提升高品质概率
-    final isFixedChest = state.currentExploringChest != null &&
+    final isFixedChest =
+        state.currentExploringChest != null &&
         state.fixedChestPosition != null &&
         state.currentExploringChest == state.fixedChestPosition;
     final chestPos = state.currentExploringChest;
     // 关键区域：角色概率增幅（rarityBoost）接入宝箱物品生成
-    final double rarityBoost = ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
+    final double rarityBoost =
+        ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
     if (isFixedChest) {
       // 固定宝箱：位置已知，按位置生成并保持掉落数量为3
       if (chestPos != null) {
-        return ItemSpawner.generateChestItemsAtPosition(chestPos, minItems: 3, maxItems: 3, rarityBoost: rarityBoost);
+        return ItemSpawner.generateChestItemsAtPosition(
+          chestPos,
+          minItems: 3,
+          maxItems: 3,
+          rarityBoost: rarityBoost,
+        );
       }
-      return ItemSpawner.generateChestItems(minItems: 3, maxItems: 3, rarityBoost: rarityBoost);
+      return ItemSpawner.generateChestItems(
+        minItems: 3,
+        maxItems: 3,
+        rarityBoost: rarityBoost,
+      );
     }
     // 普通宝箱：若有当前位置，使用位置增强概率（建筑内提升高品质概率）
     if (chestPos != null) {
-      return ItemSpawner.generateChestItemsAtPosition(chestPos, minItems: 1, maxItems: 3, rarityBoost: rarityBoost);
+      return ItemSpawner.generateChestItemsAtPosition(
+        chestPos,
+        minItems: 1,
+        maxItems: 3,
+        rarityBoost: rarityBoost,
+      );
     }
-    return ItemSpawner.generateChestItems(minItems: 1, maxItems: 3, rarityBoost: rarityBoost);
+    return ItemSpawner.generateChestItems(
+      minItems: 1,
+      maxItems: 3,
+      rarityBoost: rarityBoost,
+    );
   }
 
   /// 获取适合放置宝箱的位置（建筑内优先，其次草地与路径）
@@ -3443,43 +3724,52 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 获取固定的测试宝箱位置（三个相邻的宝箱）
 
-
   /// 随机生成宝箱位置
   List<Point<int>> _generateRandomChestPositions({int chestCount = 5}) {
-    
     final random = math.Random();
     final suitablePositions = _getChestSuitablePositions();
     final chestPositions = <Point<int>>[];
-    
+
     if (suitablePositions.isEmpty) {
       print('警告：没有找到适合放置宝箱的位置');
       return chestPositions;
     }
-    
+
     // 确保不会生成超过可用位置数量的宝箱
     final maxChests = math.min(chestCount, suitablePositions.length);
-    
+
     // 随机选择不重复的位置
     final selectedPositions = <Point<int>>[];
     while (selectedPositions.length < maxChests) {
       final randomIndex = random.nextInt(suitablePositions.length);
       final position = suitablePositions[randomIndex];
-      
+
       // 确保位置不重复
       if (!selectedPositions.contains(position)) {
         selectedPositions.add(position);
       }
     }
-    
+
     return selectedPositions;
   }
 
   /// 获取保险箱随机物品（仅 Lv3/4/5/6）
-  List<Item> _getRandomSafeItemsAtPosition(Point<int> position, {int minItems = 1, int maxItems = 3}) {
+  List<Item> _getRandomSafeItemsAtPosition(
+    Point<int> position, {
+    int minItems = 1,
+    int maxItems = 3,
+  }) {
     final int count = minItems + math.Random().nextInt(maxItems - minItems + 1);
-    final List<Item> candidates = allItems
-        .where((it) => it.type == 'item' && it.level >= 3 && it.level <= 6 && it.id != 'gold')
-        .toList();
+    final List<Item> candidates =
+        allItems
+            .where(
+              (it) =>
+                  it.type == 'item' &&
+                  it.level >= 3 &&
+                  it.level <= 6 &&
+                  it.id != 'gold',
+            )
+            .toList();
 
     if (candidates.isEmpty) {
       return const [];
@@ -3488,19 +3778,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 建筑内倍率（复用宝箱权重倾斜）
     final terrain = MapData.testMap[position.y][position.x];
     final bool inBuilding = terrain == 'building';
-    final Map<int, double> base = {
-      3: 20.0,
-      4: 10.0,
-      5: 8.0,
-      6: 2.0,
-    };
-    final Map<int, double> mult = {
-      3: 1.5,
-      4: 1.8,
-      5: 2.2,
-      6: 2.5,
-    };
-    final double rarityBoost = ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
+    final Map<int, double> base = {3: 20.0, 4: 10.0, 5: 8.0, 6: 2.0};
+    final Map<int, double> mult = {3: 1.5, 4: 1.8, 5: 2.2, 6: 2.5};
+    final double rarityBoost =
+        ((state.characterStats['rarityBoost'] ?? 0.0) as num).toDouble();
 
     List<Item> result = [];
     for (int i = 0; i < count; i++) {
@@ -3532,7 +3813,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return result;
   }
 
-  double _applyRarityBoostForSafe(double baseWeight, int level, double rarityBoost) {
+  double _applyRarityBoostForSafe(
+    double baseWeight,
+    int level,
+    double rarityBoost,
+  ) {
     final double boost = rarityBoost <= 0 ? 0.0 : rarityBoost;
     if (level >= 4) {
       return baseWeight * (1.0 + boost);
@@ -3563,7 +3848,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final needToAdd = targetCount - currentCount;
     final existing = Set<Point<int>>.from(state.safePositions);
     final suitablePositions = _getChestSuitablePositions();
-    final available = suitablePositions.where((p) => !existing.contains(p)).toList();
+    final available =
+        suitablePositions.where((p) => !existing.contains(p)).toList();
     if (available.isEmpty) return;
     final random = math.Random();
     final newPositions = <Point<int>>[];
@@ -3572,7 +3858,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       final idx = random.nextInt(available.length);
       newPositions.add(available.removeAt(idx));
     }
-    final updated = List<Point<int>>.from(state.safePositions)..addAll(newPositions);
+    final updated = List<Point<int>>.from(state.safePositions)
+      ..addAll(newPositions);
     state = state.copyWith(safePositions: updated);
   }
 
@@ -3580,9 +3867,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _initializeChests() {
     // 关键区域：初始化时按建筑格动态确定目标宝箱数量
     final targetCount = _computeTargetChestCount();
-    final initialChestPositions = _generateRandomChestPositions(chestCount: targetCount);
+    final initialChestPositions = _generateRandomChestPositions(
+      chestCount: targetCount,
+    );
     state = state.copyWith(chestPositions: initialChestPositions);
-    print('初始化宝箱位置，数量：${initialChestPositions.length}（目标：$targetCount，建筑格：${_countBuildingTiles()}）');
+    print(
+      '初始化宝箱位置，数量：${initialChestPositions.length}（目标：$targetCount，建筑格：${_countBuildingTiles()}）',
+    );
     _spawnPrincipalOfficeChest();
   }
 
@@ -3590,9 +3881,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _refreshChestPositions() {
     // 关键区域：刷新时按建筑格动态确定目标宝箱数量
     final targetCount = _computeTargetChestCount();
-    final newChestPositions = _generateRandomChestPositions(chestCount: targetCount);
+    final newChestPositions = _generateRandomChestPositions(
+      chestCount: targetCount,
+    );
     state = state.copyWith(chestPositions: newChestPositions);
-    print('宝箱位置已刷新，新位置: ${newChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}（目标：$targetCount）');
+    print(
+      '宝箱位置已刷新，新位置: ${newChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}（目标：$targetCount）',
+    );
     _spawnPrincipalOfficeChest();
   }
 
@@ -3622,86 +3917,93 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final currentChestCount = state.chestPositions.length;
     // 关键区域：按建筑格动态确定目标宝箱数量
     final targetChestCount = _computeTargetChestCount();
-    
+
     // 如果当前宝箱数量已经足够，不需要补充
     if (currentChestCount >= targetChestCount) {
       print('宝箱数量充足 ($currentChestCount/$targetChestCount)，无需补充');
       return;
     }
-    
+
     // 计算需要补充的宝箱数量
     final needToAdd = targetChestCount - currentChestCount;
-    print('当前宝箱数量: $currentChestCount，目标数量: $targetChestCount，需要补充: $needToAdd（建筑格：${_countBuildingTiles()}）');
-    
+    print(
+      '当前宝箱数量: $currentChestCount，目标数量: $targetChestCount，需要补充: $needToAdd（建筑格：${_countBuildingTiles()}）',
+    );
+
     // 获取当前已存在的宝箱位置
     final existingPositions = Set<Point<int>>.from(state.chestPositions);
-    
+
     // 生成新的宝箱位置，避免与现有位置重复
     final suitablePositions = _getChestSuitablePositions();
-    final availablePositions = suitablePositions.where((pos) => !existingPositions.contains(pos)).toList();
-    
+    final availablePositions =
+        suitablePositions
+            .where((pos) => !existingPositions.contains(pos))
+            .toList();
+
     if (availablePositions.isEmpty) {
       print('警告：没有可用的位置来补充宝箱');
       return;
     }
-    
+
     // 随机选择新的宝箱位置
     final random = math.Random();
     final newPositions = <Point<int>>[];
     final maxNewChests = math.min(needToAdd, availablePositions.length);
-    
+
     for (int i = 0; i < maxNewChests; i++) {
       final randomIndex = random.nextInt(availablePositions.length);
       final newPosition = availablePositions.removeAt(randomIndex);
       newPositions.add(newPosition);
     }
-    
+
     // 更新宝箱位置列表
     final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
     updatedChestPositions.addAll(newPositions);
-    
+
     state = state.copyWith(chestPositions: updatedChestPositions);
-    
-    print('补充了 ${newPositions.length} 个宝箱，新位置: ${newPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}');
-    print('当前所有宝箱位置: ${updatedChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}');
+
+    print(
+      '补充了 ${newPositions.length} 个宝箱，新位置: ${newPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}',
+    );
+    print(
+      '当前所有宝箱位置: ${updatedChestPositions.map((p) => '(${p.x}, ${p.y})').join(', ')}',
+    );
   }
 
   /// 购买商品
   bool buyItem(ShopItem shopItem) {
     final character = state.characterStats;
     final currentMoney = character['gold'] ?? 0;
-    
+
     // 检查是否有足够的金币和库存
     if (currentMoney < shopItem.currentPrice || shopItem.stock <= 0) {
       return false; // 金币不足或库存不足
     }
-    
+
     // 检查背包容量
     if (state.playerInventory.length >= state.inventoryCapacity) {
       // 背包已满，将物品掉落到玩家位置
       _dropItemToGround(shopItem.item, state.playerPosition.toPoint());
-      
+
       // 扣除金币（即使物品掉落也要扣钱）
       final updatedCharacter = Map<String, dynamic>.from(character);
       updatedCharacter['gold'] = currentMoney - shopItem.currentPrice;
-      
+
       // 减少商品库存
       shopItem.stock--;
-      
+
       // 更新状态
-      state = state.copyWith(
-        characterStats: updatedCharacter,
-      );
-      
+      state = state.copyWith(characterStats: updatedCharacter);
+
       // 添加背包已满的播报消息
       addBroadcastMessage(
         '背包已满，${shopItem.item.name} 掉落在地上',
         BroadcastMessageType.item,
       );
-      
+
       return true; // 购买成功但物品掉落
     }
-    
+
     // 扣除金币
     final updatedCharacter = Map<String, dynamic>.from(character);
     updatedCharacter['gold'] = currentMoney - shopItem.currentPrice;
@@ -3710,11 +4012,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     shopItem.stock--;
 
     // 尝试堆叠插入到背包（末尾位置），失败则改为掉落在地面
-    final success = insertItemAtPosition(shopItem.item, state.playerInventory.length);
+    final success = insertItemAtPosition(
+      shopItem.item,
+      state.playerInventory.length,
+    );
     if (!success) {
       _dropItemToGround(shopItem.item, state.playerPosition.toPoint());
       state = state.copyWith(characterStats: updatedCharacter);
-      addBroadcastMessage('背包空间不足，购买物品已掉落：${shopItem.item.name}', BroadcastMessageType.item);
+      addBroadcastMessage(
+        '背包空间不足，购买物品已掉落：${shopItem.item.name}',
+        BroadcastMessageType.item,
+      );
       return true; // 购买成功但物品掉落
     }
 
@@ -3728,15 +4036,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 将物品掉落到地面
   void _dropItemToGround(Item item, Point<int> position) {
-    final currentGroundItems = Map<Point<int>, List<Item>>.from(state.groundItems);
-    
+    final currentGroundItems = Map<Point<int>, List<Item>>.from(
+      state.groundItems,
+    );
+
     // 如果该位置已有物品，添加到列表中；否则创建新列表
     if (currentGroundItems.containsKey(position)) {
       currentGroundItems[position]!.add(item);
     } else {
       currentGroundItems[position] = [item];
     }
-    
+
     // 更新状态
     state = state.copyWith(groundItems: currentGroundItems);
   }
@@ -3744,28 +4054,30 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 从地面拾取物品
   bool pickupItemFromGround(Point<int> position, Item item) {
     // 使用堆叠插入逻辑，不再仅以格数判断
-    final currentGroundItems = Map<Point<int>, List<Item>>.from(state.groundItems);
-    
+    final currentGroundItems = Map<Point<int>, List<Item>>.from(
+      state.groundItems,
+    );
+
     // 检查该位置是否有物品
     if (!currentGroundItems.containsKey(position)) {
       return false;
     }
-    
+
     final itemsAtPosition = currentGroundItems[position]!;
     final itemIndex = itemsAtPosition.indexWhere((i) => i.id == item.id);
-    
+
     if (itemIndex == -1) {
       return false; // 物品不在该位置
     }
-    
+
     // 从地面移除物品
     itemsAtPosition.removeAt(itemIndex);
-    
+
     // 如果该位置没有物品了，移除该位置
     if (itemsAtPosition.isEmpty) {
       currentGroundItems.remove(position);
     }
-    
+
     // 添加物品到背包（堆叠：仅对“物品”生效）
     final newInventory = List<Item>.from(state.playerInventory);
     const int stackLimit = 16;
@@ -3779,22 +4091,21 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final int free = stackLimit - invItem.count;
           if (free > 0) {
             final int addCount = remaining < free ? remaining : free;
-        newInventory[i] = Item(
-          id: invItem.id,
-          name: invItem.name,
-          image: invItem.image,
-          description: invItem.description,
-          effects: invItem.effects,
-          type: invItem.type,
-          count: invItem.count + addCount,
-          availableInShop: invItem.availableInShop,
-          basePrice: invItem.basePrice,
-          usageTime: invItem.usageTime,
-          level: invItem.level,
-          equipmentSlot: invItem.equipmentSlot,
-          weaponParams: invItem.weaponParams,
-
-        );
+            newInventory[i] = Item(
+              id: invItem.id,
+              name: invItem.name,
+              image: invItem.image,
+              description: invItem.description,
+              effects: invItem.effects,
+              type: invItem.type,
+              count: invItem.count + addCount,
+              availableInShop: invItem.availableInShop,
+              basePrice: invItem.basePrice,
+              usageTime: invItem.usageTime,
+              level: invItem.level,
+              equipmentSlot: invItem.equipmentSlot,
+              weaponParams: invItem.weaponParams,
+            );
             remaining -= addCount;
           }
         }
@@ -3803,7 +4114,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 需要新增堆叠时检查容量
       while (remaining > 0) {
         final int neededStacks = (remaining + stackLimit - 1) ~/ stackLimit;
-        final int availableSlots = state.inventoryCapacity - newInventory.length;
+        final int availableSlots =
+            state.inventoryCapacity - newInventory.length;
         if (availableSlots < neededStacks) {
           // 回滚地面物品列表（把拿走的放回）
           final backItems = currentGroundItems[position] ?? <Item>[];
@@ -3813,22 +4125,23 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           return false;
         }
         final int toAdd = remaining > stackLimit ? stackLimit : remaining;
-        newInventory.add(Item(
-          id: item.id,
-          name: item.name,
-          image: item.image,
-          description: item.description,
-          effects: item.effects,
-          type: item.type,
-          count: toAdd,
-          availableInShop: item.availableInShop,
-          basePrice: item.basePrice,
-          usageTime: item.usageTime,
-          level: item.level,
-          equipmentSlot: item.equipmentSlot,
-          weaponParams: item.weaponParams,
-
-        ));
+        newInventory.add(
+          Item(
+            id: item.id,
+            name: item.name,
+            image: item.image,
+            description: item.description,
+            effects: item.effects,
+            type: item.type,
+            count: toAdd,
+            availableInShop: item.availableInShop,
+            basePrice: item.basePrice,
+            usageTime: item.usageTime,
+            level: item.level,
+            equipmentSlot: item.equipmentSlot,
+            weaponParams: item.weaponParams,
+          ),
+        );
         remaining -= toAdd;
       }
     } else {
@@ -3842,16 +4155,19 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       }
       newInventory.add(item);
     }
-    
+
     // 更新状态
     state = state.copyWith(
       playerInventory: newInventory,
       groundItems: currentGroundItems,
     );
-    
+
     // 添加拾取成功的播报消息
-    addBroadcastMessage('拾取了 ${item.name}${item.count > 1 ? ' x ${item.count}' : ''}', BroadcastMessageType.item);
-    
+    addBroadcastMessage(
+      '拾取了 ${item.name}${item.count > 1 ? ' x ${item.count}' : ''}',
+      BroadcastMessageType.item,
+    );
+
     return true;
   }
 
@@ -3861,33 +4177,36 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (fromIndex < 0 || toIndex < 0 || toIndex >= state.inventoryCapacity) {
       return false;
     }
-    
+
     // 检查源位置是否有效（必须在当前物品范围内）
     if (fromIndex >= state.playerInventory.length) {
       return false;
     }
-    
+
     // 如果源位置和目标位置相同，不需要移动
     if (fromIndex == toIndex) {
       return true;
     }
-    
+
     // 创建一个固定大小的稀疏数组来表示背包格子
-    final inventoryGrid = <Item?>[...List.filled(state.inventoryCapacity, null)];
-    
+    final inventoryGrid = <Item?>[
+      ...List.filled(state.inventoryCapacity, null),
+    ];
+
     // 将现有物品按顺序放入网格的前面位置
     for (int i = 0; i < state.playerInventory.length; i++) {
       inventoryGrid[i] = state.playerInventory[i];
     }
-    
+
     // 获取要移动的物品
     final itemToMove = inventoryGrid[fromIndex];
     if (itemToMove == null) {
       return false;
     }
-    
+
     // 执行移动操作
-    if (toIndex < state.playerInventory.length && inventoryGrid[toIndex] != null) {
+    if (toIndex < state.playerInventory.length &&
+        inventoryGrid[toIndex] != null) {
       // 目标位置有物品，交换位置
       final targetItem = inventoryGrid[toIndex];
       inventoryGrid[fromIndex] = targetItem;
@@ -3897,7 +4216,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       inventoryGrid[fromIndex] = null;
       inventoryGrid[toIndex] = itemToMove;
     }
-    
+
     // 重新整理背包，移除空位并保持物品顺序
     final newInventory = <Item>[];
     for (int i = 0; i < inventoryGrid.length; i++) {
@@ -3905,13 +4224,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         newInventory.add(inventoryGrid[i]!);
       }
     }
-    
+
     // 更新背包状态
     state = state.copyWith(playerInventory: newInventory);
-    
+
     return true;
   }
-  
+
   /// 将物品添加到背包的指定位置（用于拖拽到空格子）
   bool insertItemAtPosition(Item item, int targetIndex) {
     final inventory = List<Item>.from(state.playerInventory);
@@ -3933,22 +4252,21 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final int free = stackLimit - invItem.count;
           if (free > 0) {
             final int addCount = remaining < free ? remaining : free;
-        inventory[i] = Item(
-          id: invItem.id,
-          name: invItem.name,
-          image: invItem.image,
-          description: invItem.description,
-          effects: invItem.effects,
-          type: invItem.type,
-          count: invItem.count + addCount,
-          availableInShop: invItem.availableInShop,
-          basePrice: invItem.basePrice,
-          usageTime: invItem.usageTime,
-          level: invItem.level,
-          equipmentSlot: invItem.equipmentSlot,
-          weaponParams: invItem.weaponParams,
-
-        );
+            inventory[i] = Item(
+              id: invItem.id,
+              name: invItem.name,
+              image: invItem.image,
+              description: invItem.description,
+              effects: invItem.effects,
+              type: invItem.type,
+              count: invItem.count + addCount,
+              availableInShop: invItem.availableInShop,
+              basePrice: invItem.basePrice,
+              usageTime: invItem.usageTime,
+              level: invItem.level,
+              equipmentSlot: invItem.equipmentSlot,
+              weaponParams: invItem.weaponParams,
+            );
             remaining -= addCount;
           }
         }
@@ -3977,7 +4295,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: item.level,
           equipmentSlot: item.equipmentSlot,
           weaponParams: item.weaponParams,
-
         );
 
         if (targetIndex >= inventory.length) {
@@ -4010,7 +4327,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   bool performAlchemyByIndices(int indexA, int indexB) {
     final inventory = List<Item>.from(state.playerInventory);
     // 索引有效性检查
-    if (indexA < 0 || indexB < 0 || indexA >= inventory.length || indexB >= inventory.length) {
+    if (indexA < 0 ||
+        indexB < 0 ||
+        indexA >= inventory.length ||
+        indexB >= inventory.length) {
       addBroadcastMessage('请选择两个有效物品', BroadcastMessageType.system);
       return false;
     }
@@ -4056,7 +4376,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       level: newLevel,
       equipmentSlot: itemA.equipmentSlot,
       weaponParams: itemA.weaponParams,
-
     );
 
     // 消耗材料
@@ -4077,7 +4396,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: itemA.level,
           equipmentSlot: itemA.equipmentSlot,
           weaponParams: itemA.weaponParams,
-
         );
       } else {
         inventory.removeAt(indexA);
@@ -4105,7 +4423,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: firstItem.level,
           equipmentSlot: firstItem.equipmentSlot,
           weaponParams: firstItem.weaponParams,
-
         );
       } else {
         inventory.removeAt(first);
@@ -4130,7 +4447,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: secondItem.level,
           equipmentSlot: secondItem.equipmentSlot,
           weaponParams: secondItem.weaponParams,
-
         );
       } else {
         inventory.removeAt(adjustedSecond);
@@ -4141,12 +4457,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     state = state.copyWith(playerInventory: inventory);
 
     // 插入产物；若容量不足则掉落地面
-    final bool inserted = insertItemAtPosition(product, state.playerInventory.length);
+    final bool inserted = insertItemAtPosition(
+      product,
+      state.playerInventory.length,
+    );
     if (!inserted) {
       _dropItemToGround(product, state.playerPosition.toPoint());
       addBroadcastMessage('背包已满，产物掉落在地面', BroadcastMessageType.item);
     } else {
-      addBroadcastMessage('炼金成功，获得 ${product.name} Lv${product.level}', BroadcastMessageType.item);
+      addBroadcastMessage(
+        '炼金成功，获得 ${product.name} Lv${product.level}',
+        BroadcastMessageType.item,
+      );
     }
 
     return true;
@@ -4219,9 +4541,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     // 候选与模板产物（按结果等级从现有物品中选择）
-    final List<Item> candidates = allItems
-        .where((it) => it.type == 'item' && it.level == resultLevel && it.id != 'gold')
-        .toList();
+    final List<Item> candidates =
+        allItems
+            .where(
+              (it) =>
+                  it.type == 'item' &&
+                  it.level == resultLevel &&
+                  it.id != 'gold',
+            )
+            .toList();
 
     if (candidates.isEmpty) {
       addBroadcastMessage('没有该等级的现有物品，炼金失败', BroadcastMessageType.system);
@@ -4243,11 +4571,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       level: template.level,
       equipmentSlot: template.equipmentSlot,
       weaponParams: template.weaponParams,
-
     );
 
     // 消耗材料：按堆叠索引批量扣减
-    final List<int> uniqueIndicesDesc = removalMap.keys.toList()..sort((a, b) => b.compareTo(a));
+    final List<int> uniqueIndicesDesc =
+        removalMap.keys.toList()..sort((a, b) => b.compareTo(a));
     for (final idx in uniqueIndicesDesc) {
       final Item cur = inventory[idx];
       final int toRemove = removalMap[idx] ?? 0;
@@ -4267,7 +4595,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: cur.level,
           equipmentSlot: cur.equipmentSlot,
           weaponParams: cur.weaponParams,
-
         );
       } else {
         inventory.removeAt(idx);
@@ -4285,7 +4612,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       alchemyLevelWeights: levelWeights,
     );
 
-    addBroadcastMessage('开始炼金…', BroadcastMessageType.item, duration: const Duration(milliseconds: 800));
+    addBroadcastMessage(
+      '开始炼金…',
+      BroadcastMessageType.item,
+      duration: const Duration(milliseconds: 800),
+    );
     return true;
   }
 
@@ -4298,12 +4629,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     }
 
     // 插入产物；若容量不足则掉落地面
-    final bool inserted = insertItemAtPosition(product, state.playerInventory.length);
+    final bool inserted = insertItemAtPosition(
+      product,
+      state.playerInventory.length,
+    );
     if (!inserted) {
       _dropItemToGround(product, state.playerPosition.toPoint());
       addBroadcastMessage('背包已满，产物掉落在地面', BroadcastMessageType.item);
     } else {
-      addBroadcastMessage('炼金成功，获得 ${product.name} Lv${product.level}', BroadcastMessageType.item);
+      addBroadcastMessage(
+        '炼金成功，获得 ${product.name} Lv${product.level}',
+        BroadcastMessageType.item,
+      );
     }
 
     // 关闭特效并清理数据
@@ -4381,9 +4718,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 关键区域：产物为 props.dart 中“现有物品”，按结果等级选择，不生成新物品
     // 说明：仅选择类型为“物品”的模板，且排除金币（id=='gold'）
-    final List<Item> candidates = allItems
-        .where((it) => it.type == 'item' && it.level == resultLevel && it.id != 'gold')
-        .toList();
+    final List<Item> candidates =
+        allItems
+            .where(
+              (it) =>
+                  it.type == 'item' &&
+                  it.level == resultLevel &&
+                  it.id != 'gold',
+            )
+            .toList();
 
     if (candidates.isEmpty) {
       addBroadcastMessage('没有该等级的现有物品，炼金失败', BroadcastMessageType.system);
@@ -4405,11 +4748,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       level: template.level,
       equipmentSlot: template.equipmentSlot,
       weaponParams: template.weaponParams,
-
     );
 
     // 消耗材料：按堆叠索引批量扣减
-    final List<int> uniqueIndicesDesc = removalMap.keys.toList()..sort((a, b) => b.compareTo(a));
+    final List<int> uniqueIndicesDesc =
+        removalMap.keys.toList()..sort((a, b) => b.compareTo(a));
     for (final idx in uniqueIndicesDesc) {
       final Item cur = inventory[idx];
       final int toRemove = removalMap[idx] ?? 0;
@@ -4429,7 +4772,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: cur.level,
           equipmentSlot: cur.equipmentSlot,
           weaponParams: cur.weaponParams,
-
         );
       } else {
         inventory.removeAt(idx);
@@ -4440,12 +4782,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     state = state.copyWith(playerInventory: inventory);
 
     // 插入产物；若容量不足则掉落地面
-    final bool inserted = insertItemAtPosition(product, state.playerInventory.length);
+    final bool inserted = insertItemAtPosition(
+      product,
+      state.playerInventory.length,
+    );
     if (!inserted) {
       _dropItemToGround(product, state.playerPosition.toPoint());
       addBroadcastMessage('背包已满，产物掉落在地面', BroadcastMessageType.item);
     } else {
-      addBroadcastMessage('炼金成功，获得 ${product.name} Lv${product.level}', BroadcastMessageType.item);
+      addBroadcastMessage(
+        '炼金成功，获得 ${product.name} Lv${product.level}',
+        BroadcastMessageType.item,
+      );
     }
 
     return true;
@@ -4456,16 +4804,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 检查物品是否在背包中
     final inventory = List<Item>.from(state.playerInventory);
     final itemIndex = inventory.indexWhere((i) => i.id == item.id);
-    
+
     if (itemIndex == -1) {
       return false; // 物品不在背包中
     }
-    
+
     // 从背包中移除物品
     final itemToDrop = inventory[itemIndex];
-    
+
     // 关键区域：护甲装备的 count 表示耐久——丢弃时整件丢弃，保持耐久
-    final bool isArmorWithBlock = (itemToDrop.type == 'equipment' && ((itemToDrop.effects?['armorValue'] ?? 0) > 0));
+    final bool isArmorWithBlock =
+        (itemToDrop.type == 'equipment' &&
+            ((itemToDrop.effects?['armorValue'] ?? 0) > 0));
     if (isArmorWithBlock) {
       inventory.removeAt(itemIndex);
       _dropItemToGround(itemToDrop, state.playerPosition.toPoint());
@@ -4486,7 +4836,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: itemToDrop.level,
           equipmentSlot: itemToDrop.equipmentSlot,
           weaponParams: itemToDrop.weaponParams,
-
         );
         final singleItem = Item(
           id: itemToDrop.id,
@@ -4502,7 +4851,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: itemToDrop.level,
           equipmentSlot: itemToDrop.equipmentSlot,
           weaponParams: itemToDrop.weaponParams,
-
         );
         _dropItemToGround(singleItem, state.playerPosition.toPoint());
       } else {
@@ -4510,16 +4858,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         _dropItemToGround(itemToDrop, state.playerPosition.toPoint());
       }
     }
-    
+
     // 更新背包状态
     state = state.copyWith(playerInventory: inventory);
-    
+
     // 添加丢弃物品的播报消息
-    addBroadcastMessage(
-      '丢弃了 ${item.name}',
-      BroadcastMessageType.item,
-    );
-    
+    addBroadcastMessage('丢弃了 ${item.name}', BroadcastMessageType.item);
+
     return true;
   }
 
@@ -4529,18 +4874,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (state.isUsingItem) {
       return false; // 已经在使用物品，不能同时使用多个
     }
-    
+
     // 检查物品是否在背包中
     final inventory = List<Item>.from(state.playerInventory);
     final itemIndex = inventory.indexWhere((i) => i.id == item.id);
-    
+
     if (itemIndex == -1) {
       return false; // 物品不在背包中
     }
-    
+
     // 关闭背包页面
     state = state.copyWith(showInventory: false);
-    
+
     // 开始使用物品
     state = state.copyWith(
       isUsingItem: true,
@@ -4548,35 +4893,33 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       itemUsageProgress: 0.0,
       itemUsageStartTime: DateTime.now(),
     );
-    
+
     // 启动物品使用计时器
     _startItemUsageTimer(item);
-    
+
     // 添加开始使用物品的播报消息
-    addBroadcastMessage(
-      '开始使用 ${item.name}...',
-      BroadcastMessageType.item,
-    );
-    
+    addBroadcastMessage('开始使用 ${item.name}...', BroadcastMessageType.item);
+
     return true; // 开始使用成功
   }
-  
+
   /// 启动物品使用计时器
   void _startItemUsageTimer(Item item) {
     _itemUsageTimer?.cancel(); // 取消之前的计时器
-    
+
     const updateInterval = Duration(milliseconds: 50); // 20fps更新
     final totalDuration = Duration(milliseconds: item.usageTime);
-    
+
     _itemUsageTimer = Timer.periodic(updateInterval, (timer) {
       if (!state.isUsingItem || state.currentUsingItem?.id != item.id) {
         timer.cancel();
         return;
       }
-      
+
       final elapsed = DateTime.now().difference(state.itemUsageStartTime!);
-      final progress = (elapsed.inMilliseconds / totalDuration.inMilliseconds).clamp(0.0, 1.0);
-      
+      final progress = (elapsed.inMilliseconds / totalDuration.inMilliseconds)
+          .clamp(0.0, 1.0);
+
       if (progress >= 1.0) {
         // 使用完成，应用物品效果
         timer.cancel();
@@ -4591,11 +4934,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 启动宝箱探索计时器
   void _startChestExplorationTimer(Point<int> chestPosition) {
     _chestExplorationTimer?.cancel(); // 取消之前的计时器
-    
+
     const updateInterval = Duration(milliseconds: 50); // 20fps更新
-    
+
     _chestExplorationTimer = Timer.periodic(updateInterval, (timer) {
-      if (!state.isExploringChest || state.currentExploringChest != chestPosition) {
+      if (!state.isExploringChest ||
+          state.currentExploringChest != chestPosition) {
         timer.cancel();
         return;
       }
@@ -4631,7 +4975,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           chestPendingItems: newPending,
           chestVisibleItems: newVisible,
           chestExplorationProgress: newPending.isEmpty ? 1.0 : 0.0,
-          chestExplorationStartTime: newPending.isEmpty ? state.chestExplorationStartTime : DateTime.now(),
+          chestExplorationStartTime:
+              newPending.isEmpty
+                  ? state.chestExplorationStartTime
+                  : DateTime.now(),
         );
 
         if (newPending.isEmpty) {
@@ -4665,26 +5012,28 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       );
       return;
     }
-    
+
     // 移除已打开的宝箱
     final updatedChestPositions = List<Point<int>>.from(state.chestPositions);
     updatedChestPositions.remove(chestPosition);
     // 关键区域：初始固定宝箱点击后应消失——不再重生
     // 保持普通宝箱原逻辑（移除后由补充机制补齐数量），固定宝箱不再重新添加
-    
+
     // 随机获得物品
     final randomItems = _getRandomChestItems();
-    print('_completeChestExploration - 获得物品: ${randomItems.map((item) => item.name).toList()}');
-    
+    print(
+      '_completeChestExploration - 获得物品: ${randomItems.map((item) => item.name).toList()}',
+    );
+
     // 关键区域：背包容量检查——满背包时，宝箱物品自动掉落在地上
     final updatedInventory = List<Item>.from(state.playerInventory);
     final int freeSlots = state.inventoryCapacity - updatedInventory.length;
-    final List<Item> itemsToInventory = freeSlots > 0
-        ? randomItems.take(freeSlots).toList()
-        : <Item>[];
-    final List<Item> itemsToDrop = (freeSlots >= randomItems.length)
-        ? <Item>[]
-        : randomItems.sublist(itemsToInventory.length);
+    final List<Item> itemsToInventory =
+        freeSlots > 0 ? randomItems.take(freeSlots).toList() : <Item>[];
+    final List<Item> itemsToDrop =
+        (freeSlots >= randomItems.length)
+            ? <Item>[]
+            : randomItems.sublist(itemsToInventory.length);
 
     // 先添加能装下的
     if (itemsToInventory.isNotEmpty) {
@@ -4702,7 +5051,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         );
       }
     }
-    
+
     // 更新状态
     state = state.copyWith(
       chestPositions: updatedChestPositions,
@@ -4712,18 +5061,22 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       chestExplorationProgress: 0.0,
       chestExplorationStartTime: null,
     );
-    
+
     // 显示获得物品的消息（仅显示成功进入背包的物品）
     if (itemsToInventory.isNotEmpty) {
       final itemNames = itemsToInventory.map((item) => item.name).join('、');
-      addBroadcastMessage('打开宝箱获得：$itemNames', BroadcastMessageType.item, duration: const Duration(seconds: 3));
+      addBroadcastMessage(
+        '打开宝箱获得：$itemNames',
+        BroadcastMessageType.item,
+        duration: const Duration(seconds: 3),
+      );
       print('_completeChestExploration - 显示消息: 打开宝箱获得：$itemNames');
     }
-    
+
     // 智能补充宝箱：只在宝箱数量不足时添加新宝箱
     _replenishChestsIfNeeded();
   }
-  
+
   /// 完成物品使用，应用效果
   void _completeItemUsage(Item item) {
     // 检查物品是否在背包中（优先使用对象身份匹配，以确保选中堆叠）
@@ -4731,15 +5084,17 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     int itemIndex = inventory.indexWhere((i) => identical(i, item));
     if (itemIndex == -1) {
       // 回退：按 id + count 尝试匹配（避免同 id 不同堆叠被误选）
-      itemIndex = inventory.indexWhere((i) => i.id == item.id && i.count == item.count);
+      itemIndex = inventory.indexWhere(
+        (i) => i.id == item.id && i.count == item.count,
+      );
     }
-    
+
     if (itemIndex == -1) {
       // 物品不在背包中，取消使用
       cancelItemUsage();
       return;
     }
-    
+
     // 关键区域：金币为特殊物品——一次使用消耗选中堆叠的全部数量
     final bool isGold = item.id == 'gold';
     final int quantityToConsume = isGold ? item.count : 1;
@@ -4747,7 +5102,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 应用物品效果（金币按堆叠数量整体生效）
     final character = Map<String, dynamic>.from(state.characterStats);
     bool hasEffect = false;
-    
+
     item.effects.forEach((effectType, value) {
       switch (effectType) {
         case 'hp':
@@ -4772,7 +5127,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         case 'maxHp':
           // 关键区域：允许道具修改生命值上限
           final double currentMaxHp = (character['maxHp'] ?? 100).toDouble();
-          final double proposed = (currentMaxHp + (isGold ? (value * quantityToConsume) : value)).toDouble();
+          final double proposed =
+              (currentMaxHp + (isGold ? (value * quantityToConsume) : value))
+                  .toDouble();
           final double newMaxHp = proposed < 1 ? 1 : proposed;
           character['maxHp'] = newMaxHp;
           // 若当前生命值超过新上限则进行夹取
@@ -4784,8 +5141,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
         case 'maxFood':
           // 关键区域：允许道具修改饱食度上限
-          final double currentMaxFood = (character['maxFood'] ?? 100).toDouble();
-          final double proposedFoodMax = (currentMaxFood + (isGold ? (value * quantityToConsume) : value)).toDouble();
+          final double currentMaxFood =
+              (character['maxFood'] ?? 100).toDouble();
+          final double proposedFoodMax =
+              (currentMaxFood + (isGold ? (value * quantityToConsume) : value))
+                  .toDouble();
           final double newMaxFood = proposedFoodMax < 1 ? 1 : proposedFoodMax;
           character['maxFood'] = newMaxFood;
           // 若当前饱食度超过新上限则进行夹取
@@ -4805,7 +5165,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         case 'moveSpeed':
           final currentSpeed = character['moveSpeed'] ?? 100;
           final int deltaSpeed = isGold ? (value * quantityToConsume) : value;
-          final newSpeed = (currentSpeed + deltaSpeed).clamp(1, double.infinity); // 移除上限，只保留最小值1防止负速度
+          final newSpeed = (currentSpeed + deltaSpeed).clamp(
+            1,
+            double.infinity,
+          ); // 移除上限，只保留最小值1防止负速度
           character['moveSpeed'] = newSpeed;
           hasEffect = true;
           break;
@@ -4820,7 +5183,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           // 记录增加氧气上限前的当前氧气值
           final currentOxygenBeforeBonus = state.currentOxygen;
           // 增加氧气上限
-          final double deltaOxygenBonus = isGold ? (value * quantityToConsume).toDouble() : value.toDouble();
+          final double deltaOxygenBonus =
+              isGold
+                  ? (value * quantityToConsume).toDouble()
+                  : value.toDouble();
           increaseOxygenCapacity(deltaOxygenBonus);
           // 检查是否需要启动氧气恢复进度条
           final newMaxOxygen = state.actualMaxOxygen;
@@ -4840,7 +5206,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           break;
       }
     });
-    
+
     if (hasEffect) {
       // 从背包中移除物品：金币一次消耗整个堆叠；其他物品按照原逻辑（-1 或移除）
       if (isGold) {
@@ -4866,7 +5232,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           inventory.removeAt(itemIndex);
         }
       }
-      
+
       // 先安全合并角色属性，再更新其它状态字段
       _safeUpdateCharacterStats((_) => character, '物品使用完成');
       state = state.copyWith(
@@ -4876,7 +5242,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         itemUsageProgress: 0.0,
         itemUsageStartTime: null,
       );
-      
+
       // 添加使用完成的播报消息
       addBroadcastMessage(
         '使用了 ${item.name}${isGold ? ' x ${quantityToConsume}' : ''}',
@@ -4887,21 +5253,21 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       cancelItemUsage();
     }
   }
-  
+
   /// 取消物品使用
   void cancelItemUsage() {
     if (!state.isUsingItem) return;
-    
+
     final item = state.currentUsingItem;
-    
+
     // 取消计时器
     _itemUsageTimer?.cancel();
-    
+
     // 消耗物品但不应用效果
     if (item != null) {
       final inventory = List<Item>.from(state.playerInventory);
       final itemIndex = inventory.indexWhere((i) => i.id == item.id);
-      
+
       if (itemIndex != -1) {
         if (item.count > 1) {
           inventory[itemIndex] = Item(
@@ -4922,10 +5288,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         } else {
           inventory.removeAt(itemIndex);
         }
-        
+
         // 更新背包
         state = state.copyWith(playerInventory: inventory);
-        
+
         // 添加取消使用的播报消息
         addBroadcastMessage(
           '取消使用 ${item.name}，物品已消耗',
@@ -4933,7 +5299,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         );
       }
     }
-    
+
     // 重置物品使用状态
     state = state.copyWith(
       isUsingItem: false,
@@ -4946,16 +5312,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 取消宝箱探索
   void cancelChestExploration() {
     if (!state.isExploringChest) return;
-    
+
     // 如果当前处于搜索页面，统一走关闭逻辑（掉落未取物品并移除宝箱）
     if (state.isChestSearchOpen) {
       closeChestSearch();
       return;
     }
-    
+
     // 取消计时器
     _chestExplorationTimer?.cancel();
-    
+
     // 重置宝箱探索状态，但不移除宝箱
     state = state.copyWith(
       isExploringChest: false,
@@ -4963,12 +5329,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       chestExplorationProgress: 0.0,
       chestExplorationStartTime: null,
     );
-    
+
     // 添加取消探索的播报消息
-    addBroadcastMessage(
-      '取消探索宝箱',
-      BroadcastMessageType.item,
-    );
+    addBroadcastMessage('取消探索宝箱', BroadcastMessageType.item);
   }
 
   /// 将宝箱中的物品放入背包（点击/快捷方式）
@@ -5011,7 +5374,6 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
               level: invItem.level,
               equipmentSlot: invItem.equipmentSlot,
               weaponParams: invItem.weaponParams,
-
             );
             remaining -= addCount;
           }
@@ -5029,22 +5391,23 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           return false;
         }
         final int toAdd = remaining > stackLimit ? stackLimit : remaining;
-            inventory.add(Item(
-              id: removed.id,
-              name: removed.name,
-              image: removed.image,
-              description: removed.description,
-              effects: removed.effects,
-              type: removed.type,
-              count: toAdd,
-              availableInShop: removed.availableInShop,
-              basePrice: removed.basePrice,
-              usageTime: removed.usageTime,
-              level: removed.level,
-              equipmentSlot: removed.equipmentSlot,
-              weaponParams: removed.weaponParams,
-
-            ));
+        inventory.add(
+          Item(
+            id: removed.id,
+            name: removed.name,
+            image: removed.image,
+            description: removed.description,
+            effects: removed.effects,
+            type: removed.type,
+            count: toAdd,
+            availableInShop: removed.availableInShop,
+            basePrice: removed.basePrice,
+            usageTime: removed.usageTime,
+            level: removed.level,
+            equipmentSlot: removed.equipmentSlot,
+            weaponParams: removed.weaponParams,
+          ),
+        );
         remaining -= toAdd;
       }
     } else {
@@ -5062,7 +5425,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       playerInventory: inventory,
       chestVisibleItems: visible,
     );
-    addBroadcastMessage('已放入背包：${removed.name}${removed.count > 1 ? ' x ${removed.count}' : ''}', BroadcastMessageType.item);
+    addBroadcastMessage(
+      '已放入背包：${removed.name}${removed.count > 1 ? ' x ${removed.count}' : ''}',
+      BroadcastMessageType.item,
+    );
     return true;
   }
 
@@ -5151,15 +5517,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 触发游戏结束
   void triggerGameOver(String reason) {
     // 添加游戏结束的播报消息
-    addBroadcastMessage(
-      '游戏结束: $reason',
-      BroadcastMessageType.system,
-    );
-    
+    addBroadcastMessage('游戏结束: $reason', BroadcastMessageType.system);
+
     // 保存死亡时的数据快照
     final deathTimeStats = Map<String, dynamic>.from(state.characterStats);
     final deathTimeInventory = List<Item>.from(state.playerInventory);
-    
+
     state = state.copyWith(
       isGameOver: true,
       deathReason: reason,
@@ -5167,71 +5530,80 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       deathTimeStats: deathTimeStats,
       deathTimeInventory: deathTimeInventory,
     );
-    
+
     // 停止所有计时器
     _movementTimer?.cancel();
     _visionUpdateTimer?.cancel();
     _deathCheckTimer?.cancel(); // 停止死亡判定定时器
   }
 
-
-
   /// 根据地形类型扣除角色状态
   void _applyTerrainEffects(String terrainType, double distance) {
     if (distance <= 0) return;
-    
+
     // 检查是否有技能正在施法，施法期间不消耗饱食度和精神值
-    final isAnyCasting = state.skillStates.values.any((skillState) => skillState.isCasting);
+    final isAnyCasting = state.skillStates.values.any(
+      (skillState) => skillState.isCasting,
+    );
     if (isAnyCasting) {
       return;
     }
-    
+
     _safeUpdateCharacterStats((currentStats) {
       final updatedStats = Map<String, dynamic>.from(currentStats);
       final random = Random();
-      
+
       // 计算移动格数（每格约为1个单位距离）
       final gridsMoved = distance;
-      
+
       switch (terrainType) {
         case 'grass': // 草地
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.5-1饱食度
             final foodDeduction = 0.5 + random.nextDouble() * 0.5;
             // 关键区域：改为使用动态 maxFood 进行夹取
-            final double maxFoodGrass = (updatedStats['maxFood'] ?? 100).toDouble();
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodGrass);
-            
+            final double maxFoodGrass =
+                (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction)
+                .clamp(0, maxFoodGrass);
+
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, 250); // 精神值上限限制为250
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction)
+                .clamp(0, 250); // 精神值上限限制为250
           }
           break;
-          
+
         case 'building': // 建筑里
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.2-1饱食度
             final foodDeduction = 0.2 + random.nextDouble() * 0.8;
-            final double maxFoodBuilding = (updatedStats['maxFood'] ?? 100).toDouble();
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodBuilding);
-            
+            final double maxFoodBuilding =
+                (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction)
+                .clamp(0, maxFoodBuilding);
+
             // 随机扣除0.8-2精神值
             final sanDeduction = 0.8 + random.nextDouble() * 1.2;
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, 250); // 精神值上限限制为250
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction)
+                .clamp(0, 250); // 精神值上限限制为250
           }
           break;
-          
+
         case 'woods': // 树林里
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.5-1饱食度
             final foodDeduction = 0.5 + random.nextDouble() * 0.5;
-            final double maxFoodWoods = (updatedStats['maxFood'] ?? 100).toDouble();
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodWoods);
-            
+            final double maxFoodWoods =
+                (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction)
+                .clamp(0, maxFoodWoods);
+
             // 随机扣除0-1精神值
             final sanDeduction = random.nextDouble();
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction).clamp(0, 250); // 精神值上限限制为250
-            
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) - sanDeduction)
+                .clamp(0, 250); // 精神值上限限制为250
+
             // 随机扣除0-0.5生命值
             final hpDeduction = random.nextDouble() * 0.5;
             // 关键区域：树林环境伤害支持护甲格挡
@@ -5241,25 +5613,28 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             updatedStats['hp'] = (currentHp - applied).clamp(0, maxHp);
           }
           break;
-          
+
         case 'path': // 路上
           for (int i = 0; i < gridsMoved.ceil(); i++) {
             // 随机扣除0.2-0.5饱食度
             final foodDeduction = 0.2 + random.nextDouble() * 0.3;
-            final double maxFoodPath = (updatedStats['maxFood'] ?? 100).toDouble();
-            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction).clamp(0, maxFoodPath);
-            
+            final double maxFoodPath =
+                (updatedStats['maxFood'] ?? 100).toDouble();
+            updatedStats['food'] = ((updatedStats['food'] ?? 0) - foodDeduction)
+                .clamp(0, maxFoodPath);
+
             // 随机恢复0-0.5精神值
             final sanRecovery = random.nextDouble() * 0.5;
-            updatedStats['san'] = ((updatedStats['san'] ?? 0) + sanRecovery).clamp(0, 250); // 精神值上限限制为250
+            updatedStats['san'] = ((updatedStats['san'] ?? 0) + sanRecovery)
+                .clamp(0, 250); // 精神值上限限制为250
           }
           break;
-          
+
         default:
           // 其他地形类型暂时不扣除状态
           break;
       }
-      
+
       return updatedStats;
     }, '移动系统地形效果-$terrainType');
   }
@@ -5269,12 +5644,15 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final position = state.playerPosition;
     final gridX = position.x.round().clamp(0, state.map[0].length - 1);
     final gridY = position.y.round().clamp(0, state.map.length - 1);
-    
+
     return state.map[gridY][gridX];
   }
 
   /// 计算两点之间的距离
-  double _calculateMovementDistance(OptimizedPlayerPosition from, OptimizedPlayerPosition to) {
+  double _calculateMovementDistance(
+    OptimizedPlayerPosition from,
+    OptimizedPlayerPosition to,
+  ) {
     final dx = to.x - from.x;
     final dy = to.y - from.y;
     return sqrt(dx * dx + dy * dy);
@@ -5290,29 +5668,31 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     final position = state.playerPosition;
     final character = state.characterStats;
-    
+
     // 检查生命值
     if (character['hp'] != null && character['hp'] <= 0) {
       _deathCheckTimer?.cancel(); // 立即停止死亡判定定时器
       triggerGameOver('生命值耗尽');
       return;
     }
-    
+
     // 检查理智值
     if (character['san'] != null && character['san'] <= 0) {
       _deathCheckTimer?.cancel(); // 立即停止死亡判定定时器
       triggerGameOver('理智崩溃');
       return;
     }
-    
+
     // 检查是否走到了特殊位置（比如出口）
     final gridX = position.x.round();
     final gridY = position.y.round();
-    
-    if (gridX >= 0 && gridX < state.map[0].length && 
-        gridY >= 0 && gridY < state.map.length) {
+
+    if (gridX >= 0 &&
+        gridX < state.map[0].length &&
+        gridY >= 0 &&
+        gridY < state.map.length) {
       final tile = state.map[gridY][gridX];
-      
+
       // 如果走到了特殊的结束位置
       if (tile == 'exit') {
         _deathCheckTimer?.cancel(); // 立即停止死亡判定定时器
@@ -5329,33 +5709,34 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       print('unstuckPlayer: OptimizedGameStateNotifier 已被 dispose，跳过执行');
       return;
     }
-    
+
     final now = DateTime.now();
-    
+
     // 检查是否在冷却期间
-    if (state.unstuckCooldownEnd != null && now.isBefore(state.unstuckCooldownEnd!)) {
+    if (state.unstuckCooldownEnd != null &&
+        now.isBefore(state.unstuckCooldownEnd!)) {
       return;
     }
-    
+
     // 激活无视地形模式，持续1秒
     final noClipEndTime = now.add(const Duration(seconds: 1));
-    
+
     state = state.copyWith(
       isNoClipMode: true,
       noClipEndTime: noClipEndTime,
-      isWaitingForMovement: true,  // 等待玩家移动以开始冷却
-      unstuckActivatedTime: now,   // 记录激活时间
-      unstuckCooldownEnd: null,    // 清除之前的冷却时间
+      isWaitingForMovement: true, // 等待玩家移动以开始冷却
+      unstuckActivatedTime: now, // 记录激活时间
+      unstuckCooldownEnd: null, // 清除之前的冷却时间
     );
   }
 
   /// 开始脱离卡死冷却计时
   void _startUnstuckCooldown() {
     if (!state.isWaitingForMovement) return;
-    
+
     final now = DateTime.now();
     final cooldownEndTime = now.add(const Duration(seconds: 60));
-    
+
     state = state.copyWith(
       isWaitingForMovement: false,
       unstuckCooldownEnd: cooldownEndTime,
@@ -5366,57 +5747,58 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   Point<int>? _findNearestEmptySpace(int startX, int startY) {
     final mapHeight = state.map.length;
     final mapWidth = state.map[0].length;
-    
+
     // 首先检查当前位置是否已经是可移动的
     if (_isEmptySpace(startX, startY)) {
       return Point(startX, startY);
     }
-    
+
     // 使用广度优先搜索找到最近的空地
     final visited = <Point<int>>{};
     final queue = <Point<int>>[];
-    
+
     queue.add(Point(startX, startY));
     visited.add(Point(startX, startY));
-    
+
     while (queue.isNotEmpty) {
       final current = queue.removeAt(0);
-      
+
       // 检查8个方向的相邻位置（包括对角线）
       final directions = [
-        Point(0, -1),  // 上
-        Point(0, 1),   // 下
-        Point(-1, 0),  // 左
-        Point(1, 0),   // 右
+        Point(0, -1), // 上
+        Point(0, 1), // 下
+        Point(-1, 0), // 左
+        Point(1, 0), // 右
         Point(-1, -1), // 左上
-        Point(1, -1),  // 右上
-        Point(-1, 1),  // 左下
-        Point(1, 1),   // 右下
+        Point(1, -1), // 右上
+        Point(-1, 1), // 左下
+        Point(1, 1), // 右下
       ];
-      
+
       for (final direction in directions) {
         final newX = current.x + direction.x;
         final newY = current.y + direction.y;
         final newPoint = Point(newX, newY);
-        
+
         // 检查边界和是否已访问
-        if (newX >= 0 && newX < mapWidth &&
-            newY >= 0 && newY < mapHeight &&
+        if (newX >= 0 &&
+            newX < mapWidth &&
+            newY >= 0 &&
+            newY < mapHeight &&
             !visited.contains(newPoint)) {
-          
           visited.add(newPoint);
-          
+
           // 检查这个位置是否是可移动的空地
           if (_isEmptySpace(newX, newY)) {
             return newPoint;
           }
-          
+
           // 如果不是空地，加入队列继续搜索
           queue.add(newPoint);
         }
       }
     }
-    
+
     // 如果没有找到空地，尝试寻找任何非墙壁位置
     for (int y = 0; y < mapHeight; y++) {
       for (int x = 0; x < mapWidth; x++) {
@@ -5425,7 +5807,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         }
       }
     }
-    
+
     // 最后的备选方案：返回地图中心
     final centerX = mapWidth ~/ 2;
     final centerY = mapHeight ~/ 2;
@@ -5437,12 +5819,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (x < 0 || x >= state.map[0].length || y < 0 || y >= state.map.length) {
       return false;
     }
-    
+
     final tile = state.map[y][x];
-    
+
     // 不可通行的地块类型
     final impassableTiles = {'wall', 'water', 'building'};
-    
+
     // 如果不是不可通行的地块，则认为是可移动的
     // 这包括：grass, path, woods, exit, door, shop, chest 等
     return !impassableTiles.contains(tile);
@@ -5466,50 +5848,53 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           print('氧气系统：OptimizedGameStateNotifier 已被 dispose，跳过伤害处理');
           return;
         }
-        
+
         print('氧气系统：收到伤害回调 $damage');
         // 氧气耗尽时扣除生命值 - 参考饱食度扣血方案
         _safeUpdateCharacterStats((currentStats) {
           print('氧气系统：当前统计数据 $currentStats');
           final currentHp = currentStats['hp'] ?? 0;
           print('氧气系统：当前生命值 $currentHp');
-          
+
           // 当氧气耗尽且生命值大于0时，扣除生命值
           if (currentHp > 0) {
             final damageAmount = damage.toDouble(); // 氧气扣血量
             final updatedStats = Map<String, dynamic>.from(currentStats);
             // 关键区域：氧气伤害支持护甲格挡
             final double applied = _applyArmorBlock(updatedStats, damageAmount);
-            final newHp = (currentHp - applied).clamp(0, currentStats['maxHp'] ?? 100);
-            
+            final newHp = (currentHp - applied).clamp(
+              0,
+              currentStats['maxHp'] ?? 100,
+            );
+
             print('氧气系统：计算新生命值 $newHp (原值: $currentHp, 伤害: $damageAmount)');
-            
+
             // 检测生命值变化并触发伤害效果
             final hpChanged = currentHp != newHp;
-            
+
             if (hpChanged) {
               print('氧气系统：生命值发生变化，更新状态');
               // 更新生命值
               updatedStats['hp'] = newHp.toDouble();
-              
+
               // 更新其他状态，触发伤害效果
               state = state.copyWith(
                 lastHp: currentHp.toDouble(),
                 shouldShowDamageEffect: true,
                 lastDamageAmount: applied,
               );
-              
+
               // 添加氧气伤害播报消息
               addBroadcastMessage(
                 '氧气耗尽！生命值 -${applied.toStringAsFixed(1)}',
                 BroadcastMessageType.damage,
               );
-              
+
               // 检查是否死亡
               if (newHp <= 0) {
                 triggerGameOver('溺水而死');
               }
-              
+
               return updatedStats;
             } else {
               print('氧气系统：生命值未发生变化');
@@ -5517,7 +5902,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           } else {
             print('氧气系统：生命值已为0，不扣血');
           }
-          
+
           // 没有变化，返回原状态
           return currentStats;
         }, '氧气耗尽伤害');
@@ -5528,12 +5913,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           print('氧气系统：OptimizedGameStateNotifier 已被 dispose，跳过视野变化处理');
           return;
         }
-        
+
         // 水中视野变化时更新视野系统
         _updateVision();
       },
     );
-    
+
     // 更新游戏状态中的氧气系统引用
     state = state.copyWith(oxygenSystem: _oxygenSystem);
   }
@@ -5541,10 +5926,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   /// 更新氧气系统状态
   void _updateOxygenSystem() {
     if (_oxygenSystem == null) return;
-    
+
     final playerPos = state.playerPosition.toPoint();
     final isInWater = _isWaterTile(playerPos.x, playerPos.y);
-    
+
     // 检查玩家是否进入或离开水中
     if (isInWater != state.isInWater) {
       if (isInWater) {
@@ -5552,7 +5937,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       } else {
         _oxygenSystem!.exitWater();
       }
-      
+
       // 更新游戏状态
       state = state.copyWith(
         isInWater: isInWater,
@@ -5560,9 +5945,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       );
     } else {
       // 无论在水中还是陆地上，都要同步氧气值（确保背包界面显示正确）
-      state = state.copyWith(
-        currentOxygen: _oxygenSystem!.currentOxygen,
-      );
+      state = state.copyWith(currentOxygen: _oxygenSystem!.currentOxygen);
     }
   }
 
@@ -5572,17 +5955,21 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (!mounted) {
       return;
     }
-    
+
     // 停止所有计时器
     _movementTimer?.cancel();
     _visionUpdateTimer?.cancel();
-    
+
     // 重置状态到初始值
     final currentCharacterStats = state.characterStats;
     final characterName = currentCharacterStats['name'] as String?;
     state = OptimizedGameState(
       characterStats: _createInitialCharacterStats(currentCharacterStats),
-      playerPosition: const OptimizedPlayerPosition(x: 10.0, y: 10.0, facingRight: true),
+      playerPosition: const OptimizedPlayerPosition(
+        x: 10.0,
+        y: 10.0,
+        facingRight: true,
+      ),
       movementState: const OptimizedMovementState(),
       map: MapData.testMap,
       chestPositions: [],
@@ -5604,7 +5991,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       gameStartTime: DateTime.now(),
       gameEndTime: null,
     );
-    
+
     // 重新初始化游戏
     _initializeGame();
   }
@@ -5618,51 +6005,59 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   }
 
   /// 添加播报消息
-  void addBroadcastMessage(String text, BroadcastMessageType type, {Duration? duration}) {
+  void addBroadcastMessage(
+    String text,
+    BroadcastMessageType type, {
+    Duration? duration,
+  }) {
     // 检查是否已存在相同的消息（相同文本和类型，且未过期）
     final now = DateTime.now();
     BroadcastMessage? existingMessage;
     try {
       existingMessage = state.broadcastMessages.firstWhere(
-        (message) => 
-          message.text == text && 
-          message.type == type && 
-          now.difference(message.timestamp) <= message.displayDuration,
+        (message) =>
+            message.text == text &&
+            message.type == type &&
+            now.difference(message.timestamp) <= message.displayDuration,
       );
     } catch (e) {
       existingMessage = null;
     }
-    
+
     // 如果找到相同且未过期的消息，则不添加新消息
     if (existingMessage != null) {
       return;
     }
-    
+
     final message = BroadcastMessage(
       text: text,
       type: type,
       timestamp: DateTime.now(),
       displayDuration: duration ?? const Duration(seconds: 3),
     );
-    
+
     final updatedMessages = List<BroadcastMessage>.from(state.broadcastMessages)
       ..add(message);
-    
+
     // 限制消息数量，最多保留10条
     if (updatedMessages.length > 10) {
       updatedMessages.removeAt(0);
     }
-    
+
     state = state.copyWith(broadcastMessages: updatedMessages);
   }
 
   /// 清理过期的播报消息
   void cleanupExpiredMessages() {
     final now = DateTime.now();
-    final activeMessages = state.broadcastMessages
-        .where((message) => now.difference(message.timestamp) <= message.displayDuration)
-        .toList();
-    
+    final activeMessages =
+        state.broadcastMessages
+            .where(
+              (message) =>
+                  now.difference(message.timestamp) <= message.displayDuration,
+            )
+            .toList();
+
     if (activeMessages.length != state.broadcastMessages.length) {
       state = state.copyWith(broadcastMessages: activeMessages);
     }
@@ -5673,74 +6068,66 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     state = state.copyWith(broadcastMessages: []);
   }
 
-
-
   /// 获取平滑视野管理器
   SmoothVisionManager? get smoothVisionManager => _smoothVisionManager;
 
   // ===== 技能系统相关方法 =====
-  
+
   /// 使用技能
   void useSkill(String skillId) {
     final skillState = state.skillStates[skillId];
     if (skillState == null) {
       return;
     }
-    
+
     // 获取技能数据
     final skill = SkillData.getSkillById(skillId);
     if (skill == null) {
       return;
     }
-    
+
     // 检查技能是否在冷却中
     if (skillState.isOnCooldown(skill.cooldownSeconds)) {
-      final remainingTime = skillState.getRemainingCooldown(skill.cooldownSeconds);
+      final remainingTime = skillState.getRemainingCooldown(
+        skill.cooldownSeconds,
+      );
       addBroadcastMessage(
         '技能冷却中，剩余 $remainingTime 秒',
         BroadcastMessageType.system,
       );
       return;
     }
-    
+
     // 检查技能是否正在使用中
     if (skillState.isCurrentlyCasting) {
-      addBroadcastMessage(
-        '技能正在使用中',
-        BroadcastMessageType.system,
-      );
+      addBroadcastMessage('技能正在使用中', BroadcastMessageType.system);
       return;
     }
-    
+
     // 开始使用技能
     _startSkillExecution(skill, skillState);
   }
-  
+
   /// 开始执行技能
   void _startSkillExecution(Skill skill, SkillState skillState) {
-
     final now = DateTime.now();
-    
+
     // 更新技能状态为施法状态
     final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
     updatedSkillStates[skill.id] = skillState.copyWith(
       isCasting: true,
       castStartTime: now,
     );
-    
+
     state = state.copyWith(
       skillStates: updatedSkillStates,
       currentCastingSkillId: skill.id,
       castingProgress: 0.0,
     );
 
-    
     // 添加技能开始使用的播报消息
-    addBroadcastMessage(
-      '开始使用技能: ${skill.name}',
-      BroadcastMessageType.system,
-    );
-    
+    addBroadcastMessage('开始使用技能: ${skill.name}', BroadcastMessageType.system);
+
     // 设置技能执行完成的定时器
     // 关键区域：在定时器回调开始检查 mounted，避免销毁后触发
     Timer(Duration(seconds: skill.castTimeSeconds), () {
@@ -5748,16 +6135,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       _completeSkillExecution(skill);
     });
   }
-  
+
   /// 完成技能执行
   void _completeSkillExecution(Skill skill) {
     final now = DateTime.now();
     final skillState = state.skillStates[skill.id];
-    
+
     if (skillState == null || !skillState.isCurrentlyCasting) {
       return;
     }
-    
+
     // 先更新技能状态：结束施法状态，开始冷却
     final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
     updatedSkillStates[skill.id] = skillState.copyWith(
@@ -5765,24 +6152,21 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       castStartTime: null,
       lastUsedTime: now,
     );
-    
+
     // 更新技能状态到当前state中，清除施法状态
     state = state.copyWith(
       skillStates: updatedSkillStates,
       currentCastingSkillId: null,
       castingProgress: 0.0,
     );
-    
+
     // 应用技能效果（这会进一步更新state）
     _applySkillEffects(skill);
-    
+
     // 添加技能完成的播报消息
-    addBroadcastMessage(
-      '技能 ${skill.name} 使用完成',
-      BroadcastMessageType.system,
-    );
+    addBroadcastMessage('技能 ${skill.name} 使用完成', BroadcastMessageType.system);
   }
-  
+
   /// 应用技能效果
   void _applySkillEffects(Skill skill) {
     // 特殊处理烹饪技能
@@ -5790,14 +6174,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       _applyCookingSkillEffect(skill);
       return;
     }
-    
+
     final effect = skill.effect;
     final newStats = Map<String, dynamic>.from(state.characterStats);
-    
+
     // 应用技能效果并收集结果消息
     final effectResults = effect.apply();
     final messages = <String>[];
-    
+
     // 处理各种效果
     effectResults.forEach((effectType, value) {
       switch (effectType) {
@@ -5806,14 +6190,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final maxHp = (newStats['maxHp'] ?? 100).toDouble();
           final newHp = (currentHp + value).clamp(0, maxHp);
           newStats['hp'] = newHp;
-          messages.add('恢复生命值 +$value (${currentHp.toStringAsFixed(1)} → ${newHp.toStringAsFixed(1)})');
+          messages.add(
+            '恢复生命值 +$value (${currentHp.toStringAsFixed(1)} → ${newHp.toStringAsFixed(1)})',
+          );
           break;
         case 'sanity':
           final currentSan = (newStats['san'] ?? 0).toDouble();
           final maxSan = 250.0; // 精神值上限固定为250
           final newSan = (currentSan + value).clamp(0, 250); // 精神值上限限制为250
           newStats['san'] = newSan;
-          messages.add('恢复精神值 +$value (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
+          messages.add(
+            '恢复精神值 +$value (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})',
+          );
           break;
         case 'food':
           final currentFood = (newStats['food'] ?? 0).toDouble();
@@ -5821,40 +6209,46 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final double maxFood = (newStats['maxFood'] ?? 100).toDouble();
           final newFood = (currentFood + value).clamp(0, maxFood);
           newStats['food'] = newFood;
-          messages.add('恢复饱食度 +${value.toStringAsFixed(1)} (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})');
+          messages.add(
+            '恢复饱食度 +${value.toStringAsFixed(1)} (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})',
+          );
           break;
         case 'gold':
           final currentGold = (newStats['gold'] ?? 0).toDouble();
           final newGold = currentGold + value;
           newStats['gold'] = newGold;
-          messages.add('获得金币 +$value (${currentGold.toStringAsFixed(0)} → ${newGold.toStringAsFixed(0)})');
+          messages.add(
+            '获得金币 +$value (${currentGold.toStringAsFixed(0)} → ${newGold.toStringAsFixed(0)})',
+          );
           break;
         case 'damage':
           // 伤害效果暂时不实现
           break;
       }
     });
-    
+
     // 创建播报消息列表
     final broadcastMessages = <BroadcastMessage>[];
     for (final message in messages) {
-      broadcastMessages.add(BroadcastMessage(
-        text: message,
-        type: BroadcastMessageType.heal,
-        timestamp: DateTime.now(),
-        displayDuration: const Duration(seconds: 3),
-      ));
+      broadcastMessages.add(
+        BroadcastMessage(
+          text: message,
+          type: BroadcastMessageType.heal,
+          timestamp: DateTime.now(),
+          displayDuration: const Duration(seconds: 3),
+        ),
+      );
     }
-    
+
     // 合并现有播报消息
     final updatedMessages = List<BroadcastMessage>.from(state.broadcastMessages)
       ..addAll(broadcastMessages);
-    
+
     // 限制消息数量
     while (updatedMessages.length > 10) {
       updatedMessages.removeAt(0);
     }
-    
+
     // 一次性更新所有状态，确保状态变化被正确传播
     state = state.copyWith(
       characterStats: newStats,
@@ -5871,26 +6265,30 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final newStats = Map<String, dynamic>.from(currentState.characterStats);
     final messages = <String>[];
     final random = Random();
-    
+
     // 烹饪技能：不需要食物，等待施法时间后获得随机属性
     messages.add('烹饪完成！制作了美味的料理');
-    
+
     // 随机生命值 1-10
     final hpGain = random.nextInt(10) + 1;
     final currentHp = (newStats['hp'] ?? 0).toDouble();
     final maxHp = (newStats['maxHp'] ?? 100).toDouble();
     final newHp = (currentHp + hpGain).clamp(0, maxHp);
     newStats['hp'] = newHp;
-    messages.add('恢复生命值 +$hpGain (${currentHp.toStringAsFixed(1)} → ${newHp.toStringAsFixed(1)})');
-    
+    messages.add(
+      '恢复生命值 +$hpGain (${currentHp.toStringAsFixed(1)} → ${newHp.toStringAsFixed(1)})',
+    );
+
     // 随机精神值 1-10
     final sanGain = random.nextInt(10) + 1;
     final currentSan = (newStats['san'] ?? 0).toDouble();
     final maxSan = 250.0; // 精神值上限固定为250
     final newSan = (currentSan + sanGain).clamp(0, 250); // 精神值上限限制为250
     newStats['san'] = newSan;
-    messages.add('恢复精神值 +$sanGain (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})');
-    
+    messages.add(
+      '恢复精神值 +$sanGain (${currentSan.toStringAsFixed(1)} → ${newSan.toStringAsFixed(1)})',
+    );
+
     // 随机饱食度 10-50
     final foodGain = random.nextInt(41) + 10; // 10-50的随机数
     final currentFood = (newStats['food'] ?? 0).toDouble();
@@ -5898,30 +6296,34 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final double maxFood = (newStats['maxFood'] ?? 100).toDouble();
     final newFood = (currentFood + foodGain).clamp(0, maxFood);
     newStats['food'] = newFood;
-    messages.add('恢复饱食度 +$foodGain (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})');
-    
+    messages.add(
+      '恢复饱食度 +$foodGain (${currentFood.toStringAsFixed(1)} → ${newFood.toStringAsFixed(1)})',
+    );
+
     // 立即更新状态并强制通知UI
-    
+
     // 创建播报消息列表
     final broadcastMessages = <BroadcastMessage>[];
     for (final message in messages) {
-      broadcastMessages.add(BroadcastMessage(
-        text: message,
-        type: BroadcastMessageType.heal,
-        timestamp: DateTime.now(),
-        displayDuration: const Duration(seconds: 3),
-      ));
+      broadcastMessages.add(
+        BroadcastMessage(
+          text: message,
+          type: BroadcastMessageType.heal,
+          timestamp: DateTime.now(),
+          displayDuration: const Duration(seconds: 3),
+        ),
+      );
     }
-    
+
     // 合并现有播报消息
     final updatedMessages = List<BroadcastMessage>.from(state.broadcastMessages)
       ..addAll(broadcastMessages);
-    
+
     // 限制消息数量
     while (updatedMessages.length > 10) {
       updatedMessages.removeAt(0);
     }
-    
+
     // 使用copyWith确保状态更新被正确传播，一次性更新所有状态
     final oldState = state;
     state = state.copyWith(
@@ -5930,19 +6332,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 使用动画帧标识确保状态变化被检测到
       lastAnimationFrame: state.lastAnimationFrame + 1,
     );
-    
-
   }
-
-
 
   /// 取消技能施法
   void cancelSkillCasting() {
-    
     // 查找当前正在施法的技能
     String? castingSkillId;
     SkillState? castingSkillState;
-    
+
     for (final entry in state.skillStates.entries) {
       if (entry.value.isCurrentlyCasting) {
         castingSkillId = entry.key;
@@ -5950,19 +6347,19 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         break;
       }
     }
-    
+
     if (castingSkillId == null || castingSkillState == null) {
       return;
     }
-    
+
     // 获取技能数据
     final skill = SkillData.getSkillById(castingSkillId);
     if (skill == null) {
       return;
     }
-    
+
     final now = DateTime.now();
-    
+
     // 更新技能状态：结束施法，设置一半冷却时间
     final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
     updatedSkillStates[castingSkillId] = castingSkillState.copyWith(
@@ -5970,14 +6367,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       castStartTime: null,
       lastUsedTime: now, // 设置为当前时间，这样冷却时间会是一半
     );
-    
+
     // 更新游戏状态
     state = state.copyWith(
       skillStates: updatedSkillStates,
       currentCastingSkillId: null,
       castingProgress: 0.0,
     );
-    
+
     // 添加取消施法的播报消息
     addBroadcastMessage(
       '取消施法: ${skill.name}（冷却时间减半）',
@@ -5992,7 +6389,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final updatedSkillStates = Map<String, SkillState>.from(state.skillStates);
     String? currentCastingSkillId;
     double castingProgress = 0.0;
-    
+
     // 检查所有技能的冷却状态和施法进度
     updatedSkillStates.forEach((skillId, skillState) {
       // 检查施法进度
@@ -6001,12 +6398,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         if (skill != null) {
           final castDuration = Duration(seconds: skill.castTimeSeconds);
           final elapsed = now.difference(skillState.castStartTime!);
-          final progress = (elapsed.inMilliseconds / castDuration.inMilliseconds).clamp(0.0, 1.0);
-          
+          final progress = (elapsed.inMilliseconds /
+                  castDuration.inMilliseconds)
+              .clamp(0.0, 1.0);
+
           currentCastingSkillId = skillId;
           castingProgress = progress;
           hasUpdates = true;
-          
+
           // 如果施法时间已完成，这里不处理，让定时器处理
         }
       }
@@ -6016,19 +6415,20 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         if (skill != null) {
           final timeSinceLastUse = now.difference(skillState.lastUsedTime!);
           final cooldownDuration = Duration(seconds: skill.cooldownSeconds);
-          
+
           // 检查冷却状态变化，强制更新UI以显示倒计时
           hasUpdates = true; // 始终标记为有更新，确保UI能显示实时倒计时
-          
+
           // 如果冷却时间已过，可以清除lastUsedTime（可选）
-          if (timeSinceLastUse >= cooldownDuration && skillState.lastUsedTime != null) {
+          if (timeSinceLastUse >= cooldownDuration &&
+              skillState.lastUsedTime != null) {
             // 技能冷却完成，可以选择清除lastUsedTime或保留用于UI显示
             // 这里我们保留lastUsedTime，让UI层决定如何显示
           }
         }
       }
     });
-    
+
     // 强制更新状态以触发UI刷新，确保技能倒计时和施法进度能实时显示
     if (hasUpdates || state.skillStates.isNotEmpty) {
       // 通过更新一个时间戳来强制触发UI刷新
@@ -6041,31 +6441,33 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       );
     }
   }
-  
+
   /// 获取技能状态（用于UI显示）
   SkillState? getSkillState(String skillId) {
     return state.skillStates[skillId];
   }
-  
+
   /// 获取角色的技能列表
   List<Skill> getCharacterSkills() {
     return state.characterSkills;
   }
 
-
-
   /// 获取物品使用剩余时间（秒）
   double getItemUsageRemainingTime() {
-    if (!state.isUsingItem || state.currentUsingItem == null || state.itemUsageStartTime == null) {
+    if (!state.isUsingItem ||
+        state.currentUsingItem == null ||
+        state.itemUsageStartTime == null) {
       return 0.0;
     }
-    
+
     final item = state.currentUsingItem!;
     final totalDuration = Duration(milliseconds: item.usageTime);
     final elapsed = DateTime.now().difference(state.itemUsageStartTime!);
     final remaining = totalDuration - elapsed;
-    
-    return remaining.inMilliseconds > 0 ? remaining.inMilliseconds / 1000.0 : 0.0;
+
+    return remaining.inMilliseconds > 0
+        ? remaining.inMilliseconds / 1000.0
+        : 0.0;
   }
 
   /// 获取宝箱探索剩余时间（秒）
@@ -6073,12 +6475,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (!state.isExploringChest || state.chestExplorationStartTime == null) {
       return 0.0;
     }
-    
+
     const totalDuration = Duration(seconds: 3); // 宝箱探索需要3秒
     final elapsed = DateTime.now().difference(state.chestExplorationStartTime!);
     final remaining = totalDuration - elapsed;
-    
-    return remaining.inMilliseconds > 0 ? remaining.inMilliseconds / 1000.0 : 0.0;
+
+    return remaining.inMilliseconds > 0
+        ? remaining.inMilliseconds / 1000.0
+        : 0.0;
   }
 
   @override
@@ -6105,7 +6509,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void _startOxygenRecovery(double fromOxygen, double toOxygen) {
     // 首先启动氧气系统的内置恢复机制
     _oxygenSystem?.forceStartRecovery();
-    
+
     // 启动氧气恢复管理器（视觉进度条）
     state.oxygenRecoveryManager?.startRecovery(
       startOxygen: fromOxygen,
@@ -6120,7 +6524,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         _oxygenSystem?.setCurrentOxygen(currentOxygen);
       },
     );
-    
+
     // 设置恢复完成后的回调（关键：改为成员定时器并在 dispose 中取消）
     _oxygenRecoveryTimer?.cancel();
     _oxygenRecoveryTimer = Timer(const Duration(seconds: 3), () {
@@ -6135,13 +6539,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 增加氧气上限
   void increaseOxygenCapacity(double amount) {
-    state = state.copyWith(
-      oxygenBonus: state.oxygenBonus + amount,
-    );
-    
+    state = state.copyWith(oxygenBonus: state.oxygenBonus + amount);
+
     // 更新氧气系统的最大氧气值（setMaxOxygen会自动处理当前氧气值的调整）
     _oxygenSystem?.setMaxOxygen(state.actualMaxOxygen);
-    
+
     // 同步游戏状态中的当前氧气值
     state = state.copyWith(
       currentOxygen: _oxygenSystem?.currentOxygen ?? state.currentOxygen,
@@ -6150,13 +6552,18 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 }
 
 /// 优化的游戏状态提供者
-final optimizedGameStateProvider = StateNotifierProvider<OptimizedGameStateNotifier, OptimizedGameState>((ref) {
-  // 关键区域：默认provider使用“无鬼生成”版本，避免产生重复的鬼生成定时器
-  return OptimizedGameStateNotifier.noGhost(manData[0]);
-});
+final optimizedGameStateProvider =
+    StateNotifierProvider<OptimizedGameStateNotifier, OptimizedGameState>((
+      ref,
+    ) {
+      // 关键区域：默认provider使用“无鬼生成”版本，避免产生重复的鬼生成定时器
+      return OptimizedGameStateNotifier.noGhost(manData[0]);
+    });
 
 /// 优化的玩家位置提供者
-final optimizedPlayerPositionProvider = Provider<OptimizedPlayerPosition>((ref) {
+final optimizedPlayerPositionProvider = Provider<OptimizedPlayerPosition>((
+  ref,
+) {
   return ref.watch(optimizedGameStateProvider).playerPosition;
 });
 
@@ -6169,6 +6576,7 @@ final optimizedMovementStateProvider = Provider<OptimizedMovementState>((ref) {
 final optimizedVisibleTilesProvider = Provider<Set<Point<int>>>((ref) {
   return ref.watch(optimizedGameStateProvider).visibleTiles;
 });
+
 // 关键区域：攻击模式枚举（近战/远程）
 enum AttackMode { melee, ranged }
 
@@ -6198,4 +6606,3 @@ class Projectile {
     required this.startY,
   });
 }
-

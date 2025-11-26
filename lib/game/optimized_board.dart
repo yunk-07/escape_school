@@ -952,7 +952,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
             Colors.white.withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
           color: isOnCooldown ? Colors.grey : Colors.purple.withOpacity(0.3),
           width: 1,
@@ -1995,7 +1995,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
         width: 160,
         height: 72,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(5),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -3040,7 +3040,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.blue.shade400.withOpacity(0.3)),
       ),
       child: Column(
@@ -3113,7 +3113,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.blue.shade400.withOpacity(0.3)),
       ),
       child: Column(
@@ -3270,7 +3270,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(5),
           border: Border.all(color: Colors.blue.shade400.withOpacity(0.3)),
         ),
         child: const Center(
@@ -3286,7 +3286,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.blue.shade400.withOpacity(0.3)),
       ),
       child: Column(
@@ -5428,7 +5428,7 @@ class _UnstuckButtonState extends ConsumerState<_UnstuckButton> {
                     Colors.orange.shade600.withOpacity(0.2),
                   ],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
           color:
               isNoClipActive
@@ -5447,7 +5447,7 @@ class _UnstuckButtonState extends ConsumerState<_UnstuckButton> {
           if (isOnCooldown)
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(5),
                 child: LinearProgressIndicator(
                   value: cooldownProgress,
                   backgroundColor: Colors.transparent,
@@ -5464,7 +5464,7 @@ class _UnstuckButtonState extends ConsumerState<_UnstuckButton> {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(5),
                   color: Colors.black.withOpacity(0.4),
                 ),
               ),
@@ -5475,7 +5475,7 @@ class _UnstuckButtonState extends ConsumerState<_UnstuckButton> {
             color: Colors.transparent,
             child: InkWell(
               onTap: isOnCooldown ? null : widget.onPressed,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(5),
               child: Container(
                 width: double.infinity,
                 height: double.infinity,

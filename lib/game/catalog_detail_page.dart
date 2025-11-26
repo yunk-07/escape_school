@@ -275,7 +275,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                     ),
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(5),
                                     child:
                                         item.image.isNotEmpty
                                             ? Image.asset(
@@ -301,46 +301,47 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.name,
-                                            style: TextStyle(
-                                              color: _getItemLevelColor(item.level),
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              shadows: const [
-                                                Shadow(
-                                                  color: Colors.black54,
-                                                  blurRadius: 4,
-                                                  offset: Offset(2, 2),
-                                                ),
-                                              ],
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: TextStyle(
+                                          color: _getItemLevelColor(item.level),
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 4,
+                                              offset: Offset(2, 2),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '等级: ${item.level} · 类型: ${_canonicalType(item.type)}${item.equipmentSlot != null ? ' · 槽位: ${_getSlotChineseName(item.equipmentSlot!)}' : ''}',
-                                            style: TextStyle(
-                                              color: Colors.cyanAccent.withOpacity(
-                                                0.9,
-                                              ),
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          if (item.usageTime > 0)
-                                            Text(
-                                              '使用时间: ${(item.usageTime / 1000).toStringAsFixed(1)}秒',
-                                              style: TextStyle(
-                                                color: Colors.amberAccent.withOpacity(0.9),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '等级: ${item.level} · 类型: ${_canonicalType(item.type)}${item.equipmentSlot != null ? ' · 槽位: ${_getSlotChineseName(item.equipmentSlot!)}' : ''}',
+                                        style: TextStyle(
+                                          color: Colors.cyanAccent.withOpacity(
+                                            0.9,
+                                          ),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      if (item.usageTime > 0)
+                                        Text(
+                                          '使用时间: ${(item.usageTime / 1000).toStringAsFixed(1)}秒',
+                                          style: TextStyle(
+                                            color: Colors.amberAccent
+                                                .withOpacity(0.9),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
 
@@ -519,7 +520,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                                         ],
                                                       ),
                                               borderRadius:
-                                                  BorderRadius.circular(8),
+                                                  BorderRadius.circular(5),
                                               border: Border.all(
                                                 color:
                                                     isSelected
@@ -718,7 +719,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                                           ],
                                                         ),
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius.circular(5),
                                                 border: Border.all(
                                                   color:
                                                       isSelected
