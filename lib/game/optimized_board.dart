@@ -31,6 +31,7 @@ import 'package:escape_from_school/game/music.dart';
 import 'package:escape_from_school/game/ui_theme.dart'
     as ui_theme; // 关键区域：引入 UI 主题工具（避免作用域歧义）
 import 'package:escape_from_school/data/props.dart'; // 关键区域：引入物品定义，确保预加载覆盖所有物品图片
+import 'package:escape_from_school/utils/level_color_manager.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 class OptimizedBoardPage extends StatefulWidget {
@@ -294,6 +295,17 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
     final terrainTypes = [
       'grass',
       'wall',
+      'wall_left',
+      'wall_right',
+      'wall_top',
+      'wall_bottom',
+      'wall_left_right',
+      'wall_top_bottom',
+      'wall_left_top',
+      'wall_left_bottom',
+      'wall_right_top',
+      'wall_right_bottom',
+      'wall_all',
       'water',
       'path',
       'building',
@@ -839,7 +851,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: const Icon(
                           Icons.auto_fix_high,
@@ -1064,7 +1076,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
           // 关键区域：美化设置按钮样式，统一采用 UITheme 渐变与高光
           decoration: BoxDecoration(
             gradient: ui_theme.UITheme.progressBackground(),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(color: Colors.white.withOpacity(0.08)),
             boxShadow: [
               BoxShadow(
@@ -1075,7 +1087,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
             ],
           ),
           foregroundDecoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(5),
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -2164,7 +2176,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
                 width: 14,
                 height: 12,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(5),
                   boxShadow: [
                     BoxShadow(
                       color: color.withOpacity(0.9),
@@ -2256,7 +2268,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
                 width: 14,
                 height: 12,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(5),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.orange.withOpacity(0.9),
@@ -2927,7 +2939,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
                 Colors.blue.shade900,
               ],
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(color: Colors.blue.shade300, width: 2),
             boxShadow: [
               BoxShadow(
@@ -2984,7 +2996,7 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(5),
                         border: Border.all(color: Colors.red.withOpacity(0.5)),
                       ),
                       child: IconButton(
@@ -3417,22 +3429,19 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
                   },
                 ),
 
-                // 氧气条（显示在生命值条上方）
+                // 氧气条（竖式显示在屏幕右侧）
                 Consumer(
                   builder: (context, ref, child) {
                     final gameState = ref.watch(optimizedGameStateProvider);
                     if (gameState.oxygenSystem?.shouldShowOxygenBar == true) {
                       return Positioned(
-                        bottom: 120, // 在生命值条(bottom: 80)上方40像素
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: OxygenBar(
-                            oxygenSystem: gameState.oxygenSystem!,
-                            width: 180, // 与生命值条相同宽度
-                            height: 16, // 与生命值条相同高度
-                            margin: EdgeInsets.zero, // 移除默认边距
-                          ),
+                        top: 120, // 距离顶部120像素
+                        right: 20, // 距离右侧20像素
+                        child: OxygenBar(
+                          oxygenSystem: gameState.oxygenSystem!,
+                          width: 34, // 竖式氧气条宽度
+                          height: 120, // 竖式氧气条高度
+                          margin: EdgeInsets.zero, // 移除默认边距
                         ),
                       );
                     }
@@ -3488,6 +3497,62 @@ class _OptimizedBoardPageState extends State<OptimizedBoardPage>
         ],
       ),
     );
+  }
+}
+
+// 检测墙体邻接情况并返回合适的贴图文件名
+String _getWallImageName(List<List<String>> map, int x, int y) {
+  // 检查四个方向的邻接情况
+  bool hasLeft = false;
+  bool hasRight = false;
+  bool hasTop = false;
+  bool hasBottom = false;
+
+  // 检查左边是否有墙
+  if (x > 0 && map[y][x - 1] == 'wall') {
+    hasLeft = true;
+  }
+
+  // 检查右边是否有墙
+  if (x < map[0].length - 1 && map[y][x + 1] == 'wall') {
+    hasRight = true;
+  }
+
+  // 检查上边是否有墙
+  if (y > 0 && map[y - 1][x] == 'wall') {
+    hasTop = true;
+  }
+
+  // 检查下边是否有墙
+  if (y < map.length - 1 && map[y + 1][x] == 'wall') {
+    hasBottom = true;
+  }
+
+  // 根据邻接情况选择合适的贴图
+  if (hasLeft && hasRight && hasTop && hasBottom) {
+    return 'wall_all';
+  } else if (hasLeft && hasRight) {
+    return 'wall_left_right';
+  } else if (hasTop && hasBottom) {
+    return 'wall_top_bottom';
+  } else if (hasLeft && hasTop) {
+    return 'wall_left_top';
+  } else if (hasLeft && hasBottom) {
+    return 'wall_left_bottom';
+  } else if (hasRight && hasTop) {
+    return 'wall_right_top';
+  } else if (hasRight && hasBottom) {
+    return 'wall_right_bottom';
+  } else if (hasLeft) {
+    return 'wall_left';
+  } else if (hasRight) {
+    return 'wall_right';
+  } else if (hasTop) {
+    return 'wall_top';
+  } else if (hasBottom) {
+    return 'wall_bottom';
+  } else {
+    return 'wall';
   }
 }
 
@@ -3703,11 +3768,17 @@ class _GameAreaPainter extends CustomPainter {
           final String terrain = gameState.map[y][x];
           final Rect tileRect = Rect.fromLTWH(tileX, tileY, tileSize, tileSize);
 
+          // 对于墙体，使用智能贴图选择机制
+          String terrainKey = terrain;
+          if (terrain == 'wall') {
+            terrainKey = _getWallImageName(gameState.map, x, y);
+          }
+
           // 尝试使用贴图渲染，如果没有贴图则使用颜色渲染
-          final ui.Image? terrainImage = terrainImages[terrain];
+          final ui.Image? terrainImage = terrainImages[terrainKey];
 
           if (terrainImage != null) {
-            // 使用贴图渲染，应用透明度
+            // 使用贴图渲染，应用透明度 - 图片铺满整个格子，不留缝隙
             final Rect srcRect = Rect.fromLTWH(
               0,
               0,
@@ -3716,7 +3787,44 @@ class _GameAreaPainter extends CustomPainter {
             );
             final Paint imagePaint =
                 Paint()..color = Colors.white.withValues(alpha: tileOpacity);
-            canvas.drawImageRect(terrainImage, srcRect, tileRect, imagePaint);
+
+            // 为path格子添加随机旋转角度，制造随机感
+            if (terrain == 'path') {
+              // 基于瓦片坐标生成稳定的随机角度（0°, 90°, 180°, 270°）
+              final int angleIndex = (x + y * gameState.map[0].length) % 4;
+              final double rotationAngle =
+                  angleIndex * math.pi / 2; // 0°, 90°, 180°, 270°
+
+              // 保存画布状态
+              canvas.save();
+
+              // 将画布平移到瓦片中心
+              canvas.translate(tileRect.center.dx, tileRect.center.dy);
+
+              // 应用旋转
+              canvas.rotate(rotationAngle);
+
+              // 重新计算绘制矩形（相对于旋转后的坐标系）
+              final Rect rotatedRect = Rect.fromCenter(
+                center: Offset.zero,
+                width: tileRect.width,
+                height: tileRect.height,
+              );
+
+              // 绘制旋转后的图片
+              canvas.drawImageRect(
+                terrainImage,
+                srcRect,
+                rotatedRect,
+                imagePaint,
+              );
+
+              // 恢复画布状态
+              canvas.restore();
+            } else {
+              // 其他地形保持正常绘制
+              canvas.drawImageRect(terrainImage, srcRect, tileRect, imagePaint);
+            }
           } else {
             // 回退到颜色渲染（使用改进的颜色和渐变效果）
             final Paint terrainPaint = Paint();
@@ -3766,13 +3874,7 @@ class _GameAreaPainter extends CustomPainter {
             canvas.drawRect(tileRect, terrainPaint);
           }
 
-          // 绘制细微边框以增强视觉效果，应用透明度
-          final Paint borderPaint =
-              Paint()
-                ..color = Colors.black12.withOpacity(0.5 * tileOpacity)
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 0.5;
-          canvas.drawRect(tileRect, borderPaint);
+          // 移除细微边框，让贴图格子之间不留缝隙
 
           // 绘制雾霾装饰效果（如果该瓦片需要雾霾装饰）
           if (smoothVisionManager != null) {
@@ -4255,59 +4357,146 @@ class _GameAreaPainter extends CustomPainter {
             mapOffsetX + (p.startX * tileSize),
             mapOffsetY + (p.startY * tileSize),
           );
-          final Offset end = Offset(
+          final Offset bulletPosition = Offset(
             start.dx + math.cos(p.angle) * travel,
             start.dy + math.sin(p.angle) * travel,
           );
 
           final ui.Color base = gameState.rangedAttackTemplate.color;
-          final Paint gradientPaint =
-              Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 3.0
-                ..strokeCap = StrokeCap.round
-                ..blendMode = ui.BlendMode.plus
-                ..shader = ui.Gradient.linear(
-                  start,
-                  end,
-                  [
-                    Colors.white.withValues(alpha: alpha),
-                    base.withValues(alpha: alpha),
-                  ],
-                  const [0.0, 1.0],
-                );
-          canvas.drawLine(start, end, gradientPaint);
 
-          final Paint glowPaint =
+          // 绘制子弹主体（椭圆形）
+          final Paint bulletPaint =
               Paint()
-                ..color = Color(base.value).withOpacity(alpha * 0.6)
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 6.0
-                ..strokeCap = StrokeCap.round
-                ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 4);
-          canvas.drawLine(start, end, glowPaint);
-
-          final Paint tipPaint =
-              Paint()
-                ..color = Colors.white.withValues(alpha: alpha)
+                ..color = base.withOpacity(alpha)
                 ..style = PaintingStyle.fill
                 ..blendMode = ui.BlendMode.plus;
-          canvas.drawCircle(end, 2.2, tipPaint);
 
-          final int trailDots = 4;
-          for (int i = 1; i <= trailDots; i++) {
-            final double back = 3.0 * i;
-            final Offset pt = Offset(
-              end.dx - math.cos(p.angle) * back,
-              end.dy - math.sin(p.angle) * back,
+          // 子弹尺寸
+          final double bulletWidth = 6.0;
+          final double bulletHeight = 3.0;
+
+          // 创建子弹路径（椭圆形，沿射击方向）
+          final Path bulletPath = Path();
+
+          // 计算子弹的旋转角度
+          final double bulletAngle = p.angle;
+
+          // 创建子弹形状（椭圆形，头部更尖）
+          final double halfWidth = bulletWidth / 2;
+          final double halfHeight = bulletHeight / 2;
+
+          // 子弹形状控制点
+          final List<Offset> bulletPoints = [
+            Offset(-halfWidth, 0), // 尾部中心
+            Offset(-halfWidth * 0.7, -halfHeight), // 尾部上侧
+            Offset(-halfWidth * 0.3, -halfHeight * 0.8), // 中部上侧
+            Offset(0, -halfHeight * 0.6), // 前部上侧
+            Offset(halfWidth * 0.8, 0), // 头部尖端
+            Offset(0, halfHeight * 0.6), // 前部下侧
+            Offset(-halfWidth * 0.3, halfHeight * 0.8), // 中部下侧
+            Offset(-halfWidth * 0.7, halfHeight), // 尾部下侧
+            Offset(-halfWidth, 0), // 回到尾部中心
+          ];
+
+          // 应用旋转和平移变换
+          bulletPath.moveTo(
+            bulletPosition.dx +
+                bulletPoints[0].dx * math.cos(bulletAngle) -
+                bulletPoints[0].dy * math.sin(bulletAngle),
+            bulletPosition.dy +
+                bulletPoints[0].dx * math.sin(bulletAngle) +
+                bulletPoints[0].dy * math.cos(bulletAngle),
+          );
+
+          for (int i = 1; i < bulletPoints.length; i++) {
+            final Offset point = bulletPoints[i];
+            bulletPath.lineTo(
+              bulletPosition.dx +
+                  point.dx * math.cos(bulletAngle) -
+                  point.dy * math.sin(bulletAngle),
+              bulletPosition.dy +
+                  point.dx * math.sin(bulletAngle) +
+                  point.dy * math.cos(bulletAngle),
             );
-            final double ta = alpha * (1.0 - i / (trailDots + 1));
-            final Paint dotPaint =
+          }
+
+          bulletPath.close();
+          canvas.drawPath(bulletPath, bulletPaint);
+
+          // 绘制子弹高光效果
+          final Paint highlightPaint =
+              Paint()
+                ..color = Colors.white.withOpacity(alpha * 0.8)
+                ..style = PaintingStyle.fill
+                ..blendMode = ui.BlendMode.plus;
+
+          // 高光路径（子弹头部和侧面）
+          final Path highlightPath = Path();
+          final List<Offset> highlightPoints = [
+            Offset(-halfWidth * 0.3, -halfHeight * 0.4), // 上侧高光起点
+            Offset(halfWidth * 0.3, -halfHeight * 0.2), // 头部高光
+            Offset(-halfWidth * 0.3, halfHeight * 0.4), // 下侧高光起点
+          ];
+
+          highlightPath.moveTo(
+            bulletPosition.dx +
+                highlightPoints[0].dx * math.cos(bulletAngle) -
+                highlightPoints[0].dy * math.sin(bulletAngle),
+            bulletPosition.dy +
+                highlightPoints[0].dx * math.sin(bulletAngle) +
+                highlightPoints[0].dy * math.cos(bulletAngle),
+          );
+
+          for (int i = 1; i < highlightPoints.length; i++) {
+            final Offset point = highlightPoints[i];
+            highlightPath.lineTo(
+              bulletPosition.dx +
+                  point.dx * math.cos(bulletAngle) -
+                  point.dy * math.sin(bulletAngle),
+              bulletPosition.dy +
+                  point.dx * math.sin(bulletAngle) +
+                  point.dy * math.cos(bulletAngle),
+            );
+          }
+
+          canvas.drawPath(highlightPath, highlightPaint);
+
+          // 绘制子弹拖尾效果
+          final double trailLength = 12.0; // 拖尾长度
+          final int trailSegments = 4; // 拖尾分段数
+
+          for (int i = 0; i < trailSegments; i++) {
+            final double segmentRatio = i / trailSegments;
+            final double backDistance = trailLength * segmentRatio;
+            final Offset trailStart = Offset(
+              bulletPosition.dx - math.cos(p.angle) * backDistance,
+              bulletPosition.dy - math.sin(p.angle) * backDistance,
+            );
+            final Offset trailEnd = Offset(
+              bulletPosition.dx -
+                  math.cos(p.angle) *
+                      (backDistance + trailLength / trailSegments),
+              bulletPosition.dy -
+                  math.sin(p.angle) *
+                      (backDistance + trailLength / trailSegments),
+            );
+
+            // 拖尾透明度随距离递减
+            final double trailAlpha = alpha * (1.0 - segmentRatio) * 0.4;
+
+            // 拖尾线条绘制
+            final Paint trailPaint =
                 Paint()
-                  ..color = Color(base.value).withOpacity(ta)
-                  ..style = PaintingStyle.fill
+                  ..color = base.withOpacity(trailAlpha)
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth =
+                      2.0 -
+                      segmentRatio *
+                          1.0 // 宽度递减
+                  ..strokeCap = StrokeCap.round
                   ..blendMode = ui.BlendMode.plus;
-            canvas.drawCircle(pt, 1.6, dotPaint);
+
+            canvas.drawLine(trailStart, trailEnd, trailPaint);
           }
         }
       }
@@ -4728,8 +4917,7 @@ class _GameAreaPainter extends CustomPainter {
           Paint()..color = Colors.white.withOpacity(opacity);
       canvas.drawImageRect(chestImage, srcRect, chestRect, imagePaint);
     } else {
-      // 回退到手绘宝箱
-      // 绘制宝箱主体（棕色）
+      // 回退到手绘宝箱 - 简化版本，只绘制主体
       final Paint chestBodyPaint =
           Paint()..color = Colors.brown.shade700.withOpacity(opacity);
 
@@ -4745,69 +4933,7 @@ class _GameAreaPainter extends CustomPainter {
         ),
         chestBodyPaint,
       );
-
-      // 绘制宝箱盖子（稍浅的棕色）
-      final Paint chestLidPaint =
-          Paint()..color = Colors.brown.shade600.withOpacity(opacity);
-
-      final double lidHeight = chestHeight * 0.4;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(chestBodyX, chestBodyY, chestWidth, lidHeight),
-          const Radius.circular(4),
-        ),
-        chestLidPaint,
-      );
-
-      // 绘制锁扣（金色）
-      final Paint lockPaint =
-          Paint()..color = Colors.amber.shade600.withOpacity(opacity);
-
-      final double lockSize = tileSize * 0.15;
-      final double lockX = chestX + (tileSize - lockSize) / 2;
-      final double lockY = chestBodyY + lidHeight * 0.6;
-
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(lockX, lockY, lockSize, lockSize * 0.8),
-          const Radius.circular(2),
-        ),
-        lockPaint,
-      );
-
-      // 绘制金属边框
-      final Paint metalPaint =
-          Paint()
-            ..color = Colors.grey.shade400.withOpacity(opacity)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1;
-
-      // 宝箱边框
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(chestBodyX, chestBodyY, chestWidth, chestHeight),
-          const Radius.circular(4),
-        ),
-        metalPaint,
-      );
-
-      // 盖子边框
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(chestBodyX, chestBodyY, chestWidth, lidHeight),
-          const Radius.circular(4),
-        ),
-        metalPaint,
-      );
     }
-
-    // 绘制发光效果（表示可交互）
-    final Paint glowPaint =
-        Paint()
-          ..color = Colors.yellow.withOpacity(0.3 * opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3;
-    canvas.drawRect(chestRect, glowPaint);
   }
 
   void _drawSafe(
@@ -5058,24 +5184,9 @@ class _GameAreaPainter extends CustomPainter {
     }
   }
 
-  // 关键区域：按物品等级返回颜色（用于地面物品着色，与背包/宝箱一致）
+  // 关键区域：按物品等级返回颜色（使用统一等级颜色管理）
   Color _getItemLevelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.grey.shade600; // 无色
-      case 2:
-        return Colors.green.shade400; // 绿色
-      case 3:
-        return Colors.blue.shade400; // 蓝色
-      case 4:
-        return Colors.purple.shade400; // 紫色
-      case 5:
-        return Colors.amber.shade400; // 金色
-      case 6:
-        return Colors.red.shade400; // 红色
-      default:
-        return Colors.grey.shade600; // 默认无色
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   /// 绘制雾霾装饰效果（如果该瓦片需要雾霾装饰）

@@ -1022,66 +1022,9 @@ class _TiltCardState extends State<TiltCard> {
     );
   }
 
-  // 获取所有物品数据（简化实现）
+  // 获取所有物品数据（从props.dart中实时获取）
   List<Item> _getAllItems() {
-    // 这里应该从实际的物品数据源获取，暂时返回一些示例物品
-    return [
-      Item(
-        id: 'hanbao',
-        name: '美去人通便汉堡',
-        image: 'images/items/hanbao.png',
-        description: '钻研肠胃科主任为何把最灵的药藏在这里',
-        type: 'item',
-      ),
-      Item(
-        id: 'm-three-armor_fangdan',
-        name: '三级防弹衣',
-        image: 'images/items/m-three-fangdan.png',
-        description: '高级防弹装备',
-        type: 'equipment',
-      ),
-      Item(
-        id: 'wine',
-        name: '酒',
-        image: 'images/items/wine.png',
-        description: '恢复精神',
-        type: 'item',
-      ),
-      Item(
-        id: 'speed_gloves',
-        name: '速度手套',
-        image: 'images/items/speedGloves.png',
-        description: '增加移动速度',
-        type: 'equipment',
-      ),
-      Item(
-        id: 'g-eteen-gun',
-        name: 'G-eteen枪',
-        image: 'images/items/g-eteen-gun.png',
-        description: '强力武器',
-        type: 'equipment',
-      ),
-      Item(
-        id: 'm-one-gun',
-        name: 'M-one枪',
-        image: 'images/items/m-one-gun.png',
-        description: '标准武器',
-        type: 'equipment',
-      ),
-      Item(
-        id: 'bow',
-        name: '弓',
-        image: 'images/items/bow.png',
-        description: '远程武器',
-        type: 'equipment',
-      ),
-      Item(
-        id: 'g-eteen-ultra-gun',
-        name: 'G-eteen超强枪',
-        image: 'images/items/g-eteen-gun.png',
-        description: '超强力武器',
-        type: 'equipment',
-      ),
-    ];
+    // 直接返回props.dart中定义的allItems列表
+    return allItems;
   }
 }

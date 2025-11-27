@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'optimized_game_state.dart';
 import '../data/props.dart';
 import 'time.dart';
+import '../utils/level_color_manager.dart';
 
 class GameOverPage extends ConsumerStatefulWidget {
   final String deathReason;
@@ -961,22 +962,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
 
   // 关键区域：按物品等级返回底色（与背包页面一致）
   Color _getItemLevelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.grey.shade600; // 无色
-      case 2:
-        return Colors.green.shade400; // 绿色
-      case 3:
-        return Colors.blue.shade400; // 蓝色
-      case 4:
-        return Colors.purple.shade400; // 紫色
-      case 5:
-        return Colors.amber.shade400; // 金色
-      case 6:
-        return Colors.red.shade400; //// 橙色
-      default:
-        return Colors.grey.shade600; // 默认无色
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   // 关键区域：图片容错时按类型显示图标

@@ -9,12 +9,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:escape_from_school/game/optimized_game_state.dart';
 import 'package:escape_from_school/data/props.dart';
+import 'package:escape_from_school/utils/level_color_manager.dart';
 
 class AlchemyEffectOverlay extends ConsumerStatefulWidget {
   const AlchemyEffectOverlay({super.key});
 
   @override
-  ConsumerState<AlchemyEffectOverlay> createState() => _AlchemyEffectOverlayState();
+  ConsumerState<AlchemyEffectOverlay> createState() =>
+      _AlchemyEffectOverlayState();
 }
 
 class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
@@ -36,7 +38,11 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
   }
 
   // 关键区域：启动水平轮播滚动，缓慢减速并在中心停在结果物品
-  void _startCarousel(double viewportWidth, List<Item> candidates, Item result) {
+  void _startCarousel(
+    double viewportWidth,
+    List<Item> candidates,
+    Item result,
+  ) {
     if (_spinStarted || candidates.isEmpty) return;
     // 关键区域：确保 ScrollController 已附加到 ListView 后再执行滚动
     if (!_scrollController.hasClients) {
@@ -74,22 +80,7 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
   }
 
   Color _levelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.grey.shade600;
-      case 2:
-        return Colors.green.shade400;
-      case 3:
-        return Colors.blue.shade400;
-      case 4:
-        return Colors.purple.shade400;
-      case 5:
-        return Colors.amber.shade400;
-      case 6:
-        return Colors.red.shade400;
-      default:
-        return Colors.grey.shade600;
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   @override
@@ -136,60 +127,71 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
             final double viewportWidth = constraints.maxWidth;
             // 关键区域：候选长度用于构建混合段与停靠索引（保持整数）
             final int L = candidates.length;
-    // 关键区域：读取炼金等级概率权重（防御性回退）
-    // 注意：避免因空值导致类型异常，空或非法时回退为 {}
-    final dynamic gsDyn = ref.watch(optimizedGameStateProvider);
-    final Map<int, int> levelWeights =
-        (gsDyn.alchemyLevelWeights is Map<int, int>)
-            ? (gsDyn.alchemyLevelWeights as Map<int, int>)
-            : const <int, int>{};
+            // 关键区域：读取炼金等级概率权重（防御性回退）
+            // 注意：避免因空值导致类型异常，空或非法时回退为 {}
+            final dynamic gsDyn = ref.watch(optimizedGameStateProvider);
+            final Map<int, int> levelWeights =
+                (gsDyn.alchemyLevelWeights is Map<int, int>)
+                    ? (gsDyn.alchemyLevelWeights as Map<int, int>)
+                    : const <int, int>{};
 
-    // 关键区域：按照等级权重生成混合段（各等级按权重出现）
-    List<Item> _weightedMix(int count) {
-      final List<Item> mixed = <Item>[];
-      final List<int> levels = levelWeights.keys.toList()..sort();
-      final int total = levels.fold<int>(0, (acc, lvl) => acc + (levelWeights[lvl] ?? 0));
-      final rng = _rng ??= math.Random();
-      for (int i = 0; i < count; i++) {
-        if (total <= 0) {
-          // 权重为空时回退到候选列表
-          mixed.add(candidates[i % L]);
-          continue;
-        }
-        final int roll = rng.nextInt(total);
-        int acc = 0;
-        int chosenLevel = levels.first;
-        for (final lvl in levels) {
-          acc += levelWeights[lvl] ?? 0;
-          if (roll < acc) {
-            chosenLevel = lvl;
-            break;
-          }
-        }
-        // 关键区域：从全量物品池中挑选对应等级的物品（排除金币）
-        final pool = allItems.where((it) => it.type == 'item' && it.level == chosenLevel && it.id != 'gold').toList();
-        if (pool.isNotEmpty) {
-          mixed.add(pool[rng.nextInt(pool.length)]);
-        } else {
-          // 若该等级无物品，回退到候选列表
-          mixed.add(candidates[i % L]);
-        }
-      }
-      return mixed;
-    }
+            // 关键区域：按照等级权重生成混合段（各等级按权重出现）
+            List<Item> _weightedMix(int count) {
+              final List<Item> mixed = <Item>[];
+              final List<int> levels = levelWeights.keys.toList()..sort();
+              final int total = levels.fold<int>(
+                0,
+                (acc, lvl) => acc + (levelWeights[lvl] ?? 0),
+              );
+              final rng = _rng ??= math.Random();
+              for (int i = 0; i < count; i++) {
+                if (total <= 0) {
+                  // 权重为空时回退到候选列表
+                  mixed.add(candidates[i % L]);
+                  continue;
+                }
+                final int roll = rng.nextInt(total);
+                int acc = 0;
+                int chosenLevel = levels.first;
+                for (final lvl in levels) {
+                  acc += levelWeights[lvl] ?? 0;
+                  if (roll < acc) {
+                    chosenLevel = lvl;
+                    break;
+                  }
+                }
+                // 关键区域：从全量物品池中挑选对应等级的物品（排除金币）
+                final pool =
+                    allItems
+                        .where(
+                          (it) =>
+                              it.type == 'item' &&
+                              it.level == chosenLevel &&
+                              it.id != 'gold',
+                        )
+                        .toList();
+                if (pool.isNotEmpty) {
+                  mixed.add(pool[rng.nextInt(pool.length)]);
+                } else {
+                  // 若该等级无物品，回退到候选列表
+                  mixed.add(candidates[i % L]);
+                }
+              }
+              return mixed;
+            }
 
-    // 关键区域：构建水平轮播轨道（混合段 + 候选段 + 混合段），中段用于最终停靠
-    // 关键区域：混合段长度为 max(L,10)（保持为 int，避免 num/double）
-    final int segmentLen = (L >= 10) ? L : 10;
-    if (_trackItems.isEmpty) {
-      // 关键区域：仅在首次构建或特效开启时生成一次，避免滚动中内容变化
-      _trackItems = <Item>[
-        ..._weightedMix(segmentLen),
-        ...candidates,
-        ..._weightedMix(segmentLen),
-      ];
-    }
-    final List<Item> trackItems = _trackItems;
+            // 关键区域：构建水平轮播轨道（混合段 + 候选段 + 混合段），中段用于最终停靠
+            // 关键区域：混合段长度为 max(L,10)（保持为 int，避免 num/double）
+            final int segmentLen = (L >= 10) ? L : 10;
+            if (_trackItems.isEmpty) {
+              // 关键区域：仅在首次构建或特效开启时生成一次，避免滚动中内容变化
+              _trackItems = <Item>[
+                ..._weightedMix(segmentLen),
+                ...candidates,
+                ..._weightedMix(segmentLen),
+              ];
+            }
+            final List<Item> trackItems = _trackItems;
 
             if (!_spinStarted) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -277,7 +279,10 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                         final Color color = _levelColor(it.level);
                         return Padding(
                           padding: EdgeInsets.only(
-                            left: index == 0 ? (viewportWidth / 2 - _itemWidth / 2) : 0,
+                            left:
+                                index == 0
+                                    ? (viewportWidth / 2 - _itemWidth / 2)
+                                    : 0,
                             right: _itemSpacing,
                           ),
                           child: Container(
@@ -294,15 +299,29 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(5),
-                                    child: (it.image.isNotEmpty)
-                                        ? Image.asset(
-                                            it.image,
-                                            width: 80,
-                                            height: 80,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.inventory, color: Colors.white, size: 48),
-                                          )
-                                        : const Icon(Icons.inventory, color: Colors.white, size: 48),
+                                    child:
+                                        (it.image.isNotEmpty)
+                                            ? Image.asset(
+                                              it.image,
+                                              width: 80,
+                                              height: 80,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => const Icon(
+                                                    Icons.inventory,
+                                                    color: Colors.white,
+                                                    size: 48,
+                                                  ),
+                                            )
+                                            : const Icon(
+                                              Icons.inventory,
+                                              color: Colors.white,
+                                              size: 48,
+                                            ),
                                   ),
                                 ],
                               ),
@@ -338,7 +357,11 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                         const SizedBox(width: 8),
                         Text(
                           'Lv${result.level}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -355,7 +378,10 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
-                          colors: [levelColor.withOpacity(0.55), Colors.transparent],
+                          colors: [
+                            levelColor.withOpacity(0.55),
+                            Colors.transparent,
+                          ],
                           stops: const [0.0, 1.0],
                         ),
                         boxShadow: [
@@ -377,7 +403,10 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                       return FadeTransition(
                         opacity: animation,
                         child: ScaleTransition(
-                          scale: Tween<double>(begin: 0.85, end: 1.0).animate(animation),
+                          scale: Tween<double>(
+                            begin: 0.85,
+                            end: 1.0,
+                          ).animate(animation),
                           child: child,
                         ),
                       );
@@ -405,15 +434,26 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                                 ClipRRect(
                                   // 关键区域：炼金页面圆角统一为 5
                                   borderRadius: BorderRadius.circular(5),
-                                  child: (result.image.isNotEmpty)
-                                      ? Image.asset(
-                                          result.image,
-                                          width: 120,
-                                          height: 120,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.inventory, color: Colors.white, size: 84),
-                                        )
-                                      : const Icon(Icons.inventory, color: Colors.white, size: 84),
+                                  child:
+                                      (result.image.isNotEmpty)
+                                          ? Image.asset(
+                                            result.image,
+                                            width: 120,
+                                            height: 120,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    const Icon(
+                                                      Icons.inventory,
+                                                      color: Colors.white,
+                                                      size: 84,
+                                                    ),
+                                          )
+                                          : const Icon(
+                                            Icons.inventory,
+                                            color: Colors.white,
+                                            size: 84,
+                                          ),
                                 ),
                                 // 关键区域：最终物品名称与等级改在顶部显示，这里仅展示图像
                               ],
@@ -432,7 +472,9 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                       height: 40,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          ref.read(optimizedGameStateProvider.notifier).finalizeAlchemyEffect();
+                          ref
+                              .read(optimizedGameStateProvider.notifier)
+                              .finalizeAlchemyEffect();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.teal.shade600,
@@ -440,7 +482,9 @@ class _AlchemyEffectOverlayState extends ConsumerState<AlchemyEffectOverlay> {
                           elevation: 6,
                           shadowColor: Colors.teal.withOpacity(0.45),
                           // 关键区域：炼金页面圆角统一为 5
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
                         ),
                         icon: const Icon(Icons.check_circle_outline),
                         label: const Text('放入背包'),

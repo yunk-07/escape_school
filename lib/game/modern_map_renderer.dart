@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import '../data/props.dart';
 import '../data/shop.dart';
 import '../data/character_config.dart';
+import '../utils/level_color_manager.dart';
 
 /// 现代化地图渲染器
 /// 使用CustomPainter和RepaintBoundary优化性能，支持图片贴图
@@ -60,25 +61,32 @@ class _ModernMapRendererState extends State<ModernMapRenderer> {
   Future<void> _loadImages() async {
     try {
       // 加载地形贴图
-      final terrainTypes = ['grass', 'wall', 'water', 'woods', 'path', 'building'];
+      final terrainTypes = [
+        'grass',
+        'wall',
+        'water',
+        'woods',
+        'path',
+        'building',
+      ];
       for (String terrain in terrainTypes) {
         final image = await _loadImage('images/map/$terrain.png');
         if (image != null) {
           _loadedImages[terrain] = image;
         }
       }
-      
+
       // 加载特殊物品贴图
       final chestImage = await _loadImage('images/map/chest.png');
       if (chestImage != null) {
         _loadedImages['chest'] = chestImage;
       }
-      
+
       final shopImage = await _loadImage('images/map/shop.png');
       if (shopImage != null) {
         _loadedImages['shop'] = shopImage;
       }
-      
+
       // 加载玩家贴图（根据角色配置）
       final playerImage = await _loadImage(widget.characterConfig.imagePath);
       if (playerImage != null) {
@@ -123,8 +131,11 @@ class _ModernMapRendererState extends State<ModernMapRenderer> {
         // 根据屏幕尺寸动态计算瓦片大小
         final screenWidth = constraints.maxWidth;
         final screenHeight = constraints.maxHeight;
-        final tileSize = min(screenWidth / widget.horizontalTiles, screenHeight / widget.verticalTiles);
-        
+        final tileSize = min(
+          screenWidth / widget.horizontalTiles,
+          screenHeight / widget.verticalTiles,
+        );
+
         return RepaintBoundary(
           child: CustomPaint(
             painter: MapPainter(
@@ -190,10 +201,11 @@ class MapPainter extends CustomPainter {
     required this.groundItems,
   }) {
     _tilePaint = Paint()..style = PaintingStyle.fill;
-    _gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
-      ..strokeWidth = 0.5
-      ..style = PaintingStyle.stroke;
+    _gridPaint =
+        Paint()
+          ..color = Colors.white.withOpacity(0.1)
+          ..strokeWidth = 0.5
+          ..style = PaintingStyle.stroke;
     _playerPaint = Paint()..style = PaintingStyle.fill;
     _chestPaint = Paint()..color = Colors.amber;
     _shopPaint = Paint()..color = Colors.green;
@@ -213,30 +225,36 @@ class MapPainter extends CustomPainter {
 
     // 绘制地形
     _drawTerrain(canvas, startX, startY, endX, endY, mapOffsetX, mapOffsetY);
-    
+
     // 绘制网格
     _drawGrid(canvas, mapOffsetX, mapOffsetY);
-    
+
     // 绘制物品
     _drawItems(canvas, startX, startY, endX, endY, mapOffsetX, mapOffsetY);
-    
+
     // 绘制玩家
     _drawPlayer(canvas, mapOffsetX, mapOffsetY);
   }
 
-  void _drawTerrain(Canvas canvas, int startX, int startY, int endX, int endY, 
-                   double offsetX, double offsetY) {
-    
+  void _drawTerrain(
+    Canvas canvas,
+    int startX,
+    int startY,
+    int endX,
+    int endY,
+    double offsetX,
+    double offsetY,
+  ) {
     for (int y = startY; y < endY; y++) {
       for (int x = startX; x < endX; x++) {
         final screenX = (x - startX) * tileSize - offsetX;
         final screenY = (y - startY) * tileSize - offsetY;
-        
+
         // 检查是否在地图范围内
         if (x >= 0 && x < map[0].length && y >= 0 && y < map.length) {
           final terrain = map[y][x];
           final isVisible = visibleTiles.contains(Point(x, y));
-          
+
           // 只显示当前圆形视野内的地形，视野外完全不可见
           if (isVisible) {
             _drawTerrainTile(canvas, terrain, screenX, screenY, 1.0);
@@ -256,25 +274,28 @@ class MapPainter extends CustomPainter {
     for (final entry in groundItems.entries) {
       final position = entry.key;
       final items = entry.value;
-      
-      if (position.x >= startX && position.x < endX &&
-          position.y >= startY && position.y < endY &&
-          visibleTiles.contains(position) && items.isNotEmpty) {
+
+      if (position.x >= startX &&
+          position.x < endX &&
+          position.y >= startY &&
+          position.y < endY &&
+          visibleTiles.contains(position) &&
+          items.isNotEmpty) {
         final screenX = (position.x - startX) * tileSize - offsetX;
         final screenY = (position.y - startY) * tileSize - offsetY;
-        
+
         // 绘制第一个物品（如果有多个物品，只显示第一个）
         final item = items.first;
-        
+
         // 尝试使用物品图片
         if (item.image.isNotEmpty && loadedImages.containsKey(item.image)) {
           final image = loadedImages[item.image]!;
-          
+
           // 计算保持宽高比的显示尺寸（稍小一些，表示是地面物品）
           final imageAspectRatio = image.width / image.height;
           double displayWidth, displayHeight;
           final itemSize = tileSize * 0.6; // 地面物品比正常尺寸小一些
-          
+
           if (imageAspectRatio > 1.0) {
             displayWidth = itemSize;
             displayHeight = itemSize / imageAspectRatio;
@@ -282,38 +303,45 @@ class MapPainter extends CustomPainter {
             displayHeight = itemSize;
             displayWidth = itemSize * imageAspectRatio;
           }
-          
+
           // 居中显示
           final centerX = screenX + tileSize / 2;
           final centerY = screenY + tileSize / 2;
           final drawX = centerX - displayWidth / 2;
           final drawY = centerY - displayHeight / 2;
-          
+
           final rect = Rect.fromLTWH(drawX, drawY, displayWidth, displayHeight);
           // 关键区域：按物品等级为地面物品图片进行轻度着色
           canvas.drawImageRect(
             image,
-            Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-            rect,
-            Paint()..colorFilter = ColorFilter.mode(
-              _getItemLevelColor(item.level).withOpacity(0.8),
-              BlendMode.modulate,
+            Rect.fromLTWH(
+              0,
+              0,
+              image.width.toDouble(),
+              image.height.toDouble(),
             ),
+            rect,
+            Paint()
+              ..colorFilter = ColorFilter.mode(
+                _getItemLevelColor(item.level).withOpacity(0.8),
+                BlendMode.modulate,
+              ),
           );
         } else {
           // 后备方案：绘制小圆点
-          final paint = Paint()
-            // 关键区域：后备绘制按物品等级着色（不再使用类型色）
-            ..color = _getItemLevelColor(item.level).withOpacity(0.8)
-            ..style = PaintingStyle.fill;
-          
+          final paint =
+              Paint()
+                // 关键区域：后备绘制按物品等级着色（不再使用类型色）
+                ..color = _getItemLevelColor(item.level).withOpacity(0.8)
+                ..style = PaintingStyle.fill;
+
           canvas.drawCircle(
             Offset(screenX + tileSize * 0.5, screenY + tileSize * 0.5),
             tileSize * 0.15,
             paint,
           );
         }
-        
+
         // 如果有多个物品，显示数量
         if (items.length > 1) {
           final textPainter = TextPainter(
@@ -328,14 +356,11 @@ class MapPainter extends CustomPainter {
             textDirection: TextDirection.ltr,
           );
           textPainter.layout();
-          
+
           // 在物品右上角显示数量
           textPainter.paint(
             canvas,
-            Offset(
-              screenX + tileSize * 0.7,
-              screenY + tileSize * 0.1,
-            ),
+            Offset(screenX + tileSize * 0.7, screenY + tileSize * 0.1),
           );
         }
       }
@@ -363,30 +388,20 @@ class MapPainter extends CustomPainter {
   }
 
   // 关键区域：按物品等级返回颜色（用于地面物品着色，与背包/宝箱一致）
+  // 使用统一等级颜色管理器
   Color _getItemLevelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.grey.shade600; // 无色
-      case 2:
-        return Colors.green.shade400; // 绿色
-      case 3:
-        return Colors.blue.shade400; // 蓝色
-      case 4:
-        return Colors.purple.shade400; // 紫色
-      case 5:
-        return Colors.amber.shade400; // 金色
-      case 6:
-        return Colors.orange.shade400; // 橙色
-      case 7:
-        return Colors.red.shade400; // 红色
-      default:
-        return Colors.grey.shade600; // 默认无色
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
-  void _drawTerrainTile(Canvas canvas, String terrain, double x, double y, double opacity) {
+  void _drawTerrainTile(
+    Canvas canvas,
+    String terrain,
+    double x,
+    double y,
+    double opacity,
+  ) {
     final rect = Rect.fromLTWH(x, y, tileSize, tileSize);
-    
+
     // 尝试使用图片贴图
     if (loadedImages.containsKey(terrain)) {
       final image = loadedImages[terrain]!;
@@ -450,24 +465,33 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  void _drawItems(Canvas canvas, int startX, int startY, int endX, int endY,
-                 double offsetX, double offsetY) {
+  void _drawItems(
+    Canvas canvas,
+    int startX,
+    int startY,
+    int endX,
+    int endY,
+    double offsetX,
+    double offsetY,
+  ) {
     // 绘制宝箱
     for (final chestPos in chestPositions) {
-      if (chestPos.x >= startX && chestPos.x < endX &&
-          chestPos.y >= startY && chestPos.y < endY &&
+      if (chestPos.x >= startX &&
+          chestPos.x < endX &&
+          chestPos.y >= startY &&
+          chestPos.y < endY &&
           visibleTiles.contains(chestPos)) {
         final screenX = (chestPos.x - startX) * tileSize - offsetX;
         final screenY = (chestPos.y - startY) * tileSize - offsetY;
-        
+
         // 尝试使用宝箱贴图
         if (loadedImages.containsKey('chest')) {
           final image = loadedImages['chest']!;
-          
+
           // 计算保持宽高比的显示尺寸
           final imageAspectRatio = image.width / image.height;
           double displayWidth, displayHeight;
-          
+
           if (imageAspectRatio > 1.0) {
             // 宽图：以宽度为准
             displayWidth = tileSize;
@@ -477,17 +501,22 @@ class MapPainter extends CustomPainter {
             displayHeight = tileSize;
             displayWidth = tileSize * imageAspectRatio;
           }
-          
+
           // 居中显示
           final centerX = screenX + tileSize / 2;
           final centerY = screenY + tileSize / 2;
           final drawX = centerX - displayWidth / 2;
           final drawY = centerY - displayHeight / 2;
-          
+
           final rect = Rect.fromLTWH(drawX, drawY, displayWidth, displayHeight);
           canvas.drawImageRect(
             image,
-            Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+            Rect.fromLTWH(
+              0,
+              0,
+              image.width.toDouble(),
+              image.height.toDouble(),
+            ),
             rect,
             Paint(),
           );
@@ -505,20 +534,22 @@ class MapPainter extends CustomPainter {
     // 绘制商店
     if (schoolShop != null) {
       final shopPos = schoolShop!.position;
-      if (shopPos.x >= startX && shopPos.x < endX &&
-          shopPos.y >= startY && shopPos.y < endY &&
+      if (shopPos.x >= startX &&
+          shopPos.x < endX &&
+          shopPos.y >= startY &&
+          shopPos.y < endY &&
           visibleTiles.contains(Point(shopPos.x.toInt(), shopPos.y.toInt()))) {
         final screenX = (shopPos.x - startX) * tileSize - offsetX;
         final screenY = (shopPos.y - startY) * tileSize - offsetY;
-        
+
         // 尝试使用商店贴图
         if (loadedImages.containsKey('shop')) {
           final image = loadedImages['shop']!;
-          
+
           // 计算保持宽高比的显示尺寸
           final imageAspectRatio = image.width / image.height;
           double displayWidth, displayHeight;
-          
+
           if (imageAspectRatio > 1.0) {
             // 宽图：以宽度为准
             displayWidth = tileSize;
@@ -528,25 +559,34 @@ class MapPainter extends CustomPainter {
             displayHeight = tileSize;
             displayWidth = tileSize * imageAspectRatio;
           }
-          
+
           // 居中显示
           final centerX = screenX + tileSize / 2;
           final centerY = screenY + tileSize / 2;
           final drawX = centerX - displayWidth / 2;
           final drawY = centerY - displayHeight / 2;
-          
+
           final rect = Rect.fromLTWH(drawX, drawY, displayWidth, displayHeight);
           canvas.drawImageRect(
             image,
-            Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+            Rect.fromLTWH(
+              0,
+              0,
+              image.width.toDouble(),
+              image.height.toDouble(),
+            ),
             rect,
             Paint(),
           );
         } else {
           // 后备方案：绘制矩形
           canvas.drawRect(
-            Rect.fromLTWH(screenX + tileSize * 0.1, screenY + tileSize * 0.1, 
-                         tileSize * 0.8, tileSize * 0.8),
+            Rect.fromLTWH(
+              screenX + tileSize * 0.1,
+              screenY + tileSize * 0.1,
+              tileSize * 0.8,
+              tileSize * 0.8,
+            ),
             _shopPaint,
           );
         }
@@ -558,24 +598,24 @@ class MapPainter extends CustomPainter {
     // 计算玩家在屏幕上的位置（始终在屏幕中心）
     final screenX = (horizontalTiles / 2) * tileSize - tileSize / 2;
     final screenY = (verticalTiles / 2) * tileSize - tileSize / 2;
-    
+
     // 使用角色配置中的缩放比例
     final characterSizeScale = characterConfig.sizeScale;
-    
+
     // 尝试使用玩家贴图
     if (loadedImages.containsKey('player')) {
       final image = loadedImages['player']!;
-      
+
       // 统一所有角色贴图为正方形大小，不保持宽高比（允许扭曲）
       // 这确保所有角色的碰撞检测大小一致
       final uniformSize = tileSize * characterSizeScale;
-      
+
       // 居中显示，应用角色配置的偏移量
       final centerX = screenX + tileSize / 2 + characterConfig.spriteOffsetX;
       final centerY = screenY + tileSize / 2 + characterConfig.spriteOffsetY;
       final drawX = centerX - uniformSize / 2;
       final drawY = centerY - uniformSize / 2;
-      
+
       final rect = Rect.fromLTWH(drawX, drawY, uniformSize, uniformSize);
       canvas.drawImageRect(
         image,
@@ -588,8 +628,8 @@ class MapPainter extends CustomPainter {
       _playerPaint.color = Colors.blue;
       canvas.drawCircle(
         Offset(
-          screenX + tileSize / 2 + characterConfig.spriteOffsetX, 
-          screenY + tileSize / 2 + characterConfig.spriteOffsetY
+          screenX + tileSize / 2 + characterConfig.spriteOffsetX,
+          screenY + tileSize / 2 + characterConfig.spriteOffsetY,
         ),
         tileSize * characterSizeScale * 0.4,
         _playerPaint,
@@ -600,10 +640,10 @@ class MapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant MapPainter oldDelegate) {
     return oldDelegate.playerX != playerX ||
-           oldDelegate.playerY != playerY ||
-           oldDelegate.visibleTiles != visibleTiles ||
-           oldDelegate.chestPositions != chestPositions ||
-           oldDelegate.schoolShop != schoolShop ||
-           oldDelegate.groundItems != groundItems;
+        oldDelegate.playerY != playerY ||
+        oldDelegate.visibleTiles != visibleTiles ||
+        oldDelegate.chestPositions != chestPositions ||
+        oldDelegate.schoolShop != schoolShop ||
+        oldDelegate.groundItems != groundItems;
   }
 }

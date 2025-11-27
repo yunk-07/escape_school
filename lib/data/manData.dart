@@ -36,7 +36,7 @@ final List<Map<String, dynamic>> manData = const [
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
     // 关键区域：初始物品（props.dart 的 id），用于验证机制
-    'initialItems': const ['hanbao'],
+    'initialItems': const ['hanbao', 'cook_gun'],
     // 关键区域：基础伤害与基础暴击几率（用于攻击结算）
     'baseDamage': 10.0,
     'baseCritChance': 0.05,
@@ -70,7 +70,7 @@ final List<Map<String, dynamic>> manData = const [
     'description': '睡觉何尝不是战斗的方式？',
     'moveSpeed': 200.0, // 移动速度：200像素/秒
     'food': 20,
-    'maxFood': 20,
+    'maxFood': 120,
     'maxOxygen': 10.0, // 最大氧气值
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,

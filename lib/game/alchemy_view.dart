@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:escape_from_school/game/optimized_game_state.dart';
 import 'package:escape_from_school/data/props.dart';
+import 'package:escape_from_school/utils/level_color_manager.dart';
 
 class AlchemyView extends ConsumerStatefulWidget {
   const AlchemyView({super.key});
@@ -18,24 +19,9 @@ class AlchemyView extends ConsumerStatefulWidget {
 class _AlchemyViewState extends ConsumerState<AlchemyView> {
   final List<int> _selected = <int>[]; // 关键区域：材料选择（固定选择10件）
 
-  // 关键区域：炼金页面等级颜色映射（与商店相似风格）
+  // 关键区域：炼金页面等级颜色映射（使用统一等级颜色管理）
   Color _levelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.grey.shade600; // 无色
-      case 2:
-        return Colors.green.shade400; // 绿色
-      case 3:
-        return Colors.blue.shade400; // 蓝色
-      case 4:
-        return Colors.purple.shade400; // 紫色
-      case 5:
-        return Colors.amber.shade400; // 金色
-      case 6:
-        return Colors.red.shade400; // 红色
-      default:
-        return Colors.grey.shade600; // 默认无色
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   void _toggleSelect(int index) {
@@ -91,30 +77,34 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
         final int outLevel = (inventory[invIdx].level + 1).clamp(1, 7);
         levelWeights[outLevel] = (levelWeights[outLevel] ?? 0) + 1;
       }
-      final List<int> sortedLevels = levelWeights.keys.toList()..sort((a, b) => b.compareTo(a));
+      final List<int> sortedLevels =
+          levelWeights.keys.toList()..sort((a, b) => b.compareTo(a));
       if (sortedLevels.isNotEmpty) {
         final List<TextSpan> spans = <TextSpan>[];
-        spans.add(TextSpan(
-          text: '几率：',
-          style: TextStyle(
-            color: Colors.tealAccent.withOpacity(0.9),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        spans.add(
+          TextSpan(
+            text: '几率：',
+            style: TextStyle(
+              color: Colors.tealAccent.withOpacity(0.9),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ));
+        );
         for (int i = 0; i < sortedLevels.length; i++) {
           final int lvl = sortedLevels[i];
           final int count = levelWeights[lvl] ?? 0;
           final int pct = ((count / 10) * 100).round();
-          spans.add(TextSpan(
-            text: 'Lv$lvl $pct%'
-                + (i < sortedLevels.length - 1 ? ' · ' : ''),
-            style: TextStyle(
-              color: _levelColor(lvl),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+          spans.add(
+            TextSpan(
+              text: 'Lv$lvl $pct%' + (i < sortedLevels.length - 1 ? ' · ' : ''),
+              style: TextStyle(
+                color: _levelColor(lvl),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ));
+          );
         }
         probabilitySpans = spans;
       }
@@ -141,10 +131,7 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF2D3748),
-                  Color(0xFF1A202C),
-                ],
+                colors: [Color(0xFF2D3748), Color(0xFF1A202C)],
               ),
               borderRadius: BorderRadius.circular(5),
               border: Border.all(
@@ -164,7 +151,10 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
               children: [
                 // 关键区域：标题栏（右侧关闭按钮）
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -191,7 +181,11 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.science, color: Colors.white, size: 20),
+                          const Icon(
+                            Icons.science,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           const SizedBox(width: 12),
                           const Text(
                             '炼金机',
@@ -223,13 +217,13 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              Colors.red.shade600,
-                              Colors.red.shade700,
-                            ],
+                            colors: [Colors.red.shade600, Colors.red.shade700],
                           ),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: Colors.red.shade300, width: 1),
+                          border: Border.all(
+                            color: Colors.red.shade300,
+                            width: 1,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.red.withOpacity(0.35),
@@ -242,10 +236,20 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(5),
-                            onTap: () => ref.read(optimizedGameStateProvider.notifier).toggleAlchemy(),
+                            onTap:
+                                () =>
+                                    ref
+                                        .read(
+                                          optimizedGameStateProvider.notifier,
+                                        )
+                                        .toggleAlchemy(),
                             child: const Padding(
                               padding: EdgeInsets.all(8),
-                              child: Icon(Icons.close, color: Colors.white, size: 20),
+                              child: Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
@@ -269,12 +273,13 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                         ),
                       ),
                       child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 6, // 每行显示六个物品
-                          childAspectRatio: 2.2, // 长方形卡片（宽高比更大）
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 6, // 每行显示六个物品
+                              childAspectRatio: 2.2, // 长方形卡片（宽高比更大）
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
                         itemCount: displayItems.length,
                         itemBuilder: (context, i) {
                           final item = displayItems[i];
@@ -304,7 +309,10 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                                 ),
                                 borderRadius: BorderRadius.circular(5),
                                 border: Border.all(
-                                  color: selected ? Colors.tealAccent : levelColor.withOpacity(0.8),
+                                  color:
+                                      selected
+                                          ? Colors.tealAccent
+                                          : levelColor.withOpacity(0.8),
                                   width: selected ? 2 : 1.5,
                                 ),
                                 boxShadow: [
@@ -316,9 +324,13 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                                 ],
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     // 左上角：名称（按等级着色）
                                     Expanded(
@@ -343,10 +355,16 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                                         width: 24,
                                         height: 24,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
+                                        errorBuilder: (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) {
                                           return Icon(
                                             Icons.inventory,
-                                            color: Colors.white.withOpacity(0.8),
+                                            color: Colors.white.withOpacity(
+                                              0.8,
+                                            ),
                                             size: 20,
                                           );
                                         },
@@ -387,17 +405,26 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                       SizedBox(
                         height: 40,
                         child: ElevatedButton.icon(
-                          onPressed: _selected.length == 10
-                              ? () {
-                                  final selectedInv = _selected
-                                      .map((di) => displayToInventoryIndex[di])
-                                      .toList();
-                                  ref
-                                      .read(optimizedGameStateProvider.notifier)
-                                      .startAlchemyEffectByIndicesList(selectedInv);
-                                  setState(() => _selected.clear());
-                                }
-                              : null,
+                          onPressed:
+                              _selected.length == 10
+                                  ? () {
+                                    final selectedInv =
+                                        _selected
+                                            .map(
+                                              (di) =>
+                                                  displayToInventoryIndex[di],
+                                            )
+                                            .toList();
+                                    ref
+                                        .read(
+                                          optimizedGameStateProvider.notifier,
+                                        )
+                                        .startAlchemyEffectByIndicesList(
+                                          selectedInv,
+                                        );
+                                    setState(() => _selected.clear());
+                                  }
+                                  : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.teal.shade600,
                             foregroundColor: Colors.white,
@@ -405,7 +432,9 @@ class _AlchemyViewState extends ConsumerState<AlchemyView> {
                             disabledForegroundColor: Colors.grey.shade400,
                             elevation: _selected.length == 2 ? 6 : 1,
                             shadowColor: Colors.teal.withOpacity(0.45),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
                           ),
                           icon: const Icon(Icons.auto_fix_high),
                           label: const Text('合成'),

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'optimized_game_state.dart';
 import 'package:escape_from_school/data/props.dart';
+import 'package:escape_from_school/utils/level_color_manager.dart';
 
 class ChestSearchOverlay extends ConsumerStatefulWidget {
   const ChestSearchOverlay({Key? key}) : super(key: key);
@@ -16,7 +17,8 @@ class ChestSearchOverlay extends ConsumerStatefulWidget {
   ConsumerState<ChestSearchOverlay> createState() => _ChestSearchOverlayState();
 }
 
-class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with SingleTickerProviderStateMixin {
+class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _spinController;
 
   @override
@@ -24,8 +26,10 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
     super.initState();
     // 关键区域：旋转控制器——持续旋转，用于“当前搜索中的物品”覆盖图标
     // 优化：略微延长时长，结合后续缓动与轻微半径抖动，降低机械感
-    _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
-      ..repeat();
+    _spinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
   }
 
   @override
@@ -45,7 +49,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
     }
 
     // 若当前探索的是保险箱，交由 SafeSearchOverlay 显示，本组件不显示
-    final bool isSafe = gameState.currentExploringChest != null &&
+    final bool isSafe =
+        gameState.currentExploringChest != null &&
         gameState.safePositions.contains(gameState.currentExploringChest!);
     if (isSafe) {
       return const SizedBox.shrink();
@@ -60,8 +65,12 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             center: Alignment.center,
             radius: 1.2,
             colors: [
-              (isSafe ? Colors.blueGrey.shade900 : Colors.black).withOpacity(0.85),
-              (isSafe ? Colors.blueGrey.shade800 : Colors.black).withOpacity(0.70),
+              (isSafe ? Colors.blueGrey.shade900 : Colors.black).withOpacity(
+                0.85,
+              ),
+              (isSafe ? Colors.blueGrey.shade800 : Colors.black).withOpacity(
+                0.70,
+              ),
             ],
           ),
         ),
@@ -77,11 +86,19 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                   children: [
                     Row(
                       children: [
-                        Icon(isSafe ? Icons.lock : Icons.search, color: isSafe ? Colors.lightBlueAccent : Colors.amber, size: 20),
+                        Icon(
+                          isSafe ? Icons.lock : Icons.search,
+                          color: isSafe ? Colors.lightBlueAccent : Colors.amber,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           isSafe ? '保险箱搜索' : '宝箱搜索',
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -90,12 +107,23 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                         notifier.closeChestSearch();
                       },
                       icon: const Icon(Icons.close, color: Colors.white),
-                      label: const Text('关闭', style: TextStyle(color: Colors.white)),
+                      label: const Text(
+                        '关闭',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: TextButton.styleFrom(
-                        backgroundColor: (isSafe ? Colors.blue.withOpacity(0.28) : Colors.red.withOpacity(0.3)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        backgroundColor:
+                            (isSafe
+                                ? Colors.blue.withOpacity(0.28)
+                                : Colors.red.withOpacity(0.3)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         // 关键区域：统一圆角为5
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(5),
+                        ),
                       ),
                     ),
                   ],
@@ -121,10 +149,20 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                             ),
                             // 关键区域：统一圆角为5
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: Colors.blueGrey.shade400.withOpacity(0.5)),
+                            border: Border.all(
+                              color: Colors.blueGrey.shade400.withOpacity(0.5),
+                            ),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.45), blurRadius: 14, offset: const Offset(0, 6)),
-                              BoxShadow(color: Colors.white.withOpacity(0.05), blurRadius: 6, offset: const Offset(-1, -1)),
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.45),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.05),
+                                blurRadius: 6,
+                                offset: const Offset(-1, -1),
+                              ),
                             ],
                           ),
                           // 关键区域：面板前景高光（与背包页面一致），增强质感
@@ -145,12 +183,19 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _panelHeader('玩家背包', Icons.inventory_2, Colors.cyan),
+                              _panelHeader(
+                                '玩家背包',
+                                Icons.inventory_2,
+                                Colors.cyan,
+                              ),
                               const Divider(height: 1, color: Colors.white24),
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: _buildInventoryGrid(gameState, notifier),
+                                  child: _buildInventoryGrid(
+                                    gameState,
+                                    notifier,
+                                  ),
                                 ),
                               ),
                             ],
@@ -168,16 +213,38 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                (isSafe ? Colors.blueGrey.shade900 : Colors.black).withValues(alpha: 0.88),
-                                (isSafe ? Colors.blueGrey.shade800 : Colors.black).withValues(alpha: 0.79),
+                                (isSafe
+                                        ? Colors.blueGrey.shade900
+                                        : Colors.black)
+                                    .withValues(alpha: 0.88),
+                                (isSafe
+                                        ? Colors.blueGrey.shade800
+                                        : Colors.black)
+                                    .withValues(alpha: 0.79),
                               ],
                             ),
                             // 关键区域：统一圆角为5
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: (isSafe ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.6)),
+                            border: Border.all(
+                              color: (isSafe
+                                      ? Colors.lightBlueAccent
+                                      : Colors.amber)
+                                  .withValues(alpha: 0.6),
+                            ),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 16, offset: const Offset(0, 7)),
-                              BoxShadow(color: (isSafe ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2)),
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.50),
+                                blurRadius: 16,
+                                offset: const Offset(0, 7),
+                              ),
+                              BoxShadow(
+                                color: (isSafe
+                                        ? Colors.lightBlueAccent
+                                        : Colors.amber)
+                                    .withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
                             ],
                           ),
                           // 关键区域：面板前景高光（与背包页面一致），增强质感
@@ -199,12 +266,20 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // 关键区域：Material Icons 无“宝箱”图标，使用库存图标替代，避免编译错误
-                              _panelHeader(isSafe ? '保险箱' : '宝箱', isSafe ? Icons.lock : Icons.inventory_2, isSafe ? Colors.lightBlueAccent : Colors.amber),
+                              _panelHeader(
+                                isSafe ? '保险箱' : '宝箱',
+                                isSafe ? Icons.lock : Icons.inventory_2,
+                                isSafe ? Colors.lightBlueAccent : Colors.amber,
+                              ),
                               const Divider(height: 1, color: Colors.white24),
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: _buildChestGrid(gameState, notifier, isSafe),
+                                  child: _buildChestGrid(
+                                    gameState,
+                                    notifier,
+                                    isSafe,
+                                  ),
                                 ),
                               ),
                             ],
@@ -238,17 +313,40 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
                 end: Alignment.bottomRight,
                 colors: [
                   color.withValues(alpha: 0.28),
-                  (color == Colors.amber ? Colors.orange.shade800 : Colors.cyan.shade800).withValues(alpha: 0.32),
+                  (color == Colors.amber
+                          ? Colors.orange.shade800
+                          : Colors.cyan.shade800)
+                      .withValues(alpha: 0.32),
                 ],
               ),
               // 关键区域：统一圆角为5，并轻量美化
               borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: (color == Colors.amber ? Colors.amberAccent : Colors.cyanAccent).withValues(alpha: 0.35), width: 1),
+              border: Border.all(
+                color: (color == Colors.amber
+                        ? Colors.amberAccent
+                        : Colors.cyanAccent)
+                    .withValues(alpha: 0.35),
+                width: 1,
+              ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 3)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
-            child: Text(title, style: TextStyle(color: (color == Colors.amber ? Colors.amberAccent : Colors.cyanAccent).withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text(
+              title,
+              style: TextStyle(
+                color: (color == Colors.amber
+                        ? Colors.amberAccent
+                        : Colors.cyanAccent)
+                    .withValues(alpha: 0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -256,7 +354,10 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
   }
 
   // 左侧背包网格：显示现有物品，并作为 DragTarget 接收宝箱物品
-  Widget _buildInventoryGrid(OptimizedGameState gameState, OptimizedGameStateNotifier notifier) {
+  Widget _buildInventoryGrid(
+    OptimizedGameState gameState,
+    OptimizedGameStateNotifier notifier,
+  ) {
     final capacity = gameState.inventoryCapacity;
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -268,7 +369,8 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
       itemCount: capacity,
       itemBuilder: (context, index) {
         final bool hasItem = index < gameState.playerInventory.length;
-        final Item? currentItem = hasItem ? gameState.playerInventory[index] : null;
+        final Item? currentItem =
+            hasItem ? gameState.playerInventory[index] : null;
         return DragTarget<Item>(
           onWillAcceptWithDetails: (details) => true,
           onAccept: (draggedItem) {
@@ -278,15 +380,24 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             final hovering = candidate.isNotEmpty;
             return Container(
               decoration: BoxDecoration(
-                color: hasItem ? Colors.black.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.3),
+                color:
+                    hasItem
+                        ? Colors.black.withValues(alpha: 0.6)
+                        : Colors.black.withValues(alpha: 0.3),
                 // 关键区域：统一圆角为5
                 borderRadius: BorderRadius.circular(5),
                 border: Border.all(
-                  color: hovering ? Colors.cyanAccent.withValues(alpha: 0.8) : Colors.white24,
+                  color:
+                      hovering
+                          ? Colors.cyanAccent.withValues(alpha: 0.8)
+                          : Colors.white24,
                   width: 1,
                 ),
               ),
-              child: hasItem ? _inventoryItemTile(currentItem!) : _emptySlotTile(index),
+              child:
+                  hasItem
+                      ? _inventoryItemTile(currentItem!)
+                      : _emptySlotTile(index),
             );
           },
         );
@@ -330,13 +441,23 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             ),
             child: Padding(
               padding: const EdgeInsets.all(6),
-              child: item.image.isNotEmpty
-                  ? Image.asset(
-                      item.image,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stack) => Icon(_typeIcon(item.type), color: Colors.white, size: 18),
-                    )
-                  : Icon(_typeIcon(item.type), color: Colors.white, size: 18),
+              child:
+                  item.image.isNotEmpty
+                      ? Image.asset(
+                        item.image,
+                        fit: BoxFit.contain,
+                        errorBuilder:
+                            (context, error, stack) => Icon(
+                              _typeIcon(item.type),
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                      )
+                      : Icon(
+                        _typeIcon(item.type),
+                        color: Colors.white,
+                        size: 18,
+                      ),
             ),
           ),
         ),
@@ -346,24 +467,40 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           right: 2,
           child: Text(
             item.name,
-            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w500, shadows: [
-              Shadow(offset: Offset(0.5, 0.5), blurRadius: 1.0, color: Colors.black),
-            ]),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 8,
+              fontWeight: FontWeight.w500,
+              shadows: [
+                Shadow(
+                  offset: Offset(0.5, 0.5),
+                  blurRadius: 1.0,
+                  color: Colors.black,
+                ),
+              ],
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
-          if (item.count > 1)
-            Positioned(
-              bottom: 2,
-              right: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                // 关键区域：统一圆角为5
-                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
-                child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+        if (item.count > 1)
+          Positioned(
+            bottom: 2,
+            right: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              // 关键区域：统一圆角为5
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Text(
+                '${item.count}',
+                style: const TextStyle(color: Colors.white, fontSize: 10),
               ),
             ),
+          ),
       ],
     );
   }
@@ -372,13 +509,20 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
     return Center(
       child: Text(
         '${index + 1}',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 10),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.3),
+          fontSize: 10,
+        ),
       ),
     );
   }
 
   // 右侧宝箱网格：显示已揭示的物品，支持点击和拖拽到左侧背包
-  Widget _buildChestGrid(OptimizedGameState gameState, OptimizedGameStateNotifier notifier, bool isSafeTheme) {
+  Widget _buildChestGrid(
+    OptimizedGameState gameState,
+    OptimizedGameStateNotifier notifier,
+    bool isSafeTheme,
+  ) {
     final visibleItems = gameState.chestVisibleItems;
     final pendingItems = gameState.chestPendingItems;
     final totalCount = visibleItems.length + pendingItems.length;
@@ -404,7 +548,10 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           tileChild = Draggable<Item>(
             data: item,
             feedback: _dragFeedback(item),
-            childWhenDragging: Opacity(opacity: 0.4, child: _chestItemTile(item, notifier)),
+            childWhenDragging: Opacity(
+              opacity: 0.4,
+              child: _chestItemTile(item, notifier),
+            ),
             child: _chestItemTile(item, notifier),
           );
           tileKey = 'revealed-${item.name}-${index}';
@@ -412,9 +559,16 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           // 待揭示物品：首个显示旋转搜索覆盖，其余显示静态蒙版
           final pendingIndex = index - visibleItems.length;
           final isActiveSearching = pendingIndex == 0; // 仅首个待揭示显示旋转
-          final Item? currentPendingItem = isActiveSearching && pendingItems.isNotEmpty ? pendingItems.first : null;
+          final Item? currentPendingItem =
+              isActiveSearching && pendingItems.isNotEmpty
+                  ? pendingItems.first
+                  : null;
           // 关键区域：未揭示物品不显示任何级别颜色，仅使用中性样式
-          tileChild = _pendingItemTile(currentPendingItem, isActiveSearching, isSafeTheme);
+          tileChild = _pendingItemTile(
+            currentPendingItem,
+            isActiveSearching,
+            isSafeTheme,
+          );
           tileKey = 'pending-${pendingIndex}';
         }
 
@@ -423,7 +577,10 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           switchInCurve: Curves.easeOutBack,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
-            final scaleAnim = Tween<double>(begin: 0.82, end: 1.0).animate(animation);
+            final scaleAnim = Tween<double>(
+              begin: 0.82,
+              end: 1.0,
+            ).animate(animation);
             return ScaleTransition(scale: scaleAnim, child: child);
           },
           child: KeyedSubtree(key: ValueKey(tileKey), child: tileChild),
@@ -450,10 +607,21 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           // 关键区域：统一圆角为5
           borderRadius: BorderRadius.circular(5),
           // 关键区域：已揭示物品按等级着色边框与阴影
-          border: Border.all(color: _getItemLevelColor(item.level).withValues(alpha: 0.85), width: 1),
+          border: Border.all(
+            color: _getItemLevelColor(item.level).withValues(alpha: 0.85),
+            width: 1,
+          ),
           boxShadow: [
-            BoxShadow(color: _getItemLevelColor(item.level).withValues(alpha: 0.24), blurRadius: 7, offset: const Offset(0, 3)),
-            BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 6)),
+            BoxShadow(
+              color: _getItemLevelColor(item.level).withValues(alpha: 0.24),
+              blurRadius: 7,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         // 关键区域：前景高光叠加（与背包页面一致）
@@ -476,13 +644,23 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
             Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.all(6),
-                child: item.image.isNotEmpty
-                    ? Image.asset(
-                        item.image,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stack) => Icon(_typeIcon(item.type), color: Colors.white, size: 20),
-                      )
-                    : Icon(_typeIcon(item.type), color: Colors.white, size: 20),
+                child:
+                    item.image.isNotEmpty
+                        ? Image.asset(
+                          item.image,
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (context, error, stack) => Icon(
+                                _typeIcon(item.type),
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                        )
+                        : Icon(
+                          _typeIcon(item.type),
+                          color: Colors.white,
+                          size: 20,
+                        ),
               ),
             ),
             Positioned(
@@ -491,24 +669,43 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
               right: 2,
               child: Text(
                 item.count > 1 ? '${item.name} x ${item.count}' : item.name,
-                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600, shadows: [
-                  Shadow(offset: Offset(0.5, 0.5), blurRadius: 1.0, color: Colors.black),
-                ]),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(0.5, 0.5),
+                      blurRadius: 1.0,
+                      color: Colors.black,
+                    ),
+                  ],
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-          if (item.count > 1)
-            Positioned(
-              bottom: 2,
-              right: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                // 关键区域：统一圆角为5
-                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
-                child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+            if (item.count > 1)
+              Positioned(
+                bottom: 2,
+                right: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  // 关键区域：统一圆角为5
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Text(
+                    '${item.count}',
+                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -531,9 +728,20 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
         ),
         // 关键区域：统一圆角为5
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: isSafeTheme ? Colors.lightBlueAccent.withValues(alpha: 0.35) : Colors.white24, width: 1),
+        border: Border.all(
+          color:
+              isSafeTheme
+                  ? Colors.lightBlueAccent.withValues(alpha: 0.35)
+                  : Colors.white24,
+          width: 1,
+        ),
         boxShadow: [
-          BoxShadow(color: (isSafeTheme ? Colors.lightBlueAccent : Colors.black).withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: (isSafeTheme ? Colors.lightBlueAccent : Colors.black)
+                .withValues(alpha: 0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       // 关键区域：前景高光叠加（与背包页面一致）
@@ -559,52 +767,76 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           ),
           // 旋转搜索图标（仅当前项）
           Center(
-            child: isActive
-                ? AnimatedBuilder(
-                    animation: _spinController,
-                    builder: (context, child) {
-                      // 关键区域：动画强度随物品等级增大（level 1..7）
-                      final int lvl = (item?.level ?? 1).clamp(1, 7);
-                      // 关键区域：取消放大镜，仅保留小圆点旋转
-                      final double speedFactor = 1.0; // 基准旋转速度（圆点绕转）
-                      final double baseGlow = 3.0 + (lvl - 1) * 1.5; // 3 .. 12
-                      final double size = 22 + (lvl - 1) * 2.5; // 22 .. 37.0
-                      final double dotSize = 4.0 + (lvl * 0.4); // 中心圆点尺寸（随等级微增）
-                      return Container(
-                        width: size + 8,
-                        height: size + 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: (isSafeTheme ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.35), blurRadius: baseGlow, spreadRadius: 0.0),
-                          ],
-                        ),
-                        // 关键区域：只保留小圆点沿轨道环绕，无放大镜
-                        child: Transform.rotate(
-                          angle: _spinController.value * 2 * math.pi * speedFactor,
-                          child: SizedBox(
-                            width: size,
-                            height: size,
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: Container(
-                                width: dotSize,
-                                height: dotSize,
-                                decoration: BoxDecoration(
-                                  color: isSafeTheme ? Colors.lightBlueAccent : Colors.amber,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(color: (isSafeTheme ? Colors.lightBlueAccent : Colors.amber).withValues(alpha: 0.45), blurRadius: baseGlow, spreadRadius: 0.0),
-                                  ],
+            child:
+                isActive
+                    ? AnimatedBuilder(
+                      animation: _spinController,
+                      builder: (context, child) {
+                        // 关键区域：动画强度随物品等级增大（level 1..7）
+                        final int lvl = (item?.level ?? 1).clamp(1, 7);
+                        // 关键区域：取消放大镜，仅保留小圆点旋转
+                        final double speedFactor = 1.0; // 基准旋转速度（圆点绕转）
+                        final double baseGlow =
+                            3.0 + (lvl - 1) * 1.5; // 3 .. 12
+                        final double size = 22 + (lvl - 1) * 2.5; // 22 .. 37.0
+                        final double dotSize =
+                            4.0 + (lvl * 0.4); // 中心圆点尺寸（随等级微增）
+                        return Container(
+                          width: size + 8,
+                          height: size + 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: (isSafeTheme
+                                        ? Colors.lightBlueAccent
+                                        : Colors.amber)
+                                    .withValues(alpha: 0.35),
+                                blurRadius: baseGlow,
+                                spreadRadius: 0.0,
+                              ),
+                            ],
+                          ),
+                          // 关键区域：只保留小圆点沿轨道环绕，无放大镜
+                          child: Transform.rotate(
+                            angle:
+                                _spinController.value *
+                                2 *
+                                math.pi *
+                                speedFactor,
+                            child: SizedBox(
+                              width: size,
+                              height: size,
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: Container(
+                                  width: dotSize,
+                                  height: dotSize,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSafeTheme
+                                            ? Colors.lightBlueAccent
+                                            : Colors.amber,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (isSafeTheme
+                                                ? Colors.lightBlueAccent
+                                                : Colors.amber)
+                                            .withValues(alpha: 0.45),
+                                        blurRadius: baseGlow,
+                                        spreadRadius: 0.0,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                  );
-                },
-              )
-                : const SizedBox.shrink(),
+                        );
+                      },
+                    )
+                    : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -630,43 +862,40 @@ class _ChestSearchOverlayState extends ConsumerState<ChestSearchOverlay> with Si
           // 关键区域：统一圆角为5
           borderRadius: BorderRadius.circular(5),
           // 关键区域：拖拽反馈边框按等级着色
-          border: Border.all(color: _getItemLevelColor(item.level).withValues(alpha: 0.9)),
+          border: Border.all(
+            color: _getItemLevelColor(item.level).withValues(alpha: 0.9),
+          ),
           boxShadow: [
-            BoxShadow(color: _getItemLevelColor(item.level).withValues(alpha: 0.30), blurRadius: 8, offset: const Offset(0, 3)),
+            BoxShadow(
+              color: _getItemLevelColor(item.level).withValues(alpha: 0.30),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
           ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(6),
-          child: item.image.isNotEmpty
-              ? Image.asset(
-                  item.image,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stack) => Icon(_typeIcon(item.type), color: Colors.white, size: 18),
-                )
-              : Icon(_typeIcon(item.type), color: Colors.white, size: 18),
+          child:
+              item.image.isNotEmpty
+                  ? Image.asset(
+                    item.image,
+                    fit: BoxFit.contain,
+                    errorBuilder:
+                        (context, error, stack) => Icon(
+                          _typeIcon(item.type),
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                  )
+                  : Icon(_typeIcon(item.type), color: Colors.white, size: 18),
         ),
       ),
     );
   }
 
-  // 关键区域：按物品等级返回颜色（与背包页面/结算页保持一致）
+  // 关键区域：按物品等级返回颜色（使用统一的等级颜色管理）
   Color _getItemLevelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.grey.shade600; // 无色
-      case 2:
-        return Colors.green.shade400; // 绿色
-      case 3:
-        return Colors.blue.shade400; // 蓝色
-      case 4:
-        return Colors.purple.shade400; // 紫色
-      case 5:
-        return Colors.amber.shade400; // 金色
-      case 6:
-        return Colors.red.shade400; // 红色
-      default:
-        return Colors.grey.shade600; // 默认无色
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   IconData _typeIcon(String type) {

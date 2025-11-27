@@ -123,7 +123,7 @@ class _OxygenRecoveryProgressState extends State<OxygenRecoveryProgress>
                 height: 20,
                 decoration: BoxDecoration(
                   color: Colors.grey[800],
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color: Colors.cyan.withOpacity(0.3),
                     width: 1,
@@ -139,7 +139,7 @@ class _OxygenRecoveryProgressState extends State<OxygenRecoveryProgress>
                         gradient: LinearGradient(
                           colors: [Colors.cyan.withOpacity(0.6), Colors.cyan],
                         ),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     ),
 

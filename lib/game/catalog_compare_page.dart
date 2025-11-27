@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:escape_from_school/data/props.dart';
+import 'package:escape_from_school/utils/level_color_manager.dart';
 
 class CatalogComparePage extends StatelessWidget {
   final Item a;
@@ -704,24 +705,7 @@ class CatalogComparePage extends StatelessWidget {
   }
 
   Color _getItemLevelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.white;
-      case 2:
-        return Colors.greenAccent;
-      case 3:
-        return Colors.blueAccent;
-      case 4:
-        return Colors.purpleAccent;
-      case 5:
-        return Colors.amberAccent;
-      case 6:
-        return Colors.redAccent;
-      case 7:
-        return Colors.cyanAccent;
-      default:
-        return Colors.white;
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   String _effectName(String key) {

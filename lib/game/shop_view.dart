@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'optimized_game_state.dart';
+import '../utils/level_color_manager.dart';
 
 /// 商店可见性状态选择器 - 只监听商店显示状态
 final shopVisibilityProvider = Provider<bool>((ref) {
@@ -884,22 +885,7 @@ class _ShopRefreshTimerState extends ConsumerState<ShopRefreshTimer> {
   }
 }
 
-// 关键区域：商店页面等级颜色映射（按用户指定标准）
+// 关键区域：商店页面等级颜色映射（使用统一的等级颜色管理）
 Color _getItemLevelColor(int level) {
-  switch (level) {
-    case 1:
-      return Colors.grey.shade600; // 无色
-    case 2:
-      return Colors.green.shade400; // 绿色
-    case 3:
-      return Colors.blue.shade400; // 蓝色
-    case 4:
-      return Colors.purple.shade400; // 紫色
-    case 5:
-      return Colors.amber.shade400; // 金色
-    case 6:
-      return Colors.red.shade400; // 红色
-    default:
-      return Colors.grey.shade600; // 默认无色
-  }
+  return LevelColorManager.getItemLevelColor(level);
 }

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'optimized_game_state.dart';
 import 'package:escape_from_school/data/props.dart';
+import 'package:escape_from_school/utils/level_color_manager.dart';
 
 class SafeSearchOverlay extends ConsumerStatefulWidget {
   const SafeSearchOverlay({Key? key}) : super(key: key);
@@ -15,14 +16,17 @@ class SafeSearchOverlay extends ConsumerStatefulWidget {
   ConsumerState<SafeSearchOverlay> createState() => _SafeSearchOverlayState();
 }
 
-class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with SingleTickerProviderStateMixin {
+class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _spinController;
 
   @override
   void initState() {
     super.initState();
-    _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
-      ..repeat();
+    _spinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
   }
 
   @override
@@ -40,7 +44,8 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
       return const SizedBox.shrink();
     }
 
-    final bool isSafe = gameState.currentExploringChest != null &&
+    final bool isSafe =
+        gameState.currentExploringChest != null &&
         gameState.safePositions.contains(gameState.currentExploringChest!);
     if (!isSafe) {
       return const SizedBox.shrink();
@@ -69,11 +74,19 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                   children: [
                     Row(
                       children: const [
-                        Icon(Icons.lock, color: Colors.lightBlueAccent, size: 20),
+                        Icon(
+                          Icons.lock,
+                          color: Colors.lightBlueAccent,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           '保险箱搜索',
-                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -82,11 +95,19 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                         notifier.closeChestSearch();
                       },
                       icon: const Icon(Icons.close, color: Colors.white),
-                      label: const Text('关闭', style: TextStyle(color: Colors.white)),
+                      label: const Text(
+                        '关闭',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.blue.withValues(alpha: 0.28),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(5),
+                        ),
                       ),
                     ),
                   ],
@@ -103,15 +124,31 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Colors.blueGrey.shade900.withValues(alpha: 0.87),
-                                Colors.blueGrey.shade800.withValues(alpha: 0.76),
+                                Colors.blueGrey.shade900.withValues(
+                                  alpha: 0.87,
+                                ),
+                                Colors.blueGrey.shade800.withValues(
+                                  alpha: 0.76,
+                                ),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: Colors.blueGrey.shade400.withValues(alpha: 0.5)),
+                            border: Border.all(
+                              color: Colors.blueGrey.shade400.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 14, offset: const Offset(0, 6)),
-                              BoxShadow(color: Colors.white.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(-1, -1)),
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.45),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                blurRadius: 6,
+                                offset: const Offset(-1, -1),
+                              ),
                             ],
                           ),
                           foregroundDecoration: BoxDecoration(
@@ -119,23 +156,30 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.06),
-                                  Colors.transparent,
-                                  Colors.white.withValues(alpha: 0.02),
-                                ],
+                              colors: [
+                                Colors.white.withValues(alpha: 0.06),
+                                Colors.transparent,
+                                Colors.white.withValues(alpha: 0.02),
+                              ],
                               stops: const [0.0, 0.55, 1.0],
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _panelHeader('玩家背包', Icons.inventory_2, Colors.cyan),
+                              _panelHeader(
+                                '玩家背包',
+                                Icons.inventory_2,
+                                Colors.cyan,
+                              ),
                               const Divider(height: 1, color: Colors.white24),
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: _buildInventoryGrid(gameState, notifier),
+                                  child: _buildInventoryGrid(
+                                    gameState,
+                                    notifier,
+                                  ),
                                 ),
                               ),
                             ],
@@ -151,15 +195,33 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Colors.blueGrey.shade900.withValues(alpha: 0.88),
-                                Colors.blueGrey.shade800.withValues(alpha: 0.79),
+                                Colors.blueGrey.shade900.withValues(
+                                  alpha: 0.88,
+                                ),
+                                Colors.blueGrey.shade800.withValues(
+                                  alpha: 0.79,
+                                ),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.6)),
+                            border: Border.all(
+                              color: Colors.lightBlueAccent.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 16, offset: const Offset(0, 7)),
-                              BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2)),
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.50),
+                                blurRadius: 16,
+                                offset: const Offset(0, 7),
+                              ),
+                              BoxShadow(
+                                color: Colors.lightBlueAccent.withValues(
+                                  alpha: 0.08,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
                             ],
                           ),
                           foregroundDecoration: BoxDecoration(
@@ -167,18 +229,22 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.06),
-                                  Colors.transparent,
-                                  Colors.white.withValues(alpha: 0.02),
-                                ],
+                              colors: [
+                                Colors.white.withValues(alpha: 0.06),
+                                Colors.transparent,
+                                Colors.white.withValues(alpha: 0.02),
+                              ],
                               stops: const [0.0, 0.55, 1.0],
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _panelHeader('保险箱', Icons.lock, Colors.lightBlueAccent),
+                              _panelHeader(
+                                '保险箱',
+                                Icons.lock,
+                                Colors.lightBlueAccent,
+                              ),
                               const Divider(height: 1, color: Colors.white24),
                               Expanded(
                                 child: Padding(
@@ -220,19 +286,36 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                 ],
               ),
               borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.35), width: 1),
+              border: Border.all(
+                color: Colors.cyanAccent.withValues(alpha: 0.35),
+                width: 1,
+              ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 3)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
-            child: Text(title, style: TextStyle(color: Colors.cyanAccent.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text(
+              title,
+              style: TextStyle(
+                color: Colors.cyanAccent.withValues(alpha: 0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInventoryGrid(OptimizedGameState gameState, OptimizedGameStateNotifier notifier) {
+  Widget _buildInventoryGrid(
+    OptimizedGameState gameState,
+    OptimizedGameStateNotifier notifier,
+  ) {
     final capacity = gameState.inventoryCapacity;
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -244,7 +327,8 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
       itemCount: capacity,
       itemBuilder: (context, index) {
         final bool hasItem = index < gameState.playerInventory.length;
-        final Item? currentItem = hasItem ? gameState.playerInventory[index] : null;
+        final Item? currentItem =
+            hasItem ? gameState.playerInventory[index] : null;
         return DragTarget<Item>(
           onWillAcceptWithDetails: (details) => true,
           onAccept: (draggedItem) {
@@ -254,14 +338,23 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
             final hovering = candidate.isNotEmpty;
             return Container(
               decoration: BoxDecoration(
-                color: hasItem ? Colors.black.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.3),
+                color:
+                    hasItem
+                        ? Colors.black.withValues(alpha: 0.6)
+                        : Colors.black.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(5),
                 border: Border.all(
-                  color: hovering ? Colors.cyanAccent.withValues(alpha: 0.8) : Colors.white24,
+                  color:
+                      hovering
+                          ? Colors.cyanAccent.withValues(alpha: 0.8)
+                          : Colors.white24,
                   width: 1,
                 ),
               ),
-              child: hasItem ? _inventoryItemTile(currentItem!) : _emptySlotTile(index),
+              child:
+                  hasItem
+                      ? _inventoryItemTile(currentItem!)
+                      : _emptySlotTile(index),
             );
           },
         );
@@ -301,13 +394,23 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
             ),
             child: Padding(
               padding: const EdgeInsets.all(6),
-              child: item.image.isNotEmpty
-                  ? Image.asset(
-                      item.image,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stack) => Icon(_typeIcon(item.type), color: Colors.white, size: 18),
-                    )
-                  : Icon(_typeIcon(item.type), color: Colors.white, size: 18),
+              child:
+                  item.image.isNotEmpty
+                      ? Image.asset(
+                        item.image,
+                        fit: BoxFit.contain,
+                        errorBuilder:
+                            (context, error, stack) => Icon(
+                              _typeIcon(item.type),
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                      )
+                      : Icon(
+                        _typeIcon(item.type),
+                        color: Colors.white,
+                        size: 18,
+                      ),
             ),
           ),
         ),
@@ -317,9 +420,18 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
           right: 2,
           child: Text(
             item.name,
-            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w500, shadows: [
-              Shadow(offset: Offset(0.5, 0.5), blurRadius: 1.0, color: Colors.black),
-            ]),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 8,
+              fontWeight: FontWeight.w500,
+              shadows: [
+                Shadow(
+                  offset: Offset(0.5, 0.5),
+                  blurRadius: 1.0,
+                  color: Colors.black,
+                ),
+              ],
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -330,8 +442,15 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
             right: 2,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
-              child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Text(
+                '${item.count}',
+                style: const TextStyle(color: Colors.white, fontSize: 10),
+              ),
             ),
           ),
       ],
@@ -342,12 +461,18 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
     return Center(
       child: Text(
         '${index + 1}',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 10),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.3),
+          fontSize: 10,
+        ),
       ),
     );
   }
 
-  Widget _buildSafeGrid(OptimizedGameState gameState, OptimizedGameStateNotifier notifier) {
+  Widget _buildSafeGrid(
+    OptimizedGameState gameState,
+    OptimizedGameStateNotifier notifier,
+  ) {
     final visibleItems = gameState.chestVisibleItems;
     final pendingItems = gameState.chestPendingItems;
     final totalCount = visibleItems.length + pendingItems.length;
@@ -370,14 +495,20 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
           tileChild = Draggable<Item>(
             data: item,
             feedback: _dragFeedback(item),
-            childWhenDragging: Opacity(opacity: 0.4, child: _safeItemTile(item, notifier)),
+            childWhenDragging: Opacity(
+              opacity: 0.4,
+              child: _safeItemTile(item, notifier),
+            ),
             child: _safeItemTile(item, notifier),
           );
           tileKey = 'revealed-${item.name}-${index}';
         } else {
           final pendingIndex = index - visibleItems.length;
           final isActiveSearching = pendingIndex == 0;
-          final Item? currentPendingItem = isActiveSearching && pendingItems.isNotEmpty ? pendingItems.first : null;
+          final Item? currentPendingItem =
+              isActiveSearching && pendingItems.isNotEmpty
+                  ? pendingItems.first
+                  : null;
           tileChild = _pendingItemTile(currentPendingItem, isActiveSearching);
           tileKey = 'pending-${pendingIndex}';
         }
@@ -387,7 +518,10 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
           switchInCurve: Curves.easeOutBack,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
-            final scaleAnim = Tween<double>(begin: 0.82, end: 1.0).animate(animation);
+            final scaleAnim = Tween<double>(
+              begin: 0.82,
+              end: 1.0,
+            ).animate(animation);
             return ScaleTransition(scale: scaleAnim, child: child);
           },
           child: KeyedSubtree(key: ValueKey(tileKey), child: tileChild),
@@ -410,10 +544,21 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
             ],
           ),
           borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.85), width: 1),
+          border: Border.all(
+            color: Colors.lightBlueAccent.withValues(alpha: 0.85),
+            width: 1,
+          ),
           boxShadow: [
-            BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.24), blurRadius: 7, offset: const Offset(0, 3)),
-            BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 6)),
+            BoxShadow(
+              color: Colors.lightBlueAccent.withValues(alpha: 0.24),
+              blurRadius: 7,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         foregroundDecoration: BoxDecoration(
@@ -434,13 +579,23 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
             Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.all(6),
-                child: item.image.isNotEmpty
-                    ? Image.asset(
-                        item.image,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stack) => Icon(_typeIcon(item.type), color: Colors.white, size: 20),
-                      )
-                    : Icon(_typeIcon(item.type), color: Colors.white, size: 20),
+                child:
+                    item.image.isNotEmpty
+                        ? Image.asset(
+                          item.image,
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (context, error, stack) => Icon(
+                                _typeIcon(item.type),
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                        )
+                        : Icon(
+                          _typeIcon(item.type),
+                          color: Colors.white,
+                          size: 20,
+                        ),
               ),
             ),
             Positioned(
@@ -449,9 +604,18 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
               right: 2,
               child: Text(
                 item.count > 1 ? '${item.name} x ${item.count}' : item.name,
-                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600, shadows: [
-                  Shadow(offset: Offset(0.5, 0.5), blurRadius: 1.0, color: Colors.black),
-                ]),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(0.5, 0.5),
+                      blurRadius: 1.0,
+                      color: Colors.black,
+                    ),
+                  ],
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -461,9 +625,19 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
                 bottom: 2,
                 right: 2,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24)),
-                  child: Text('${item.count}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Text(
+                    '${item.count}',
+                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                  ),
                 ),
               ),
           ],
@@ -478,15 +652,19 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A1F24),
-            Color(0xFF0F1418),
-          ],
+          colors: [Color(0xFF1A1F24), Color(0xFF0F1418)],
         ),
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.35), width: 1),
+        border: Border.all(
+          color: Colors.lightBlueAccent.withValues(alpha: 0.35),
+          width: 1,
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: Colors.lightBlueAccent.withValues(alpha: 0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       foregroundDecoration: BoxDecoration(
@@ -504,51 +682,69 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
       ),
       child: Stack(
         children: [
-          Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.14))),
+          Positioned.fill(
+            child: Container(color: Colors.black.withValues(alpha: 0.14)),
+          ),
           Center(
-            child: isActive
-                ? AnimatedBuilder(
-                    animation: _spinController,
-                    builder: (context, child) {
-                      final int lvl = (item?.level ?? 1).clamp(1, 7);
-                      final double speedFactor = 1.0;
-                      final double baseGlow = 3.0 + (lvl - 1) * 1.5;
-                      final double size = 22 + (lvl - 1) * 2.5;
-                      final double dotSize = 4.0 + (lvl * 0.4);
-                      return Container(
-                        width: size + 8,
-                        height: size + 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.35), blurRadius: baseGlow, spreadRadius: 0.0),
-                          ],
-                        ),
-                        child: Transform.rotate(
-                          angle: _spinController.value * 2 * math.pi * speedFactor,
-                          child: SizedBox(
-                            width: size,
-                            height: size,
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: Container(
-                                width: dotSize,
-                                height: dotSize,
-                                decoration: BoxDecoration(
-                                  color: Colors.lightBlueAccent,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.45), blurRadius: baseGlow, spreadRadius: 0.0),
-                                  ],
+            child:
+                isActive
+                    ? AnimatedBuilder(
+                      animation: _spinController,
+                      builder: (context, child) {
+                        final int lvl = (item?.level ?? 1).clamp(1, 7);
+                        final double speedFactor = 1.0;
+                        final double baseGlow = 3.0 + (lvl - 1) * 1.5;
+                        final double size = 22 + (lvl - 1) * 2.5;
+                        final double dotSize = 4.0 + (lvl * 0.4);
+                        return Container(
+                          width: size + 8,
+                          height: size + 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.lightBlueAccent.withValues(
+                                  alpha: 0.35,
+                                ),
+                                blurRadius: baseGlow,
+                                spreadRadius: 0.0,
+                              ),
+                            ],
+                          ),
+                          child: Transform.rotate(
+                            angle:
+                                _spinController.value *
+                                2 *
+                                math.pi *
+                                speedFactor,
+                            child: SizedBox(
+                              width: size,
+                              height: size,
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: Container(
+                                  width: dotSize,
+                                  height: dotSize,
+                                  decoration: BoxDecoration(
+                                    color: Colors.lightBlueAccent,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.lightBlueAccent
+                                            .withValues(alpha: 0.45),
+                                        blurRadius: baseGlow,
+                                        spreadRadius: 0.0,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  )
-                : const SizedBox.shrink(),
+                        );
+                      },
+                    )
+                    : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -571,42 +767,39 @@ class _SafeSearchOverlayState extends ConsumerState<SafeSearchOverlay> with Sing
             ],
           ),
           borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: Colors.lightBlueAccent.withValues(alpha: 0.9)),
+          border: Border.all(
+            color: Colors.lightBlueAccent.withValues(alpha: 0.9),
+          ),
           boxShadow: [
-            BoxShadow(color: Colors.lightBlueAccent.withValues(alpha: 0.30), blurRadius: 8, offset: const Offset(0, 3)),
+            BoxShadow(
+              color: Colors.lightBlueAccent.withValues(alpha: 0.30),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
           ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(6),
-          child: item.image.isNotEmpty
-              ? Image.asset(
-                  item.image,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stack) => Icon(_typeIcon(item.type), color: Colors.white, size: 18),
-                )
-              : Icon(_typeIcon(item.type), color: Colors.white, size: 18),
+          child:
+              item.image.isNotEmpty
+                  ? Image.asset(
+                    item.image,
+                    fit: BoxFit.contain,
+                    errorBuilder:
+                        (context, error, stack) => Icon(
+                          _typeIcon(item.type),
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                  )
+                  : Icon(_typeIcon(item.type), color: Colors.white, size: 18),
         ),
       ),
     );
   }
 
   Color _getItemLevelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.grey.shade600;
-      case 2:
-        return Colors.green.shade400;
-      case 3:
-        return Colors.blue.shade400;
-      case 4:
-        return Colors.purple.shade400;
-      case 5:
-        return Colors.amber.shade400;
-      case 6:
-        return Colors.red.shade400;
-      default:
-        return Colors.grey.shade600;
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   IconData _typeIcon(String type) {

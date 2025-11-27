@@ -2637,13 +2637,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           movement.velocityY +
           (targetVelocityY - movement.velocityY) * _acceleration * _deltaTime;
     } else {
-      // 应用摩擦力减速
-      newVelocityX = movement.velocityX * (1.0 - _friction * _deltaTime);
-      newVelocityY = movement.velocityY * (1.0 - _friction * _deltaTime);
-
-      // 速度很小时直接停止
-      if (newVelocityX.abs() < 0.01) newVelocityX = 0.0;
-      if (newVelocityY.abs() < 0.01) newVelocityY = 0.0;
+      // 松开轮盘立即停止，不再应用摩擦力减速
+      newVelocityX = 0.0;
+      newVelocityY = 0.0;
     }
 
     // 计算新位置

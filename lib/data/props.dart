@@ -12,7 +12,7 @@
 // - 护甲最大耐久由 equipEffects["armorValue"] 提供
 // - 当前耐久使用 Item.count 记录；显示为 count/armorValue
 // - 护甲抗伤机制：先削弱 50% 伤害，再按等级比例分配到护甲与玩家
-// 关键区域：effects 支持的键 
+// 关键区域：effects 支持的键
 // - hp：修改生命值（按当前 maxHp 夹取）
 // - maxHp：修改生命值上限（至少为 1；若降低会夹取 hp）
 // - food：修改饱食度（按当前 maxFood 夹取）
@@ -29,16 +29,16 @@ class Item {
   final String description;
   final Map<String, int> effects; // {hp: 10, gold: 5, maxHp: 20, maxFood: -10}
   final String type; // 新增：物品类型（严格为“物品”或“装备”）
-  final int count;   // 新增：物品数量
+  final int count; // 新增：物品数量
   final bool availableInShop; // 新增：是否在商店出售
-  final int basePrice;       // 新增：基础价格
-  final int usageTime;       // 新增：使用时间（毫秒）
-  final int level;           // 新增：物品等级（1-7）
+  final int basePrice; // 新增：基础价格
+  final int usageTime; // 新增：使用时间（毫秒）
+  final int level; // 新增：物品等级（1-7）
   // 关键区域：装备专属字段
   final String? equipmentSlot; // 装备部位：weapon/armor/head/bag/pants/shoes
   // 关键区域：每件武器的独立弹药状态（与护甲耐久类似按件保存）
-  final int? clipAmmo;      // 当前弹夹内弹药
-  final int? ammoReserve;   // 当前备用弹药（不含弹夹）
+  final int? clipAmmo; // 当前弹夹内弹药
+  final int? ammoReserve; // 当前备用弹药（不含弹夹）
   // 关键区域：武器模板参数（从物品读取并应用到攻击效果）
   // 键说明（全部使用英文）：
   // - attackType        攻击类型：'melee' 或 'ranged'
@@ -59,6 +59,9 @@ class Item {
   // - fireIntervalMs    单发间隔（毫秒），用于节流单点与长按连发；详情页射速 = ceil(1000/fireIntervalMs) 发/秒
   // - magazineSize      弹夹容量（>0 表示使用弹药系统）
   // - ammoTotal         备用弹药总量（不含弹夹）
+  // - bulletSize        子弹大小倍数：默认 1.0（1倍大小），大于1时放大（如2表示2倍）
+  //                      远程武器：修改子弹视觉效果大小
+  //                      近战武器：修改武器的攻击范围大小
   final Map<String, dynamic>? weaponParams;
   // final Map<String, int>? equipEffects; // 装备效果加成（佩戴生效）
 
@@ -88,7 +91,7 @@ final List<Item> allItems = [
     name: '美去人通便汉堡',
     image: 'images/items/hanbao.png',
     description: '钻研肠胃科主任为何把最灵的药藏在这里',
-    effects: {'hp': -2,'food': 20},
+    effects: {'hp': -2, 'food': 20},
     type: 'item',
     availableInShop: false,
     basePrice: 16,
@@ -100,7 +103,7 @@ final List<Item> allItems = [
     name: '半生不熟鱼',
     image: 'images/items/fish01.png',
     description: '苦心钻研匠心制造还没煮熟的鱼',
-    effects: {'hp': -5,'food':10,'san':-5,'moveSpeed':-5}, // 移动速度减少5
+    effects: {'hp': -5, 'food': 10, 'san': -5, 'moveSpeed': -5}, // 移动速度减少5
     type: 'item',
     availableInShop: true,
     basePrice: 8,
@@ -112,7 +115,7 @@ final List<Item> allItems = [
     name: '熟鱼',
     image: 'images/items/fish02.png',
     description: '30年阳寿换来一条煮熟的鱼',
-    effects: {'hp': -5,'food':50,'san':20},
+    effects: {'hp': -5, 'food': 50, 'san': 20},
     type: 'item',
     availableInShop: true,
     basePrice: 12,
@@ -124,7 +127,7 @@ final List<Item> allItems = [
     name: '尘封已久的鱼',
     image: 'images/items/fish03.png',
     description: '这样吃了没事吧？反正举报也没用管他的',
-    effects: {'hp': -10,'food':5,'san':-15,'moveSpeed':-5}, // 移动速度减少5
+    effects: {'hp': -10, 'food': 5, 'san': -15, 'moveSpeed': -5}, // 移动速度减少5
     type: 'item',
     availableInShop: true,
     basePrice: 8,
@@ -132,27 +135,27 @@ final List<Item> allItems = [
     level: 1, // 无色等级
   ),
   Item(
-      id: 'book01',
-      name: '学生守则',
-      image: 'images/items/book.png',
-      description: '三百多页？不管了看一下吧说不定有好处',
-      effects: {'san':-25,'moveSpeed': 10}, // 移动速度增加10
-      type: 'item',
-      availableInShop: true,
-      basePrice: 0,
-      usageTime: 5000, // 阅读书籍需要5秒
-      level: 1, 
+    id: 'book01',
+    name: '学生守则',
+    image: 'images/items/book.png',
+    description: '三百多页？不管了看一下吧说不定有好处',
+    effects: {'san': -25, 'moveSpeed': 10}, // 移动速度增加10
+    type: 'item',
+    availableInShop: true,
+    basePrice: 0,
+    usageTime: 5000, // 阅读书籍需要5秒
+    level: 1,
   ),
   Item(
     id: 'shit',
-    name: '不可名之物', 
-    image: 'images/items/shit.png', 
-    description: '或许我们真的可以尝试一下', 
-    effects: {'san':-30,'hp':-10,'food':20,},
+    name: '不可名之物',
+    image: 'images/items/shit.png',
+    description: '或许我们真的可以尝试一下',
+    effects: {'san': -30, 'hp': -10, 'food': 20},
     level: 3,
     availableInShop: false,
-    usageTime: 5000
-    ),
+    usageTime: 5000,
+  ),
 
   Item(
     id: 'energy_bar',
@@ -171,7 +174,7 @@ final List<Item> allItems = [
     name: '能量棒',
     image: 'images/items/hpbang.png',
     description: '高能量营养棒，能够快速恢复体力和精神状态',
-    effects: {'san': 10, 'hp': 20, 'food': 10,'maxHp':1},
+    effects: {'san': 10, 'hp': 20, 'food': 10, 'maxHp': 1},
     type: 'item',
     level: 4,
     availableInShop: true,
@@ -231,7 +234,7 @@ final List<Item> allItems = [
     name: '胡萝卜',
     image: 'images/items/carrot.png',
     description: '我吃吃吃',
-    effects: {'san': 20, 'food': 5,},
+    effects: {'san': 20, 'food': 5},
     type: 'item',
     level: 3,
     availableInShop: true,
@@ -243,7 +246,13 @@ final List<Item> allItems = [
     name: '奇怪的粉末',
     image: 'images/items/allbang.png',
     description: '吃了会有什么效果？',
-    effects: {'san': 40, 'food': 1,'maxHp':-1,'moveSpeed':-1,'oxygenBonus':-1},
+    effects: {
+      'san': 40,
+      'food': 1,
+      'maxHp': -1,
+      'moveSpeed': -1,
+      'oxygenBonus': -1,
+    },
     type: 'item',
     level: 4,
     availableInShop: false,
@@ -300,7 +309,7 @@ final List<Item> allItems = [
     name: '牛仔帽',
     image: 'images/items/niuzai.png',
     description: '无所畏惧',
-    effects: const {'maxHp': -40,'moveSpeed': 70,'san': 20},
+    effects: const {'maxHp': -40, 'moveSpeed': 70, 'san': 20},
     type: 'equipment',
     equipmentSlot: 'head',
     level: 4,
@@ -309,10 +318,10 @@ final List<Item> allItems = [
   ),
   Item(
     id: 'speed_gloves',
-    name: '动力手套', 
+    name: '动力手套',
     image: 'images/items/speedGloves.png',
     description: '禁忌的九号之力',
-    effects: const {'moveSpeed': 40,'punish': 1},
+    effects: const {'moveSpeed': 40, 'punish': 1},
     type: 'equipment',
     equipmentSlot: 'weapon', // 关键区域：对应武器槽
     level: 4,
@@ -380,7 +389,7 @@ final List<Item> allItems = [
     name: 'M3轻型',
     image: 'images/items/m-three-fangdan.png',
     description: '可格挡大量伤害，耐久耗尽后失去格挡能力',
-    effects: const {'armorValue': 40,'moveSpeed':-5},
+    effects: const {'armorValue': 40, 'moveSpeed': -5},
     type: 'equipment',
     equipmentSlot: 'armor',
     count: 40,
@@ -393,7 +402,7 @@ final List<Item> allItems = [
     name: 'M1轻型',
     image: 'images/items/m-one-fangdan.png',
     description: '可格挡大量伤害，耐久耗尽后失去格挡能力',
-    effects: const {'armorValue': 40,'moveSpeed':-1},
+    effects: const {'armorValue': 40, 'moveSpeed': -1},
     type: 'equipment',
     equipmentSlot: 'armor',
     count: 40,
@@ -417,8 +426,14 @@ final List<Item> allItems = [
     name: '啤酒',
     image: 'images/items/wine.png',
     description: '你会吃处分的',
-    effects: const {'moveSpeed': -10,'maxHp': 4,'san': 20,'punish': 2,'baseDamage':2},
-    type:'item',
+    effects: const {
+      'moveSpeed': -10,
+      'maxHp': 4,
+      'san': 20,
+      'punish': 2,
+      'baseDamage': 2,
+    },
+    type: 'item',
     level: 3,
     usageTime: 2000,
   ),
@@ -430,7 +445,7 @@ final List<Item> allItems = [
     type: 'equipment',
     // 关键区域：背包装备到 bag 槽位，装备效果为增加2格背包容量
     equipmentSlot: 'bag',
-    effects: const {'inventoryBonus': 8,'moveSpeed': -5},
+    effects: const {'inventoryBonus': 8, 'moveSpeed': -5},
     level: 3,
     availableInShop: true,
     basePrice: 80,
@@ -440,7 +455,7 @@ final List<Item> allItems = [
     name: 'G1手枪',
     image: 'images/items/g-one-gun.png',
     description: '普通手枪',
-    type: 'equipment', 
+    type: 'equipment',
     equipmentSlot: 'weapon',
     effects: const {'moveSpeed': 2},
     level: 3,
@@ -467,7 +482,7 @@ final List<Item> allItems = [
     name: 'M1手枪',
     image: 'images/items/m-one-gun.png',
     description: '全自动激发',
-    type: 'equipment', 
+    type: 'equipment',
     equipmentSlot: 'weapon',
     effects: const {'moveSpeed': 2},
     level: 3,
@@ -493,7 +508,7 @@ final List<Item> allItems = [
     name: 'G18',
     image: 'images/items/g-eteen-gun.png',
     description: '全自动激发',
-    type: 'equipment', 
+    type: 'equipment',
     equipmentSlot: 'weapon',
     effects: const {'moveSpeed': 2},
     level: 5,
@@ -520,7 +535,7 @@ final List<Item> allItems = [
     name: 'G18-ultra',
     image: 'images/items/g-eteen-ultra-gun.png',
     description: '',
-    type: 'equipment', 
+    type: 'equipment',
     equipmentSlot: 'weapon',
     effects: const {'moveSpeed': 8},
     level: 6,
@@ -547,7 +562,7 @@ final List<Item> allItems = [
     name: '弓',
     image: 'images/items/bow.png',
     description: '穿透世界',
-    type: 'equipment', 
+    type: 'equipment',
     equipmentSlot: 'weapon',
     effects: const {'moveSpeed': 9},
     level: 3,
@@ -577,7 +592,13 @@ final List<Item> allItems = [
     type: 'item',
     level: 5,
     usageTime: 8000,
-    effects: const {'oxygenBonus': 6,'moveSpeed': 6,'san': 66,'maxFood': 6,'maxHp': 6,},
+    effects: const {
+      'oxygenBonus': 6,
+      'moveSpeed': 6,
+      'san': 66,
+      'maxFood': 6,
+      'maxHp': 6,
+    },
     availableInShop: true,
     basePrice: 66,
   ),
@@ -587,7 +608,13 @@ final List<Item> allItems = [
     image: 'images/items/Tactical-Manual.png',
     description: '学习更多校园格斗技巧',
     type: 'item',
-    effects: const {'oxygenBonus': 2,'hp': -5,'san':15,'moveSpeed': 2 ,'baseDamage':2},
+    effects: const {
+      'oxygenBonus': 2,
+      'hp': -5,
+      'san': 15,
+      'moveSpeed': 2,
+      'baseDamage': 2,
+    },
     level: 4,
     availableInShop: true,
     basePrice: 80,
@@ -599,7 +626,7 @@ final List<Item> allItems = [
     image: 'images/items/hypervent_kit.png',
     description: '训练过度呼吸，提高氧气值',
     type: 'item',
-    effects: const {'oxygenBonus': 4,'hp': -5,'san':15},
+    effects: const {'oxygenBonus': 4, 'hp': -5, 'san': 15},
     level: 4,
     availableInShop: false,
     usageTime: 7000,
@@ -622,7 +649,7 @@ final List<Item> allItems = [
     image: 'images/items/calming_tablet.png',
     description: '怎么学校什么都有',
     type: 'item',
-    effects: const {'san': 25 ,'moveSpeed': -2,'baseDamage': -1,'maxHp': -1},
+    effects: const {'san': 25, 'moveSpeed': -2, 'baseDamage': -1, 'maxHp': -1},
     level: 3,
     availableInShop: true,
     basePrice: 20,
@@ -634,10 +661,10 @@ final List<Item> allItems = [
     image: 'images/items/discipline_report.png',
     description: '笑都笑不出来',
     type: 'item',
-    effects: const {'punish': -1 ,'san': -5},
+    effects: const {'punish': -1, 'san': -5},
     level: 4,
     usageTime: 5000,
-  ),  
+  ),
   Item(
     id: 'broken_gold',
     name: '破碎的金币',
@@ -653,7 +680,7 @@ final List<Item> allItems = [
     image: 'images/items/battle_charm.png',
     description: '',
     type: 'item',
-    effects: const {'baseDamage': 1,'san': -5,'maxHp': -1},
+    effects: const {'baseDamage': 1, 'san': -5, 'maxHp': -1},
     level: 2,
     usageTime: 2000,
   ),
@@ -663,11 +690,11 @@ final List<Item> allItems = [
     image: 'images/items/canned.png',
     description: '',
     type: 'item',
-    effects: const {'food': 25,'san': -5},
+    effects: const {'food': 25, 'san': -5},
     level: 3,
     availableInShop: true,
     basePrice: 17,
-    usageTime: 2500
+    usageTime: 2500,
   ),
   Item(
     id: 'water',
@@ -675,7 +702,7 @@ final List<Item> allItems = [
     image: 'images/items/water.png',
     description: '',
     type: 'item',
-    effects: const {'food': 6,'san': 2},
+    effects: const {'food': 6, 'san': 2},
     level: 2,
     availableInShop: true,
     basePrice: 4,
@@ -687,7 +714,7 @@ final List<Item> allItems = [
     image: 'images/items/apple.png',
     description: '',
     type: 'item',
-    effects: const {'food': 8,'hp': 5},
+    effects: const {'food': 8, 'hp': 5},
     level: 2,
     availableInShop: true,
     basePrice: 8,
@@ -705,5 +732,32 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 20,
   ),
-
+  Item(
+    id: 'cook_gun',
+    name: '厨师的枪',
+    image: 'images/items/cook_gun.png',
+    description: '我们在厨师身上发现了这个',
+    type: 'equipment',
+    equipmentSlot: 'weapon',
+    effects: const {'moveSpeed': -50, 'san': 40},
+    weaponParams: const {
+      'attackType': 'ranged',
+      'fireMode': 'fullauto',
+      'penetrateWalls': false,
+      'penetrateGhosts': true,
+      'reloadMs': 11111,
+      'fireIntervalMs': 90,
+      'effectColor': 0xF8F8FFFF,
+      'distance': 4,
+      'range': 2,
+      'damageAmplify': 0.8,
+      'critDamage': 1.1,
+      'critChanceBonus': 2.0,
+      'magazineSize': 70,
+      'ammoTotal': 700,
+      'bulletSize': 1.2,
+    },
+    level: 7,
+    availableInShop: false,
+  ),
 ];

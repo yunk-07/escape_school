@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:escape_from_school/data/props.dart';
 import 'package:escape_from_school/game/catalog_detail_page.dart';
 import 'package:escape_from_school/game/fan_carousel.dart';
+import 'package:escape_from_school/utils/level_color_manager.dart';
 
 /// 图鉴页面：展示 props.dart 中所有物品，支持按等级与类型筛选，并详细显示物品数据
 ///
@@ -740,24 +741,7 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 
   Color _getItemLevelColor(int level) {
-    switch (level) {
-      case 1:
-        return Colors.white;
-      case 2:
-        return Colors.greenAccent;
-      case 3:
-        return Colors.blueAccent;
-      case 4:
-        return Colors.purpleAccent;
-      case 5:
-        return Colors.amberAccent;
-      case 6:
-        return Colors.redAccent;
-      case 7:
-        return Colors.cyanAccent;
-      default:
-        return Colors.white;
-    }
+    return LevelColorManager.getItemLevelColor(level);
   }
 
   String _effectName(String key) {
