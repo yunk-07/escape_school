@@ -331,7 +331,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                           fontSize: 14,
                                         ),
                                       ),
-                                      if (item.usageTime > 0)
+                                      if (item.usageTime > 0 &&
+                                          item.type == "item")
                                         Text(
                                           '使用时间: ${(item.usageTime / 1000).toStringAsFixed(1)}秒',
                                           style: TextStyle(
@@ -377,6 +378,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                               wp,
                                               isRanged,
                                               rps,
+                                              item,
                                             ),
                                           ),
                                           const SizedBox(width: 16),
@@ -385,6 +387,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                               eff,
                                               wp,
                                               isRanged,
+                                              item,
                                             ),
                                           ),
                                         ],
@@ -983,6 +986,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     Map<String, dynamic> wp,
     bool isRanged,
     int rps,
+    Item item,
   ) {
     final double distance = ((wp['distance'] ?? 0) as num).toDouble();
     final double rangeVal = ((wp['range'] ?? 0) as num).toDouble();
@@ -1004,6 +1008,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
       {'k': '增幅伤害', 'v': '${dmgAmp.toStringAsFixed(2)} 倍'},
       {'k': '暴击伤害', 'v': '${critDmg.toStringAsFixed(2)} 倍'},
       {'k': '暴击几率加成', 'v': '${(critChance * 100).toStringAsFixed(0)}%'},
+      if (item.usageTime > 0 && item.type == "item")
+        {'k': '使用时间', 'v': '${(item.usageTime / 1000).toStringAsFixed(1)}秒'},
     ];
     return _pairsColumn(left);
   }
@@ -1012,6 +1018,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     Map<String, int> eff,
     Map<String, dynamic> wp,
     bool isRanged,
+    Item item,
   ) {
     final int magazineSize = ((wp['magazineSize'] ?? 0) as num).toInt();
     final int ammoTotal = ((wp['ammoTotal'] ?? 0) as num).toInt();
@@ -1027,6 +1034,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
       if (isRanged && ammoTotal > 0) {'k': '备用弹药', 'v': '$ammoTotal'},
       {'k': '穿墙', 'v': wall ? '是' : '否'},
       {'k': '穿鬼', 'v': ghost ? '是' : '否'},
+      if (item.usageTime > 0 && item.type == "item")
+        {'k': '使用时间', 'v': '${(item.usageTime / 1000).toStringAsFixed(1)}秒'},
     ];
     // 附加 effects（展示核心效果）
     eff.forEach((k, v) {

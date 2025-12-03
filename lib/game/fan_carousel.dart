@@ -55,10 +55,10 @@ class FanCarousel extends StatefulWidget {
     super.key,
     required this.items,
     this.onItemChanged,
-    this.itemWidth = 120, // 改为更窄的宽度，形成长条形
-    this.itemHeight = 240, // 保持较高的高度
-    this.fanRadius = 500, // 扇形半径
-    this.rotationAngle = 60, // 增大旋转角度，增强立体效果
+    this.itemWidth = 150, // 缩小卡片宽度，确保全部展示
+    this.itemHeight = 250, // 缩小卡片高度，确保全部展示
+    this.fanRadius = 400, // 缩小扇形半径，适应更小卡片
+    this.rotationAngle = 45, // 减小旋转角度，使卡片更紧凑
     this.initialPage = 0,
   });
 
@@ -75,7 +75,7 @@ class _FanCarouselState extends State<FanCarousel> {
     super.initState();
     _currentIndex = widget.initialPage;
     _pageController = PageController(
-      viewportFraction: 0.4, // 减小viewportFraction，使一页能显示3个卡片
+      viewportFraction: 0.3, // 减小viewportFraction，使一页能显示更多卡片
       initialPage: _currentIndex,
     );
   }
@@ -137,6 +137,7 @@ class _FanCarouselState extends State<FanCarousel> {
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: _onPageChanged,
+            physics: const PageScrollPhysics(), // 使用页面滚动物理效果，增加滑动惯性
             itemCount: widget.items.length,
             itemBuilder: (context, index) {
               // 增强扇形效果：更大的缩放和旋转
@@ -161,18 +162,53 @@ class _FanCarouselState extends State<FanCarousel> {
                     transform:
                         Matrix4.identity()
                           ..scale(animatedScale)
-                          ..rotateY(animatedRotation),
+                          ..rotateY(animatedRotation)
+                          ..translate(0.0, -value * 10), // 减小上移效果，避免卡片超出范围
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 15),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(5),
+                        borderRadius: BorderRadius.circular(12), // 增大圆角，增强现代感
                         boxShadow: [
+                          // 主阴影 - 大幅增强立体感
                           BoxShadow(
-                            color: Color.fromRGBO(0, 0, 0, value * 0.5),
-                            blurRadius: value * 10,
-                            spreadRadius: value * 1,
-                            offset: Offset(0, value * 5),
+                            color: Color.fromRGBO(
+                              0,
+                              0,
+                              0,
+                              value > 0.5 ? 0.9 : value * 0.8,
+                            ),
+                            blurRadius: value > 0.5 ? 50 : value * 25,
+                            spreadRadius: value > 0.5 ? 8 : value * 3,
+                            offset: Offset(0, value * 25), // 增强阴影偏移
                           ),
+                          // 边缘光晕 - 增强层次感
+                          if (value > 0.3)
+                            BoxShadow(
+                              color: Colors.white.withOpacity(
+                                value > 0.5 ? 0.4 : value * 0.2,
+                              ),
+                              blurRadius: value > 0.5 ? 25 : value * 15,
+                              spreadRadius: value > 0.5 ? 3 : value * 2,
+                              offset: Offset(0, -value * 12),
+                            ),
+                          // 内部阴影 - 增强深度感
+                          if (value > 0.5)
+                            BoxShadow(
+                              color: Colors.black.withOpacity(
+                                value > 0.7 ? 0.6 : value * 0.3,
+                              ),
+                              blurRadius: value > 0.7 ? 15 : value * 8,
+                              spreadRadius: -3,
+                              offset: Offset(0, value * 8),
+                            ),
+                          // 侧面阴影 - 增强3D效果
+                          if (value > 0.5)
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                              offset: Offset(value * 10, 0),
+                            ),
                         ],
                       ),
                       child: widget.items[index],

@@ -4286,17 +4286,20 @@ class _GameAreaPainter extends CustomPainter {
                 );
           canvas.drawArc(arcRect, segStart, segmentSweep, false, glowPaint3);
 
-          // 拖影（向后若干段逐渐衰减）
-          for (int i = 1; i <= 3; i++) {
-            final double trailOffset = segmentSweep * 0.6 * i;
-            final double trailAlpha = (0.35 * (1.0 - i / 4)).clamp(0.0, 0.35);
+          // 拖影（向后若干段逐渐衰减，根据trailEffect参数动态调整）
+          final int trailEffect = gameState.meleeAttackTemplate.trailEffect;
+          final int trailSegments = 3 + (trailEffect ~/ 33); // 基础3段，每33点trailEffect增加1段
+          
+          for (int i = 1; i <= trailSegments; i++) {
+            final double trailOffset = segmentSweep * (0.6 + trailEffect * 0.01) * i;
+            final double trailAlpha = (0.35 * (1.0 - i / (trailSegments + 1)) * (1.0 + trailEffect * 0.01)).clamp(0.0, 0.35);
             final Paint trailPaint =
                 Paint()
                   ..color = gameState.meleeAttackTemplate.color.withValues(
                     alpha: trailAlpha,
                   )
                   ..style = PaintingStyle.stroke
-                  ..strokeWidth = 4.0
+                  ..strokeWidth = 4.0 + trailEffect * 0.1
                   ..strokeCap = StrokeCap.round;
             canvas.drawArc(
               arcRect,
@@ -4461,9 +4464,10 @@ class _GameAreaPainter extends CustomPainter {
 
           canvas.drawPath(highlightPath, highlightPaint);
 
-          // 绘制子弹拖尾效果
-          final double trailLength = 12.0; // 拖尾长度
-          final int trailSegments = 4; // 拖尾分段数
+          // 绘制子弹拖尾效果（根据trailEffect参数动态调整）
+          final int trailEffect = gameState.rangedAttackTemplate.trailEffect;
+          final double trailLength = 12.0 + (trailEffect * 0.5); // 基础长度12.0，每点trailEffect增加0.5像素
+          final int trailSegments = 4 + (trailEffect ~/ 25); // 基础分段4，每25点trailEffect增加1个分段
 
           for (int i = 0; i < trailSegments; i++) {
             final double segmentRatio = i / trailSegments;
@@ -4481,18 +4485,18 @@ class _GameAreaPainter extends CustomPainter {
                       (backDistance + trailLength / trailSegments),
             );
 
-            // 拖尾透明度随距离递减
-            final double trailAlpha = alpha * (1.0 - segmentRatio) * 0.4;
+            // 拖尾透明度随距离递减，强度随trailEffect增加
+            final double trailAlpha = alpha * (1.0 - segmentRatio) * (0.4 + trailEffect * 0.006);
 
-            // 拖尾线条绘制
+            // 拖尾线条绘制，宽度随trailEffect增加
             final Paint trailPaint =
                 Paint()
                   ..color = base.withOpacity(trailAlpha)
                   ..style = PaintingStyle.stroke
                   ..strokeWidth =
-                      2.0 -
+                      (2.0 + trailEffect * 0.05) -
                       segmentRatio *
-                          1.0 // 宽度递减
+                          (1.0 + trailEffect * 0.02) // 宽度递减，基础值随trailEffect增加
                   ..strokeCap = StrokeCap.round
                   ..blendMode = ui.BlendMode.plus;
 

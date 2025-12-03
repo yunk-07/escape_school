@@ -320,38 +320,44 @@ class _CatalogPageState extends State<CatalogPage> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      width: isHighlighted ? 280 : 240,
-      height: isHighlighted ? 380 : 340,
+      width: isHighlighted ? 300 : 250, // 缩小卡片宽度，确保全部展示
+      height: isHighlighted ? 250 : 200, // 缩小卡片高度，确保全部展示
       decoration: BoxDecoration(
-        // 根据等级颜色的渐变背景
+        // 根据等级颜色的渐变背景 - 增强立体感
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors:
               isHighlighted
                   ? [
-                    // 融合等级颜色的深色渐变
+                    // 特写卡片：更明亮的渐变，增强立体感
                     Color.fromRGBO(
-                      (levelColor.r.toInt() * 0.3 + 45).toInt(),
-                      (levelColor.g.toInt() * 0.3 + 55).toInt(),
-                      (levelColor.b.toInt() * 0.3 + 72).toInt(),
+                      (levelColor.r.toInt() * 0.4 + 60).toInt(),
+                      (levelColor.g.toInt() * 0.4 + 70).toInt(),
+                      (levelColor.b.toInt() * 0.4 + 85).toInt(),
+                      1.0,
+                    ),
+                    Color.fromRGBO(
+                      (levelColor.r.toInt() * 0.2 + 35).toInt(),
+                      (levelColor.g.toInt() * 0.2 + 45).toInt(),
+                      (levelColor.b.toInt() * 0.2 + 60).toInt(),
                       0.95,
                     ),
-                    const Color.fromRGBO(26, 32, 44, 0.95),
+                    const Color.fromRGBO(26, 32, 44, 0.9),
                   ]
                   : [
-                    // 融合等级颜色的深色渐变
+                    // 非特写卡片：更暗的渐变，降低视觉层次
                     Color.fromRGBO(
-                      (levelColor.r.toInt() * 0.2 + 26).toInt(),
-                      (levelColor.g.toInt() * 0.2 + 32).toInt(),
-                      (levelColor.b.toInt() * 0.2 + 44).toInt(),
-                      0.8,
+                      (levelColor.r.toInt() * 0.15 + 20).toInt(),
+                      (levelColor.g.toInt() * 0.15 + 25).toInt(),
+                      (levelColor.b.toInt() * 0.15 + 35).toInt(),
+                      0.7,
                     ),
-                    const Color.fromRGBO(13, 17, 23, 0.8),
+                    const Color.fromRGBO(8, 12, 18, 0.7),
                   ],
         ),
-        borderRadius: BorderRadius.circular(6),
-        // 立体边框效果
+        borderRadius: BorderRadius.circular(8), // 增大圆角，增强现代感
+        // 立体边框效果 - 增强层次
         border: Border.all(
           color:
               isHighlighted
@@ -359,30 +365,40 @@ class _CatalogPageState extends State<CatalogPage> {
                     levelColor.r.toInt(),
                     levelColor.g.toInt(),
                     levelColor.b.toInt(),
-                    0.8,
+                    1.0,
                   )
-                  : Color.fromRGBO(158, 158, 158, 0.4),
-          width: isHighlighted ? 2.5 : 1.5,
+                  : Color.fromRGBO(100, 100, 100, 0.3),
+          width: isHighlighted ? 3.0 : 1.0,
         ),
-        // 增强的阴影效果
+        // 增强的立体阴影效果
         boxShadow: [
+          // 主阴影 - 增强立体感
           if (isHighlighted)
             BoxShadow(
               color: Color.fromRGBO(
                 levelColor.r.toInt(),
                 levelColor.g.toInt(),
                 levelColor.b.toInt(),
-                0.6,
+                0.8,
               ),
-              blurRadius: 20,
-              spreadRadius: 3,
-              offset: const Offset(0, 5),
+              blurRadius: 40,
+              spreadRadius: 5,
+              offset: const Offset(0, 15),
             ),
+          // 边缘光晕 - 增强层次感
+          if (isHighlighted)
+            BoxShadow(
+              color: Colors.white.withOpacity(0.2),
+              blurRadius: 25,
+              spreadRadius: 2,
+              offset: const Offset(0, -8),
+            ),
+          // 基础阴影
           BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.9),
-            blurRadius: 15,
-            spreadRadius: 8,
-            offset: const Offset(0, 6),
+            color: Color.fromRGBO(0, 0, 0, isHighlighted ? 0.8 : 0.5),
+            blurRadius: isHighlighted ? 30 : 10,
+            spreadRadius: isHighlighted ? 10 : 5,
+            offset: Offset(0, isHighlighted ? 12 : 3),
           ),
         ],
       ),
@@ -419,7 +435,7 @@ class _CatalogPageState extends State<CatalogPage> {
             ),
 
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12), // 减小内边距，适应更小卡片
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -427,8 +443,8 @@ class _CatalogPageState extends State<CatalogPage> {
                 Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 40, // 缩小图标容器
+                      height: 40,
                       decoration: BoxDecoration(
                         color: Color.fromRGBO(255, 255, 255, 0.1),
                         borderRadius: BorderRadius.circular(5),
@@ -453,17 +469,17 @@ class _CatalogPageState extends State<CatalogPage> {
                                       (c, e, s) => Icon(
                                         Icons.inventory_2,
                                         color: levelColor,
-                                        size: 24,
+                                        size: 20, // 缩小图标大小
                                       ),
                                 )
                                 : Icon(
                                   Icons.inventory_2,
                                   color: levelColor,
-                                  size: 24,
+                                  size: 20, // 缩小图标大小
                                 ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8), // 减小间距
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,7 +490,7 @@ class _CatalogPageState extends State<CatalogPage> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: levelColor,
-                              fontSize: isHighlighted ? 18 : 16,
+                              fontSize: isHighlighted ? 16 : 14, // 缩小字体大小
                               fontWeight: FontWeight.bold,
                               shadows: const [
                                 Shadow(
@@ -485,25 +501,25 @@ class _CatalogPageState extends State<CatalogPage> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3), // 减小间距
                           Text(
                             '等级: ${item.level} · 类型: ${_canonicalType(item.type)}${item.equipmentSlot != null ? ' · 槽位: ${_getSlotChineseName(item.equipmentSlot!)}' : ''}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: Color.fromRGBO(0, 255, 255, 0.9),
-                              fontSize: isHighlighted ? 12 : 11,
+                              fontSize: isHighlighted ? 11 : 10, // 缩小字体大小
                             ),
                           ),
-                          if (item.usageTime > 0) ...[
-                            const SizedBox(height: 2),
+                          if (item.usageTime > 0 && item.type == "item") ...[
+                            const SizedBox(height: 1), // 减小间距
                             Text(
                               '使用时间: ${(item.usageTime / 1000).toStringAsFixed(1)}秒',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: Colors.amberAccent.withOpacity(0.9),
-                                fontSize: isHighlighted ? 11 : 10,
+                                fontSize: isHighlighted ? 10 : 9, // 缩小字体大小
                               ),
                             ),
                           ],
@@ -513,8 +529,7 @@ class _CatalogPageState extends State<CatalogPage> {
                   ],
                 ),
 
-                const SizedBox(height: 12),
-
+                const SizedBox(height: 8), // 减小间距
                 // 物品描述
                 if (item.description.isNotEmpty)
                   Text(
@@ -523,12 +538,11 @@ class _CatalogPageState extends State<CatalogPage> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.grey.shade300,
-                      fontSize: isHighlighted ? 13 : 12,
+                      fontSize: isHighlighted ? 12 : 11, // 缩小字体大小
                     ),
                   ),
 
-                const SizedBox(height: 12),
-
+                const SizedBox(height: 8), // 减小间距
                 // 物品效果详情
                 Expanded(
                   child:

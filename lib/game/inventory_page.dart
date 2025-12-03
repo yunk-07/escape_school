@@ -2105,6 +2105,15 @@ class _InventoryPageState extends ConsumerState<InventoryPage>
                           'k': '暴击几率加成',
                           'v': '${(critChance * 100).toStringAsFixed(0)}%',
                         },
+                        // 添加备用弹夹数量显示
+                        if (isRanged)
+                          {
+                            'k': '备用弹夹',
+                            'v':
+                                isEquippedWeapon
+                                    ? '${gs.weaponTotalAmmo - gs.weaponClipAmmo} 发'
+                                    : '${(params['ammoTotal'] ?? 0) - (params['clipAmmo'] ?? 0)} 发',
+                          },
                       ];
                       final int half = (entries.length + 1) ~/ 2;
                       final List<Map<String, String>> left = entries.sublist(
@@ -2619,6 +2628,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage>
         return '处分';
       case 'armorValue':
         return '耐久';
+      case 'ammo':
+        return '子弹';
       default:
         return effectKey;
     }

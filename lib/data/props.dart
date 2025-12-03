@@ -62,6 +62,8 @@ class Item {
   // - bulletSize        子弹大小倍数：默认 1.0（1倍大小），大于1时放大（如2表示2倍）
   //                      远程武器：修改子弹视觉效果大小
   //                      近战武器：修改武器的攻击范围大小
+  // - trailEffect       尾迹效果强度：1-100，控制子弹拖尾的长度和强度
+  //                      数值越大，拖尾越长越明显；默认0（无拖尾）
   final Map<String, dynamic>? weaponParams;
   // final Map<String, int>? equipEffects; // 装备效果加成（佩戴生效）
 
@@ -501,6 +503,7 @@ final List<Item> allItems = [
       'critChanceBonus': 0.19,
       'magazineSize': 7,
       'ammoTotal': 35,
+      'trailEffect': 50, // 中等尾迹效果
     },
   ),
   Item(
@@ -582,6 +585,7 @@ final List<Item> allItems = [
       'critChanceBonus': 0.33,
       'magazineSize': 1,
       'ammoTotal': 20,
+      'trailEffect': 80, // 强尾迹效果
     },
   ),
   Item(
@@ -749,15 +753,38 @@ final List<Item> allItems = [
       'fireIntervalMs': 90,
       'effectColor': 0xF8F8FFFF,
       'distance': 4,
-      'range': 2,
+      'range': 4,
       'damageAmplify': 0.8,
       'critDamage': 1.1,
       'critChanceBonus': 2.0,
       'magazineSize': 70,
       'ammoTotal': 700,
       'bulletSize': 1.2,
+      'trailEffect': 50, // 中等尾迹效果
     },
     level: 7,
     availableInShop: false,
+  ),
+  Item(
+    id: 'magazine-d',
+    name: 'D1弹夹',
+    image: 'images/items/magazine-d.png',
+    description: '为武器补充弹药',
+    type: 'item',
+    effects: const {'ammo': 20},
+    level: 3,
+    availableInShop: false,
+    usageTime: 3000,
+  ),
+  Item(
+    id: 'magazine-m',
+    name: 'M1弹夹',
+    image: 'images/items/magazine-m.png',
+    description: '为武器补充弹药',
+    type: 'item',
+    effects: const {'ammo': 30},
+    level: 4,
+    availableInShop: false,
+    usageTime: 2500,
   ),
 ];

@@ -3401,6 +3401,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final int reloadMs = ((params['reloadMs'] ?? 1000) as num).toInt();
     final int fireIntervalMs =
         ((params['fireIntervalMs'] ?? 150) as num).toInt();
+    final int trailEffect = ((params['trailEffect'] ?? 0) as num).toInt();
 
     if (mode == AttackMode.melee) {
       state = state.copyWith(
@@ -3409,6 +3410,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           color: ui.Color(colorInt),
           distance: distance,
           range: range,
+          trailEffect: trailEffect,
         ),
         weaponDamageAmplify: amp,
         weaponCritDamage: critDmg,
@@ -3454,6 +3456,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           color: ui.Color(colorInt),
           distance: distance,
           range: range,
+          trailEffect: trailEffect,
         ),
         weaponDamageAmplify: amp,
         weaponCritDamage: critDmg,
@@ -4879,6 +4882,34 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       return false; // 物品不在背包中
     }
 
+    // 特殊逻辑：弹夹物品使用前检查条件
+    if (item.id == 'magazine') {
+      final Item? currentWeapon = state.equipmentSlots['weapon'];
+      if (currentWeapon == null) {
+        addBroadcastMessage('未装备武器，无法使用弹夹', BroadcastMessageType.system);
+        return false; // 条件不满足，无法使用
+      }
+
+      if (currentWeapon.weaponParams == null ||
+          currentWeapon.weaponParams!['ammoTotal'] == null ||
+          currentWeapon.weaponParams!['ammoTotal'] <= 0) {
+        addBroadcastMessage('当前武器无法使用弹药', BroadcastMessageType.system);
+        return false; // 条件不满足，无法使用
+      }
+
+      // 检查弹夹是否已满
+      final int currentClipAmmo = state.weaponClipAmmo ?? 0;
+      final int currentTotalAmmo = state.weaponTotalAmmo ?? 0;
+      final int maxAmmo = currentWeapon.weaponParams!['ammoTotal'] ?? 0;
+      final int magazineSize = currentWeapon.weaponParams!['magazineSize'] ?? 1;
+
+      // 弹夹已满且备用弹夹已满时无法使用
+      if (currentClipAmmo >= magazineSize && currentTotalAmmo >= maxAmmo) {
+        addBroadcastMessage('弹夹已满', BroadcastMessageType.system);
+        return false; // 条件不满足，无法使用
+      }
+    }
+
     // 关闭背包页面
     state = state.copyWith(showInventory: false);
 
@@ -5199,6 +5230,48 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           final double newPun = (currentPun + deltaPun).clamp(0, maxPun);
           character['punish'] = newPun;
           hasEffect = true;
+          break;
+        case 'ammo':
+          // 弹药补充逻辑：为当前装备的武器补充弹药
+          final Item? currentWeapon = state.equipmentSlots['weapon'];
+          if (currentWeapon != null && currentWeapon.weaponParams != null) {
+            final int ammoToAdd = isGold ? (value * quantityToConsume) : value;
+            final int currentTotalAmmo = state.weaponTotalAmmo ?? 0;
+            final int maxAmmo = currentWeapon.weaponParams!['ammoTotal'] ?? 0;
+
+            if (maxAmmo > 0) {
+              final int newTotalAmmo = (currentTotalAmmo + ammoToAdd).clamp(
+                0,
+                maxAmmo,
+              );
+
+              // 更新武器总弹药量
+              state = state.copyWith(weaponTotalAmmo: newTotalAmmo);
+
+              // 如果当前弹夹为空，自动装填
+              if ((state.weaponClipAmmo ?? 0) == 0 && newTotalAmmo > 0) {
+                final int magazineSize =
+                    currentWeapon.weaponParams!['magazineSize'] ?? 1;
+                final int clipAmmo = newTotalAmmo.clamp(0, magazineSize);
+                final int remainingAmmo = newTotalAmmo - clipAmmo;
+
+                state = state.copyWith(
+                  weaponClipAmmo: clipAmmo,
+                  weaponTotalAmmo: remainingAmmo,
+                );
+              }
+
+              hasEffect = true;
+              addBroadcastMessage(
+                '为 ${currentWeapon.name} 补充了 $ammoToAdd 发弹药',
+                BroadcastMessageType.item,
+              );
+            } else {
+              addBroadcastMessage('当前武器无法使用弹药', BroadcastMessageType.system);
+            }
+          } else {
+            addBroadcastMessage('未装备武器，无法使用弹夹', BroadcastMessageType.system);
+          }
           break;
       }
     });
@@ -6578,15 +6651,17 @@ enum AttackMode { melee, ranged }
 
 enum FireMode { semiAuto, fullAuto }
 
-// 关键区域：攻击模板（颜色、攻击距离、范围）
+// 关键区域：攻击模板（颜色、攻击距离、范围、尾迹效果）
 class AttackTemplate {
   final ui.Color color;
   final double distance;
   final double range;
+  final int trailEffect;
   const AttackTemplate({
     required this.color,
     required this.distance,
     required this.range,
+    this.trailEffect = 0,
   });
 }
 

@@ -102,6 +102,7 @@ final List<Map<String, dynamic>> manData = const [
       'm-one-gun',
       'bow',
       'g-eteen-ultra-gun',
+      'magazine',
     ],
     'baseDamage': 20.0,
     'baseCritChance': 0.20,
