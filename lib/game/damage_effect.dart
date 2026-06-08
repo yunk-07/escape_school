@@ -53,7 +53,7 @@ class _DynamicDamageEffectState extends ConsumerState<DynamicDamageEffect>
             try {
               ref.read(damageEventProvider.notifier).clearDamage();
             } catch (e) {
-              print('清除伤害事件时出错: $e');
+      
             }
           }
         });
@@ -206,7 +206,7 @@ class DamageEffectWrapper extends StatelessWidget {
             final container = ProviderScope.containerOf(context);
             container.read(damageEventProvider.notifier).triggerDamage(event);
           } catch (e) {
-            print('触发伤害事件时出错: $e');
+    
           }
         });
       },

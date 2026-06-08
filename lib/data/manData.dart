@@ -36,7 +36,7 @@ final List<Map<String, dynamic>> manData = const [
     // 关键区域：角色高品质物品概率增幅（0.0为默认概率）
     'rarityBoost': 0.0,
     // 关键区域：初始物品（props.dart 的 id），用于验证机制
-    'initialItems': const ['hanbao', 'cook_gun'],
+    'initialItems': const ['hanbao', 'cook_gun', 'corn'],
     // 关键区域：基础伤害与基础暴击几率（用于攻击结算）
     'baseDamage': 10.0,
     'baseCritChance': 0.05,
@@ -105,6 +105,8 @@ final List<Map<String, dynamic>> manData = const [
       'magazine-m',
       'revolver',
       'obsidian_revolver',
+      'corn',
+      'corn',
     ],
     'baseDamage': 20.0,
     'baseCritChance': 0.20,

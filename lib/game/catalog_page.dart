@@ -356,7 +356,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     const Color.fromRGBO(8, 12, 18, 0.7),
                   ],
         ),
-        borderRadius: BorderRadius.circular(8), // 增大圆角，增强现代感
+        borderRadius: BorderRadius.circular(5), // 增大圆角，增强现代感
         // 立体边框效果 - 增强层次
         border: Border.all(
           color:

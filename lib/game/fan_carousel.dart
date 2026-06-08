@@ -167,7 +167,7 @@ class _FanCarouselState extends State<FanCarousel> {
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 15),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12), // 增大圆角，增强现代感
+                        borderRadius: BorderRadius.circular(5), // 增大圆角，增强现代感
                         boxShadow: [
                           // 主阴影 - 大幅增强立体感
                           BoxShadow(

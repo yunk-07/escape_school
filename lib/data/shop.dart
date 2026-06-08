@@ -66,7 +66,7 @@ class Shop {
     lastRefreshTime = DateTime.now();
     lastPriceChange = DateTime.now();
 
-    print('商店刷新完成 - 时间: ${DateTime.now()}, 商品数: ${items.length}');
+
     notifyListeners();
   }
 

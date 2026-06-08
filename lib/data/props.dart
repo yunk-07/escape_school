@@ -1,12 +1,191 @@
 // data/props.dart
 // 物品数据配置文件：定义物品基础信息、使用效果与装备加成
+//
+// =============================================================================
+// 主要功能概述
+// =============================================================================
+// 本文件定义了游戏中所有物品的完整数据模型，包括：
+// 1. 基础物品系统 - Item类管理所有物品的基础属性
+// 2. 装备系统 - 武器、防具、饰品等装备管理
+// 3. 消耗品系统 - 食物、药水等消耗类物品
+// 4. 种植系统 - 可种植的种子和植物管理
+// 5. 商店系统 - 物品商店价格和可购买性
+//
+// =============================================================================
+// Item类核心字段说明
+// =============================================================================
+//
+// 基础字段：
+// - id: 物品唯一标识符（英文命名，程序内部使用）
+// - name: 物品显示名称（中文，用户界面显示）
+// - image: 物品图片路径
+// - description: 物品描述文本
+// - effects: 使用效果Map，键值对形式 {效果名: 数值}
+// - type: 物品类型（'item'物品/'equipment'装备）
+// - count: 物品数量（用于堆叠物品）
+// - level: 物品等级（1-7，影响稀有度和显示颜色）
+// - basePrice: 基础价格（商店买卖价格）
+// - availableInShop: 是否在商店出售
+// - usageTime: 使用时间（毫秒，影响使用动画时长）
+//
+// 装备专属字段：
+// - equipmentSlot: 装备槽位类型
+//   * 'weapon': 武器槽（近战/远程武器）
+//   * 'armor': 护甲槽（增加生命值防御）
+//   * 'head': 头部槽（帽子头饰）
+//   * 'bag': 背包槽（增加背包容量）
+//   * 'pants': 裤子槽（增加生命值）
+//   * 'shoes': 鞋子槽（增加移动速度）
+// - weaponParams: 武器参数Map
+//   * 'attackType': 攻击类型（'melee'近战/'ranged'远程）
+//   * 'distance': 攻击距离（格数）
+//   * 'damageAmplify': 伤害倍率
+//   * 'critChanceBonus': 暴击几率加成
+//   * 'magazineSize': 弹夹容量（>0表示使用弹药系统）
+//   * 'reloadMs': 换弹时间（毫秒）
+//   * 'fireIntervalMs': 开火间隔（毫秒）
+//   * 'penetrateWalls': 是否可穿透墙体
+//   * 'bulletSize': 子弹大小倍数
+//   * 'trailEffect': 拖尾效果强度（1-100）
+//
+// 种植系统专属字段：
+// - plantable: 是否可种植（true/false）
+// - plantParams: 种植参数Map，包含以下键值：
+//   * 'growthTimeMs': 生长时间（毫秒）
+//   * 'harvestItemId': 收获物ID（成熟后获得的物品）
+//   * 'harvestCount': 收获数量（收获时获得的数量）
+//   * 'stages': 生长阶段数（通常为3：种子→发芽→成熟）
+//   * 'stageImages': 各阶段图片路径列表
+//   * 'requiresWater': 是否需要浇水（true/false）
+//   * 'waterIntervalMs': 浇水间隔（毫秒，超过此时间未浇水则生长停止）
+// - plantableTileTypes: 可种植的瓦片类型列表
+//   * ['grass']: 仅可在草地上种植
+//   * ['grass', 'farmland']: 可在草地和农田种植
+//   * ['any']: 任何可见瓦片都可种植
+//
+// =============================================================================
+// effects字段支持的键值说明
+// =============================================================================
+//
+// 生命值相关：
+// - 'hp': 当前生命值（按maxHp夹取，不能超过上限）
+// - 'maxHp': 生命值上限（至少为1，降低时会夹取hp）
+//
+// 饱食度相关：
+// - 'food': 当前饱食度（按maxFood夹取）
+// - 'maxFood': 饱食度上限（至少为1，降低时会夹取food）
+//
+// 精神值相关：
+// - 'san': 精神值（0-250范围夹取）
+//
+// 移动相关：
+// - 'moveSpeed': 移动速度（无上限，最小值为1）
+//
+// 经济系统：
+// - 'gold': 金币数量（可为负数）
+//
+// 背包系统：
+// - 'inventoryBonus': 背包容量增益（仅在equipEffects中生效）
+//
+// 氧气系统：
+// - 'oxygenBonus': 氧气上限增益（已在状态机中处理）
+//
+// =============================================================================
+// 种植系统物品示例
+// =============================================================================
+//
+// 1. 玉米种子 (id: 'corn')
+//    plantable: true
+//    plantParams: {
+//      'growthTimeMs': 30000,      // 30秒生长时间
+//      'harvestItemId': 'corn',    // 收获玉米
+//      'harvestCount': 2,          // 收获2个玉米
+//      'stages': 3,                // 3个生长阶段
+//      'stageImages': [            // 各阶段图片
+//        'images/items/corn_seed.png',   // 种子阶段
+//        'images/items/corn_sprout.png', // 发芽阶段
+//        'images/items/corn.png',        // 成熟阶段
+//      ],
+//      'requiresWater': true,      // 需要浇水
+//      'waterIntervalMs': 15000,   // 15秒浇水间隔
+//    }
+//    plantableTileTypes: ['grass'] // 仅可在草地种植
+//
+// 2. 胡萝卜种子 (id: 'carrot')
+//    plantable: true
+//    plantParams: {
+//      'growthTimeMs': 25000,      // 25秒生长时间
+//      'harvestItemId': 'carrot',  // 收获胡萝卜
+//      'harvestCount': 3,          // 收获3个胡萝卜
+//      'stages': 3,                // 3个生长阶段
+//      'stageImages': [            // 各阶段图片
+//        'images/items/carrot_seed.png',   // 种子阶段
+//        'images/items/carrot_sprout.png', // 发芽阶段
+//        'images/items/carrot_max.png',    // 成熟阶段
+//      ],
+//      'requiresWater': true,      // 需要浇水
+//      'waterIntervalMs': 12000,   // 12秒浇水间隔
+//    }
+//    plantableTileTypes: ['grass'] // 仅可在草地种植
+//
+// =============================================================================
+// 物品等级颜色对应
+// =============================================================================
+// 1级（无色）- 普通物品
+// 2级（绿色）- 优秀物品
+// 3级（蓝色）- 稀有物品
+// 4级（紫色）- 史诗物品
+// 5级（橙色）- 传说物品
+// 6级（红色）- 神器物品
+// 7级（彩色）- 至尊物品
+//
+// =============================================================================
+// 使用方法
+// =============================================================================
+//
+// 1. 在代码中引用物品：
+//    final cornSeed = allItems.firstWhere((item) => item.id == 'corn');
+//
+// 2. 检查物品是否可种植：
+//    if (item.plantable) {
+//      // 处理可种植物品
+//      final params = item.plantParams;
+//      final growthTime = params['growthTimeMs'];
+//      final requiresWater = params['requiresWater'];
+//    }
+//
+// 3. 应用物品效果：
+//    final effects = item.effects;
+//    if (effects.containsKey('hp')) {
+//      player.hp = (player.hp + effects['hp']).clamp(0, player.maxHp);
+//    }
+//
+// 4. 检查装备槽位：
+//    if (item.equipmentSlot == 'weapon') {
+//      // 装备到武器槽
+//    }
+//
+// =============================================================================
+// 重要注意事项
+// =============================================================================
+// - 物品ID必须唯一且为英文，用于程序内部识别
+// - 物品名称为中文，用于用户界面显示
+// - plantParams中的图片路径必须存在，否则会显示空白
+// - 生长时间过短可能导致植物瞬间成熟，影响游戏平衡
+// - 浇水间隔设置过短会增加游戏难度，过长会降低挑战性
+// - 所有数值效果在应用时都会进行合理性检查和夹取
+// - 装备效果仅在装备后生效，消耗品效果仅在使用时生效
+// - 武器参数中的数值会影响战斗系统的具体表现
+//
+// =============================================================================
+
 // 关键区域：类型与槽位映射
 // - 类型字段支持：'item'、'equipment'；兼容旧中文 '物品'、'装备' 及 '武器/甲/头/背包/裤子/鞋'
 // - 槽位对应：weapon / armor / head / bag / pants / shoes
 //   说明：不再支持历史槽位 'hand'
 // 关键区域：效果与加成的区别
-// - effects：消耗类使用效果（仅在点击“使用”时生效）
-// - equipEffects：装备类佩戴加成（仅在“装备”后生效）
+// - effects：消耗类使用效果（仅在点击"使用"时生效）
+// - equipEffects：装备类佩戴加成（仅在"装备"后生效）
 //   注意：inventoryBonus 与 armorValue 仅在 equipEffects 中生效
 // 关键区域：护甲耐久说明
 // - 护甲最大耐久由 equipEffects["armorValue"] 提供
@@ -67,6 +246,19 @@ class Item {
   final Map<String, dynamic>? weaponParams;
   // final Map<String, int>? equipEffects; // 装备效果加成（佩戴生效）
 
+  // 关键区域：种植系统相关字段
+  final bool plantable; // 是否可种植
+  final Map<String, dynamic>? plantParams; // 种植参数
+  // 键说明（全部使用英文）：
+  // - growthTimeMs      生长时间（毫秒）
+  // - harvestItemId     收获物ID
+  // - harvestCount      收获数量
+  // - stages            生长阶段数
+  // - stageImages       各阶段图片路径列表
+  // - requiresWater     是否需要浇水（true/false）
+  // - waterIntervalMs   浇水间隔时间（毫秒）
+  final List<String>? plantableTileTypes; // 可种植的格子类型列表（支持多种格子）
+
   Item({
     required this.id,
     required this.name,
@@ -84,7 +276,53 @@ class Item {
     this.ammoReserve,
     this.weaponParams,
     // this.equipEffects,
+    this.plantable = false, // 默认不可种植
+    this.plantParams,
+    this.plantableTileTypes, // 可种植的格子类型列表
   });
+
+  /// 复制并更新物品属性
+  Item copyWith({
+    String? id,
+    String? name,
+    String? image,
+    String? description,
+    Map<String, int>? effects,
+    String? type,
+    int? count,
+    bool? availableInShop,
+    int? basePrice,
+    int? usageTime,
+    int? level,
+    String? equipmentSlot,
+    int? clipAmmo,
+    int? ammoReserve,
+    Map<String, dynamic>? weaponParams,
+    bool? plantable,
+    Map<String, dynamic>? plantParams,
+    List<String>? plantableTileTypes,
+  }) {
+    return Item(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      image: image ?? this.image,
+      description: description ?? this.description,
+      effects: effects ?? this.effects,
+      type: type ?? this.type,
+      count: count ?? this.count,
+      availableInShop: availableInShop ?? this.availableInShop,
+      basePrice: basePrice ?? this.basePrice,
+      usageTime: usageTime ?? this.usageTime,
+      level: level ?? this.level,
+      equipmentSlot: equipmentSlot ?? this.equipmentSlot,
+      clipAmmo: clipAmmo ?? this.clipAmmo,
+      ammoReserve: ammoReserve ?? this.ammoReserve,
+      weaponParams: weaponParams ?? this.weaponParams,
+      plantable: plantable ?? this.plantable,
+      plantParams: plantParams ?? this.plantParams,
+      plantableTileTypes: plantableTileTypes ?? this.plantableTileTypes,
+    );
+  }
 }
 
 final List<Item> allItems = [
@@ -206,6 +444,21 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 10,
     usageTime: 6000, // 6秒使用时间
+    plantable: true,
+    plantParams: {
+      'growthTimeMs': 560000, // 生长时间
+      'harvestItemId': 'corn',
+      'harvestCount': 2,
+      'stages': 3,
+      'stageImages': [
+        'images/items/corn_seed.png',
+        'images/items/corn_sprout.png',
+        'images/items/corn_max.png',
+      ],
+      'requiresWater': true,
+      'waterIntervalMs': 15000, // 15秒需要浇水一次
+    },
+    plantableTileTypes: ['grass'], // 可在草地和农田种植
   ),
   Item(
     id: 'bread',
@@ -242,6 +495,21 @@ final List<Item> allItems = [
     availableInShop: true,
     basePrice: 9,
     usageTime: 3000, // 3秒使用时间
+    plantable: true,
+    plantParams: {
+      'growthTimeMs': 250000, // 25秒生长时间
+      'harvestItemId': 'carrot',
+      'harvestCount': 3,
+      'stages': 3,
+      'stageImages': [
+        'images/items/carrot_seed.png',
+        'images/items/carrot_sprout.png',
+        'images/items/carrot_max.png',
+      ],
+      'requiresWater': true,
+      'waterIntervalMs': 12000, // 12秒需要浇水一次
+    },
+    plantableTileTypes: ['grass'], // 可在草地种植
   ),
   Item(
     id: 'allbang',
@@ -641,7 +909,7 @@ final List<Item> allItems = [
     image: 'images/items/niki.png',
     description: '',
     type: 'equipment',
-    equipmentSlot: 'footwear',
+    equipmentSlot: 'shoes',
     effects: const {'moveSpeed': 8},
     level: 3,
     availableInShop: true,

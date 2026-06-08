@@ -84,7 +84,7 @@ class _HPListenerState extends ConsumerState<HPListener> {
           try {
             _checkHPChange(previous, current);
           } catch (e) {
-            print('HP监听器处理错误: $e');
+      
           }
         }
       });
@@ -111,7 +111,7 @@ class _HPListenerState extends ConsumerState<HPListener> {
         
         final damageEvent = DamageEvent.fromDamage(damageAmount);
         
-        print('HP监听器检测到伤害: ${damageEvent.toString()}');
+  
         
         // 触发伤害事件
         widget.onDamageDetected?.call(damageEvent);

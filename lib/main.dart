@@ -449,7 +449,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           builder: (context, child) {
             final hoverValue = _startButtonHoverAnimation.value;
             final pressValue = _startButtonPressAnimation.value;
-            final combinedValue = hoverValue + pressValue * 0.3;
 
             return Container(
               width: isLandscape ? 200 : 240,

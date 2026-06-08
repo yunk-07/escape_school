@@ -238,26 +238,14 @@ class ItemSpawner {
     return LevelColorManager.getLevelColorHex(level);
   }
 
-  /// 打印刷新概率统计信息（调试用）
-  static void printSpawnStatistics() {
-    print('=== 物品刷新概率统计 ===');
+  /// 物品刷新概率统计信息
+  static void getSpawnStatistics() {
     final spawnableItems = _spawnableItems;
 
     // 按等级分组统计
     final levelGroups = <int, List<Item>>{};
     for (final item in spawnableItems) {
       levelGroups.putIfAbsent(item.level, () => []).add(item);
-    }
-
-    for (final level in levelGroups.keys.toList()..sort()) {
-      final items = levelGroups[level]!;
-      final probability = _getSpawnProbability(level);
-      print(
-        '等级 $level (${getLevelDisplayName(level)}): ${probability}% - ${items.length}个物品',
-      );
-      for (final item in items) {
-        print('  - ${item.name}');
-      }
     }
   }
 
@@ -340,6 +328,8 @@ class ItemSpawner {
           usageTime: goldTemplate.usageTime,
           level: goldTemplate.level,
           equipmentSlot: goldTemplate.equipmentSlot,
+          plantable: goldTemplate.plantable,
+          plantParams: goldTemplate.plantParams,
         ),
       );
     } catch (_) {

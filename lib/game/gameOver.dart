@@ -869,7 +869,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
       height: 40,
       decoration: BoxDecoration(
         color: _getItemLevelColor(item.level).withOpacity(0.6),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: _getItemBorderColor(item.type), width: 1),
         boxShadow: [
           BoxShadow(
@@ -941,7 +941,7 @@ class _GameOverPageState extends ConsumerState<GameOverPage>
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.blue.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
       ),
       child: Text(

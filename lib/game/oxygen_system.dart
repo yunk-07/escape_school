@@ -88,35 +88,35 @@ class OxygenSystem extends ChangeNotifier {
 
   /// 进入水中
   void enterWater() {
-    print('氧气系统：尝试进入水中 - 当前状态: $_state');
+
     if (_state != OxygenState.underwater) {
       // 停止任何正在进行的氧气恢复
       _stopOxygenRecovery();
       _stopDamage();
 
       _state = OxygenState.underwater;
-      print('氧气系统：已进入水中状态，开始氧气消耗');
+  
       _startOxygenDecrease();
       _notifyVisionChange();
       notifyListeners();
     } else {
-      print('氧气系统：已经在水中，无需重复进入');
+  
     }
   }
 
   /// 离开水中
   void exitWater() {
-    print('氧气系统：尝试离开水中 - 当前状态: $_state');
+
     if (_state == OxygenState.underwater) {
       _state = OxygenState.recovering;
-      print('氧气系统：已离开水中，开始氧气恢复');
+  
       _stopOxygenDecrease();
       _stopDamage();
       _startOxygenRecovery();
       _notifyVisionChange();
       notifyListeners();
     } else {
-      print('氧气系统：不在水中，无需离开');
+  
     }
   }
 
@@ -170,15 +170,15 @@ class OxygenSystem extends ChangeNotifier {
 
   /// 开始生命值扣除
   void _startDamage() {
-    print('氧气系统：开始伤害计时器 - 氧气值: $currentOxygen, 状态: $state');
+    
     _damageTimer?.cancel();
     _damageTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      print('氧气系统：伤害计时器触发 - 氧气值: $currentOxygen, 状态: $state');
+
       if (_currentOxygen <= 0 && _state == OxygenState.underwater) {
-        print('氧气系统：调用伤害回调，伤害值: $_damageAmount');
+        
         onHealthDamage?.call(_damageAmount);
       } else {
-        print('氧气系统：停止伤害计时器 - 氧气值: $currentOxygen, 状态: $state');
+  
         _stopDamage();
       }
     });

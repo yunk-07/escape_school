@@ -22,6 +22,7 @@ import 'package:escape_from_school/game/oxygen_system.dart';
 import 'package:escape_from_school/game/oxygen_recovery_progress.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:escape_from_school/game/zones.dart';
+import 'package:escape_from_school/game/planting_system.dart'; // 添加种植系统导入
 
 /// 游戏页面类型枚举
 enum GamePage {
@@ -710,6 +711,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   // 状态更新锁，防止竞争条件
   bool _isUpdatingStats = false;
+  bool _isUpdatingGroundItems = false;
 
   // 性能优化参数
   static const double _acceleration = 8.0;
@@ -1362,7 +1364,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     if (walkablePositions.isEmpty) return;
 
     final playerPosition = state.playerPosition.toPoint();
-    print('👻 开始初始化鬼 - 玩家位置: (${playerPosition.x}, ${playerPosition.y})');
+
 
     // 清空现有的鬼
     state.ghostManager.clearAllGhosts();
@@ -1414,14 +1416,14 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           state.ghostManager.addGhost(newGhost);
           totalSpawned++;
 
-          print('👻 生成 $name 于位置 (${spawnPosition.x}, ${spawnPosition.y})');
+
         } else {
-          print('⚠️ 无法为 $name 找到安全的生成位置');
+
         }
       }
     }
 
-    print('👻 鬼初始化完成 - 总共生成了 $totalSpawned 个鬼');
+
   }
 
   /// 寻找安全的鬼生成位置
@@ -2124,7 +2126,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       shop.refreshItems();
       // 更新状态以触发UI刷新
       state = state.copyWith(schoolShop: shop);
-      print('🔄 商店自动刷新触发 - 时间: ${DateTime.now()}');
+  
     }
   }
 
@@ -2184,14 +2186,12 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       final position = spawnResult.key;
       final item = spawnResult.value;
 
-      // 更新地面物品状态
-      final updatedGroundItems = Map<Point<int>, List<Item>>.from(
-        existingGroundItems,
-      );
-      updatedGroundItems[position] = [item];
-
-      // 更新游戏状态
-      state = state.copyWith(groundItems: updatedGroundItems);
+      // 更新地面物品状态（线程安全）
+      _safeUpdateGroundItems((groundItems) {
+        final updatedGroundItems = Map<Point<int>, List<Item>>.from(groundItems);
+        updatedGroundItems[position] = [item];
+        return updatedGroundItems;
+      }, '物品刷新');
 
       // 添加刷新成功的播报消息
       addBroadcastMessage(
@@ -2213,7 +2213,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         _updateGhosts();
       },
     );
-    print('👻 鬼更新系统启动 - 更新间隔: 100ms - 时间: ${DateTime.now()}');
+
   }
 
   /// 更新所有鬼的状态
@@ -2236,7 +2236,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 当鬼攻击玩家时的回调
   void _onPlayerAttackedByGhost(Map<String, int> effects) {
-    print('👻 鬼攻击玩家! 效果: $effects');
+
 
     // 应用攻击效果到玩家
     _safeUpdateCharacterStats((stats) {
@@ -2266,7 +2266,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 当鬼检测到玩家时的回调
   void _onGhostDetectPlayer() {
-    print('👻 鬼发现了玩家!');
+
 
     // 添加播报消息
     addBroadcastMessage('鬼发现了你！', BroadcastMessageType.system);
@@ -2278,7 +2278,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     _ghostSpawnTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
       _checkAndSpawnGhosts();
     });
-    print('👻 鬼生成系统启动 - 检查间隔: 60秒 - 时间: ${DateTime.now()}');
+
   }
 
   /// 检查并生成新的鬼
@@ -2388,7 +2388,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         // 添加播报消息
         addBroadcastMessage('新的鬼出现了！', BroadcastMessageType.system);
       } else {
-        print('⚠️ 无法找到安全的鬼生成位置');
+    
       }
     }
   }
@@ -2404,7 +2404,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         now.isAfter(state.noClipEndTime!)) {
       state = state.copyWith(isNoClipMode: false, noClipEndTime: null);
       needsUpdate = true;
-      print('无视地形模式已结束');
+
     }
 
     // 如果有更新，触发UI刷新
@@ -2448,6 +2448,95 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     } finally {
       _isUpdatingStats = false;
     }
+  }
+
+  /// 安全更新地面物品状态，防止竞争条件
+  void _safeUpdateGroundItems(
+    Map<Point<int>, List<Item>> Function(Map<Point<int>, List<Item>>) updateFunction,
+    String debugInfo,
+  ) {
+    // 检查是否已经被 dispose
+    if (!mounted) {
+      print(
+        '_safeUpdateGroundItems: OptimizedGameStateNotifier 已被 dispose，跳过状态更新',
+      );
+      return;
+    }
+
+    if (_isUpdatingGroundItems) {
+      return;
+    }
+
+    _isUpdatingGroundItems = true;
+    try {
+      final currentGroundItems = Map<Point<int>, List<Item>>.from(state.groundItems);
+      // 应用更新函数（基于当前快照）
+      final updatedGroundItems = updateFunction(currentGroundItems);
+      // 仅合并"被更新的键"，保留最新状态中的其它键值
+      final latestGroundItems = Map<Point<int>, List<Item>>.from(state.groundItems);
+      updatedGroundItems.forEach((key, value) {
+        final prev = currentGroundItems[key];
+        final bool changed = !currentGroundItems.containsKey(key) || prev != value;
+        if (changed) {
+          latestGroundItems[key] = value;
+        }
+      });
+      state = state.copyWith(groundItems: latestGroundItems);
+    } finally {
+      _isUpdatingGroundItems = false;
+    }
+  }
+
+  /// 公开方法：安全更新角色状态（供外部类调用）
+  /// 
+  /// 使用方法：
+  /// final gameStateNotifier = ref.read(optimizedGameStateProvider.notifier);
+  /// gameStateNotifier.safeUpdateCharacterStats((stats) {
+  ///   final updatedStats = Map<String, dynamic>.from(stats);
+  ///   updatedStats['hp'] = updatedStats['hp'] - 10;
+  ///   return updatedStats;
+  /// }, '操作描述');
+  ///
+  /// 内部键的作用：
+  /// - updateFunction: 更新函数，接收当前状态映射，返回更新后的映射
+  /// - debugInfo: 调试信息，用于日志记录
+  ///
+  /// 功能说明：
+  /// 1. 使用_isUpdatingStats标志防止并发更新
+  /// 2. 基于快照应用更新函数
+  /// 3. 仅合并被更新的键，保留最新状态中的其它键值
+  /// 4. 线程安全的状态更新机制
+  void safeUpdateCharacterStats(
+    Map<String, dynamic> Function(Map<String, dynamic>) updateFunction,
+    String debugInfo,
+  ) {
+    _safeUpdateCharacterStats(updateFunction, debugInfo);
+  }
+
+  /// 公开方法：安全更新地面物品状态（供外部类调用）
+  /// 
+  /// 使用方法：
+  /// final gameStateNotifier = ref.read(optimizedGameStateProvider.notifier);
+  /// gameStateNotifier.safeUpdateGroundItems((groundItems) {
+  ///   final updatedItems = Map<Point<int>, List<Item>>.from(groundItems);
+  ///   updatedItems[position] = [item];
+  ///   return updatedItems;
+  /// }, '操作描述');
+  ///
+  /// 内部键的作用：
+  /// - updateFunction: 更新函数，接收当前地面物品映射，返回更新后的映射
+  /// - debugInfo: 调试信息，用于日志记录
+  ///
+  /// 功能说明：
+  /// 1. 使用_isUpdatingGroundItems标志防止并发更新
+  /// 2. 基于快照应用更新函数
+  /// 3. 仅合并被更新的键，保留最新状态中的其它键值
+  /// 4. 线程安全的状态更新机制
+  void safeUpdateGroundItems(
+    Map<Point<int>, List<Item>> Function(Map<Point<int>, List<Item>>) updateFunction,
+    String debugInfo,
+  ) {
+    _safeUpdateGroundItems(updateFunction, debugInfo);
   }
 
   /// 更新饥饿扣血逻辑
@@ -2579,7 +2668,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     // 水中移动速度降低10%
     if (_oxygenSystem?.isUnderwater == true) {
       modifiedSpeed *= 0.9; // 降低10%
-      print('移动速度：水中移动，速度降低10% -> ${modifiedSpeed.toStringAsFixed(1)}');
+  
     }
 
     // 饱食度影响移动速度（关键区域：使用动态 maxFood）
@@ -2850,7 +2939,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('视野计算错误: $e');
+    
       }
     }
   }
@@ -2883,7 +2972,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           now.isAfter(state.noClipEndTime!)) {
         // 无视地形模式已过期，关闭该模式
         state = state.copyWith(isNoClipMode: false, noClipEndTime: null);
-        print('无视地形模式已结束');
+  
       } else {
         // 仍在无视地形模式中，只检查地图边界
         final gridX = x.floor();
@@ -2964,11 +3053,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             isInitialNoClipMode: false,
             noClipEndTime: null,
           );
-          print('初始无碰撞模式已结束');
+    
         }
       });
 
-      print('玩家开始使用摇杆，初始无碰撞模式将在1秒后结束');
+
     }
 
     final movement = state.movementState;
@@ -3515,7 +3604,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     print(
       'isNearChest - 玩家位置: 像素(${state.playerPosition.x}, ${state.playerPosition.y}), 网格($playerGridX, $playerGridY)',
     );
-    print('isNearChest - 宝箱数量: ${state.chestPositions.length}');
+
 
     for (final chestPos in state.chestPositions) {
       final distance = _calculateDistance(playerPos, chestPos);
@@ -3524,11 +3613,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       );
       if (distance <= 1.5) {
         // 允许1.5格的交互距离
-        print('isNearChest - 玩家靠近宝箱，距离: $distance <= 1.5');
+  
         return true;
       }
     }
-    print('isNearChest - 玩家不靠近任何宝箱');
+    
     return false;
   }
 
@@ -3536,7 +3625,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void openChestAtPosition(Point<int> chestPosition) {
     // 检查宝箱是否存在
     if (!state.chestPositions.contains(chestPosition)) {
-      print('openChestAtPosition - 宝箱不存在于指定位置');
+  
       return;
     }
 
@@ -3592,9 +3681,9 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
   /// 打开宝箱（原有的距离检查方法）
   void openChest() {
-    print('openChest - 开始执行');
+
     if (!isNearChest()) {
-      print('openChest - 玩家不靠近宝箱，退出');
+      
       return;
     }
 
@@ -3602,7 +3691,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final playerGridY = ((state.playerPosition.y - 10.0) / 40).round();
     final playerPos = Point(playerGridX, playerGridY);
 
-    print('openChest - 玩家位置: ($playerGridX, $playerGridY)');
+
 
     // 找到最近的宝箱
     Point<int>? nearestChest;
@@ -3610,7 +3699,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     for (final chestPos in state.chestPositions) {
       final distance = _calculateDistance(playerPos, chestPos);
-      print('openChest - 检查宝箱: (${chestPos.x}, ${chestPos.y}), 距离: $distance');
+  
       if (distance <= 1.5 && distance < minDistance) {
         minDistance = distance;
         nearestChest = chestPos;
@@ -3628,7 +3717,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       // 使用进度条机制打开宝箱
       openChestAtPosition(nearestChest);
     } else {
-      print('openChest - 未找到可打开的宝箱');
+  
     }
   }
 
@@ -3730,7 +3819,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     final chestPositions = <Point<int>>[];
 
     if (suitablePositions.isEmpty) {
-      print('警告：没有找到适合放置宝箱的位置');
+  
       return chestPositions;
     }
 
@@ -3919,7 +4008,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 如果当前宝箱数量已经足够，不需要补充
     if (currentChestCount >= targetChestCount) {
-      print('宝箱数量充足 ($currentChestCount/$targetChestCount)，无需补充');
+
       return;
     }
 
@@ -3940,7 +4029,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
             .toList();
 
     if (availablePositions.isEmpty) {
-      print('警告：没有可用的位置来补充宝箱');
+
       return;
     }
 
@@ -4033,21 +4122,20 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
     return true; // 购买成功
   }
 
-  /// 将物品掉落到地面
+  /// 将物品掉落到地面（线程安全）
   void _dropItemToGround(Item item, Point<int> position) {
-    final currentGroundItems = Map<Point<int>, List<Item>>.from(
-      state.groundItems,
-    );
-
-    // 如果该位置已有物品，添加到列表中；否则创建新列表
-    if (currentGroundItems.containsKey(position)) {
-      currentGroundItems[position]!.add(item);
-    } else {
-      currentGroundItems[position] = [item];
-    }
-
-    // 更新状态
-    state = state.copyWith(groundItems: currentGroundItems);
+    _safeUpdateGroundItems((currentGroundItems) {
+      final updatedGroundItems = Map<Point<int>, List<Item>>.from(currentGroundItems);
+      
+      // 如果该位置已有物品，添加到列表中；否则创建新列表
+      if (updatedGroundItems.containsKey(position)) {
+        updatedGroundItems[position]!.add(item);
+      } else {
+        updatedGroundItems[position] = [item];
+      }
+      
+      return updatedGroundItems;
+    }, '掉落物品到地面');
   }
 
   /// 从地面拾取物品
@@ -4155,11 +4243,11 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       newInventory.add(item);
     }
 
-    // 更新状态
-    state = state.copyWith(
-      playerInventory: newInventory,
-      groundItems: currentGroundItems,
-    );
+    // 更新背包状态
+    state = state.copyWith(playerInventory: newInventory);
+
+    // 使用线程安全方法更新地面物品
+    _safeUpdateGroundItems((_) => currentGroundItems, '从地面拾取物品');
 
     // 添加拾取成功的播报消息
     addBroadcastMessage(
@@ -4265,6 +4353,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
               level: invItem.level,
               equipmentSlot: invItem.equipmentSlot,
               weaponParams: invItem.weaponParams,
+              plantable: invItem.plantable,
+              plantParams: invItem.plantParams,
             );
             remaining -= addCount;
           }
@@ -4294,6 +4384,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: item.level,
           equipmentSlot: item.equipmentSlot,
           weaponParams: item.weaponParams,
+          plantable: item.plantable,
+          plantParams: item.plantParams,
         );
 
         if (targetIndex >= inventory.length) {
@@ -4422,6 +4514,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: firstItem.level,
           equipmentSlot: firstItem.equipmentSlot,
           weaponParams: firstItem.weaponParams,
+          plantable: firstItem.plantable,
+          plantParams: firstItem.plantParams,
         );
       } else {
         inventory.removeAt(first);
@@ -4446,6 +4540,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: secondItem.level,
           equipmentSlot: secondItem.equipmentSlot,
           weaponParams: secondItem.weaponParams,
+          plantable: secondItem.plantable,
+          plantParams: secondItem.plantParams,
         );
       } else {
         inventory.removeAt(adjustedSecond);
@@ -4570,6 +4666,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       level: template.level,
       equipmentSlot: template.equipmentSlot,
       weaponParams: template.weaponParams,
+      plantable: template.plantable,
+      plantParams: template.plantParams,
     );
 
     // 消耗材料：按堆叠索引批量扣减
@@ -4594,6 +4692,8 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
           level: cur.level,
           equipmentSlot: cur.equipmentSlot,
           weaponParams: cur.weaponParams,
+          plantable: cur.plantable,
+          plantParams: cur.plantParams,
         );
       } else {
         inventory.removeAt(idx);
@@ -5048,9 +5148,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
     // 随机获得物品
     final randomItems = _getRandomChestItems();
-    print(
-      '_completeChestExploration - 获得物品: ${randomItems.map((item) => item.name).toList()}',
-    );
+
 
     // 关键区域：背包容量检查——满背包时，宝箱物品自动掉落在地上
     final updatedInventory = List<Item>.from(state.playerInventory);
@@ -5097,7 +5195,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
         BroadcastMessageType.item,
         duration: const Duration(seconds: 3),
       );
-      print('_completeChestExploration - 显示消息: 打开宝箱获得：$itemNames');
+
     }
 
     // 智能补充宝箱：只在宝箱数量不足时添加新宝箱
@@ -5775,7 +5873,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
   void unstuckPlayer() {
     // 检查是否已经被 dispose
     if (!mounted) {
-      print('unstuckPlayer: OptimizedGameStateNotifier 已被 dispose，跳过执行');
+  
       return;
     }
 
@@ -5914,16 +6012,16 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       onHealthDamage: (damage) {
         // 检查是否已经被 dispose
         if (!mounted) {
-          print('氧气系统：OptimizedGameStateNotifier 已被 dispose，跳过伤害处理');
+      
           return;
         }
 
-        print('氧气系统：收到伤害回调 $damage');
+  
         // 氧气耗尽时扣除生命值 - 参考饱食度扣血方案
         _safeUpdateCharacterStats((currentStats) {
-          print('氧气系统：当前统计数据 $currentStats');
+      
           final currentHp = currentStats['hp'] ?? 0;
-          print('氧气系统：当前生命值 $currentHp');
+          
 
           // 当氧气耗尽且生命值大于0时，扣除生命值
           if (currentHp > 0) {
@@ -5936,13 +6034,13 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
               currentStats['maxHp'] ?? 100,
             );
 
-            print('氧气系统：计算新生命值 $newHp (原值: $currentHp, 伤害: $damageAmount)');
+
 
             // 检测生命值变化并触发伤害效果
             final hpChanged = currentHp != newHp;
 
             if (hpChanged) {
-              print('氧气系统：生命值发生变化，更新状态');
+  
               // 更新生命值
               updatedStats['hp'] = newHp.toDouble();
 
@@ -5966,10 +6064,10 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
 
               return updatedStats;
             } else {
-              print('氧气系统：生命值未发生变化');
+  
             }
           } else {
-            print('氧气系统：生命值已为0，不扣血');
+
           }
 
           // 没有变化，返回原状态
@@ -5979,7 +6077,7 @@ class OptimizedGameStateNotifier extends StateNotifier<OptimizedGameState> {
       onVisionChange: (visionMultiplier) {
         // 检查是否已经被 dispose
         if (!mounted) {
-          print('氧气系统：OptimizedGameStateNotifier 已被 dispose，跳过视野变化处理');
+    
           return;
         }
 

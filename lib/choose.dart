@@ -966,7 +966,7 @@ class _TiltCardState extends State<TiltCard> {
                       width: widget.isCompact ? 35 : 40,
                       height: widget.isCompact ? 35 : 40,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(5),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.3),
                           width: 1,
@@ -980,7 +980,7 @@ class _TiltCardState extends State<TiltCard> {
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(5),
                         child: Image.asset(
                           item.image,
                           fit: BoxFit.cover,

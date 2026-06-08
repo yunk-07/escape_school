@@ -97,7 +97,6 @@ class _ModernMapRendererState extends State<ModernMapRenderer> {
         _imagesLoaded = true;
       });
     } catch (e) {
-      print('加载图片时出错: $e');
       setState(() {
         _imagesLoaded = true; // 即使出错也设置为true，使用颜色块作为后备
       });
@@ -111,7 +110,6 @@ class _ModernMapRendererState extends State<ModernMapRenderer> {
       final frame = await codec.getNextFrame();
       return frame.image;
     } catch (e) {
-      print('无法加载图片 $assetPath: $e');
       return null;
     }
   }

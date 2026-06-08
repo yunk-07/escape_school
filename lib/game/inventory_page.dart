@@ -293,7 +293,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage>
                       colors: [Colors.red.shade600, Colors.red.shade700],
                     ),
                     // 关键区域：调整退出按钮圆角为更小值
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(5),
                     border: Border.all(
                       color: Colors.redAccent.withOpacity(0.55),
                       width: 1,
